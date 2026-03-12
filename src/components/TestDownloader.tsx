@@ -73,7 +73,7 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
           />
 
           <div className="mb-5">
-            <h3 className="text-[16px] font-medium mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            <h3 className="text-[16px] font-medium mb-1" style={{ fontFamily: "'Sora', sans-serif" }}>
               Generate Maestro & Detox Test Suite
             </h3>
             <p className="text-[13px]" style={{ color: 'var(--gray)' }}>
@@ -158,7 +158,7 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
               style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }}
             />
             <div>
-              <div className="text-[14px] font-medium mb-0.5" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+              <div className="text-[14px] font-medium mb-0.5" style={{ fontFamily: "'Sora', sans-serif" }}>
                 {tests.length} test {tests.length === 1 ? 'file' : 'files'} generated
               </div>
               {expiresAt && (

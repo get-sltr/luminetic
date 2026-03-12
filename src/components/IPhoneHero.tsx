@@ -55,7 +55,7 @@ function HudPanel({
       </div>
       <div
         className="text-[13px] font-normal tracking-normal normal-case"
-        style={{ color: 'rgba(255,255,255,0.7)', fontFamily: "'Space Grotesk', sans-serif" }}
+        style={{ color: 'rgba(255,255,255,0.7)', fontFamily: "'Sora', sans-serif" }}
       >
         {value}
       </div>

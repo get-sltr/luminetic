@@ -21,7 +21,7 @@ export default function Home() {
         <div
           className="text-sm font-normal tracking-[4px] uppercase mb-12 animate-jarvis-flicker"
           style={{
-            fontFamily: "'Space Grotesk', sans-serif",
+            fontFamily: "'Sora', sans-serif",
             color: 'var(--pink)',
             opacity: 0,
             animationDelay: '0.5s',
@@ -36,7 +36,7 @@ export default function Home() {
         <h1
           className="text-[40px] md:text-[56px] font-bold leading-[1.1] tracking-tight mb-6 animate-jarvis-text-in"
           style={{
-            fontFamily: "'Space Grotesk', sans-serif",
+            fontFamily: "'Sora', sans-serif",
             letterSpacing: '-2px',
             animationDelay: '2.5s',
           }}

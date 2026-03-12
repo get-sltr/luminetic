@@ -78,7 +78,7 @@ function ScoreGauge({ score }: { score: number }) {
           className="w-[76px] h-[76px] rounded-full flex flex-col items-center justify-center"
           style={{ background: '#000' }}
         >
-          <span className="text-2xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif", color }}>{score}</span>
+          <span className="text-2xl font-bold" style={{ fontFamily: "'Sora', sans-serif", color }}>{score}</span>
           <span className="text-[9px] tracking-[2px] uppercase" style={{ color: 'var(--gray)' }}>/ 100</span>
         </div>
       </div>
@@ -135,7 +135,7 @@ export default function AnalysisResults({ result }: { result: MergedResult }) {
           <div className="flex flex-wrap gap-3">
             {(guidelines as Guideline[]).map((g) => (
               <div key={g.section} className="px-3 py-2" style={{ background: 'rgba(255,45,120,0.04)', border: '1px solid var(--pink-dim)' }}>
-                <span className="text-[11px] font-medium" style={{ color: 'var(--pink)', fontFamily: "'Space Grotesk', sans-serif" }}>
+                <span className="text-[11px] font-medium" style={{ color: 'var(--pink)', fontFamily: "'Sora', sans-serif" }}>
                   §{g.section}
                 </span>
                 <span className="text-[12px] ml-2" style={{ color: 'rgba(255,255,255,0.7)' }}>{g.name}</span>
@@ -200,7 +200,7 @@ export default function AnalysisResults({ result }: { result: MergedResult }) {
                 <div className="flex items-start gap-4">
                   <span
                     className="shrink-0 w-7 h-7 flex items-center justify-center text-[11px] font-bold rounded-full"
-                    style={{ background: 'rgba(255,45,120,0.1)', border: '1px solid var(--pink-dim)', color: 'var(--pink)', fontFamily: "'Space Grotesk', sans-serif" }}
+                    style={{ background: 'rgba(255,45,120,0.1)', border: '1px solid var(--pink-dim)', color: 'var(--pink)', fontFamily: "'Sora', sans-serif" }}
                   >
                     {action.priority}
                   </span>

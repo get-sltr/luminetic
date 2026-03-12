@@ -87,7 +87,7 @@ function FeatureCard({ name, desc, index }: { name: string; desc: string; index:
       </div>
       <h3
         className="text-lg font-medium mb-2.5 text-white"
-        style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+        style={{ fontFamily: "'Sora', sans-serif" }}
       >
         {name}
       </h3>
@@ -142,7 +142,7 @@ export default function Features() {
         ref={titleRef}
         className="text-4xl font-semibold tracking-tight mb-16 animate-jarvis-text-in"
         style={{
-          fontFamily: "'Space Grotesk', sans-serif",
+          fontFamily: "'Sora', sans-serif",
           animationPlayState: 'paused',
           animationDelay: '0.2s',
         }}

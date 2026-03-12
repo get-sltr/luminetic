@@ -119,7 +119,7 @@ export default function AnalyzePage() {
         <div className="text-[11px] tracking-[4px] uppercase mb-2" style={{ color: 'var(--pink)' }}>
           Dual-Model Analysis
         </div>
-        <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+        <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Sora', sans-serif" }}>
           Analyze rejection
         </h1>
       </div>
@@ -136,7 +136,7 @@ export default function AnalyzePage() {
               rows={12}
               placeholder="Paste Apple's review feedback or rejection notice here..."
               className="w-full px-5 py-4 text-sm bg-transparent text-white outline-none resize-none transition-all duration-300 leading-relaxed"
-              style={{ border: '1px solid var(--panel-border)', fontFamily: "'Inter', sans-serif" }}
+              style={{ border: '1px solid var(--panel-border)', fontFamily: "'Sora', sans-serif" }}
               onFocus={(e) => (e.target.style.borderColor = 'var(--pink-dim)')}
               onBlur={(e) => (e.target.style.borderColor = 'var(--panel-border)')}
             />

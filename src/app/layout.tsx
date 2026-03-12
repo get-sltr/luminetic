@@ -1,15 +1,11 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Sora } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({
+const sora = Sora({
   subsets: ["latin"],
-  variable: "--font-inter",
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-space",
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-sora",
 });
 
 export const metadata: Metadata = {
@@ -42,7 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${spaceGrotesk.variable} antialiased`}>
+      <body className={`${sora.variable} antialiased`}>
         {children}
       </body>
     </html>

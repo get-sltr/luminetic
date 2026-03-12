@@ -87,7 +87,7 @@ export default async function MemoryPage() {
         <div className="text-[11px] tracking-[4px] uppercase mb-2" style={{ color: 'var(--pink)' }}>
           Build Memory
         </div>
-        <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+        <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Sora', sans-serif" }}>
           Submission Intelligence
         </h1>
         <p className="text-[14px] mt-2" style={{ color: 'var(--gray)' }}>
@@ -126,7 +126,7 @@ export default async function MemoryPage() {
               >
                 <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }} />
                 <div className="text-[10px] tracking-[3px] uppercase mb-2" style={{ color: 'var(--gray)' }}>{stat.label}</div>
-                <div className="text-[28px] font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif", color: stat.color || 'var(--white)' }}>
+                <div className="text-[28px] font-bold" style={{ fontFamily: "'Sora', sans-serif", color: stat.color || 'var(--white)' }}>
                   {stat.value}
                 </div>
               </div>
@@ -194,7 +194,7 @@ export default async function MemoryPage() {
                       </div>
                     </div>
                     <div className="text-right shrink-0 ml-4">
-                      <div className="text-[20px] font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif", color: '#fbbf24' }}>
+                      <div className="text-[20px] font-bold" style={{ fontFamily: "'Sora', sans-serif", color: '#fbbf24' }}>
                         {data.count}x
                       </div>
                       <div className="text-[10px]" style={{ color: 'var(--gray)' }}>occurrences</div>
@@ -218,7 +218,7 @@ export default async function MemoryPage() {
                   <div key={section} className="flex items-center gap-4 py-2 border-b" style={{ borderColor: 'var(--panel-border)' }}>
                     <span className="text-[12px] font-mono shrink-0 w-12" style={{ color: 'var(--pink)' }}>§{section}</span>
                     <span className="text-[13px] flex-1" style={{ color: 'var(--gray)' }}>{data.name}</span>
-                    <span className="text-[13px] font-medium shrink-0" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                    <span className="text-[13px] font-medium shrink-0" style={{ fontFamily: "'Sora', sans-serif" }}>
                       {data.count} {data.count === 1 ? 'scan' : 'scans'}
                     </span>
                   </div>

@@ -27,7 +27,7 @@ export default function AppNav({ email, plan }: { email: string; plan: string })
       <div className="flex justify-between items-center py-4 px-10" style={{ maxWidth: '1100px', margin: '0 auto' }}>
         <Link href="/dashboard" className="flex items-center gap-2 no-underline">
           <div className="w-2 h-2 rounded-full" style={{ background: 'var(--pink)', boxShadow: '0 0 12px var(--pink-dim)' }} />
-          <span className="text-[20px] font-bold tracking-tight text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+          <span className="text-[20px] font-bold tracking-tight text-white" style={{ fontFamily: "'Sora', sans-serif" }}>
             Luminetic
           </span>
         </Link>

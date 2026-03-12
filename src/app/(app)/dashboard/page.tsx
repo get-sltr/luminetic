@@ -29,7 +29,7 @@ export default async function DashboardPage() {
         <div className="text-[11px] tracking-[4px] uppercase mb-2" style={{ color: 'var(--pink)' }}>
           Overview
         </div>
-        <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+        <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Sora', sans-serif" }}>
           Dashboard
         </h1>
       </div>
@@ -54,7 +54,7 @@ export default async function DashboardPage() {
             <div className="text-[11px] tracking-[3px] uppercase mb-3" style={{ color: 'var(--gray)' }}>
               {label}
             </div>
-            <div className="text-3xl font-bold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            <div className="text-3xl font-bold" style={{ fontFamily: "'Sora', sans-serif" }}>
               {value}
             </div>
           </div>
@@ -71,7 +71,7 @@ export default async function DashboardPage() {
           style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }}
         />
         <div>
-          <h2 className="text-xl font-semibold mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+          <h2 className="text-xl font-semibold mb-1" style={{ fontFamily: "'Sora', sans-serif" }}>
             Run a new analysis
           </h2>
           <p className="text-[13px]" style={{ color: 'var(--gray)' }}>
@@ -90,7 +90,7 @@ export default async function DashboardPage() {
       {/* Recent scans */}
       <div>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-semibold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+          <h2 className="text-lg font-semibold" style={{ fontFamily: "'Sora', sans-serif" }}>
             Recent scans
           </h2>
           {recentScans.length > 0 && (
@@ -126,7 +126,7 @@ export default async function DashboardPage() {
                 <span
                   className="text-[13px] font-medium px-3 py-1"
                   style={{
-                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontFamily: "'Sora', sans-serif",
                     color: scan.score >= 80 ? '#4ade80' : scan.score >= 60 ? '#facc15' : '#f87171',
                     background: scan.score >= 80 ? 'rgba(74,222,128,0.05)' : scan.score >= 60 ? 'rgba(250,204,21,0.05)' : 'rgba(248,113,113,0.05)',
                     border: `1px solid ${scan.score >= 80 ? 'rgba(74,222,128,0.2)' : scan.score >= 60 ? 'rgba(250,204,21,0.2)' : 'rgba(248,113,113,0.2)'}`,

@@ -25,7 +25,7 @@ html {
 body {
   background: var(--black);
   color: var(--white);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sora), 'Sora', sans-serif;
   font-weight: 300;
   overflow-x: hidden;
 }

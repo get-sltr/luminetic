@@ -18,7 +18,7 @@ export default function Header() {
         />
         <span
           className="text-[22px] font-bold tracking-tight text-white"
-          style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+          style={{ fontFamily: "'Sora', sans-serif" }}
         >
           Luminetic
         </span>

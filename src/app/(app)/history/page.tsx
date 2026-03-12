@@ -14,7 +14,7 @@ export default async function HistoryPage() {
         <div className="text-[11px] tracking-[4px] uppercase mb-2" style={{ color: 'var(--pink)' }}>
           Build Memory
         </div>
-        <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+        <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Sora', sans-serif" }}>
           Scan history
         </h1>
       </div>
@@ -50,7 +50,7 @@ export default async function HistoryPage() {
                 <span
                   className="text-[22px] font-bold tabular-nums"
                   style={{
-                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontFamily: "'Sora', sans-serif",
                     color: scan.score >= 80 ? '#4ade80' : scan.score >= 60 ? '#facc15' : '#f87171',
                     minWidth: '56px',
                   }}

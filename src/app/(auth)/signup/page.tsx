@@ -43,7 +43,7 @@ export default function SignupPage() {
       <div className="w-full max-w-[400px]">
         <div className="flex items-center gap-2 mb-12">
           <div className="w-2 h-2 rounded-full" style={{ background: 'var(--pink)', boxShadow: '0 0 12px var(--pink-dim)' }} />
-          <span className="text-[20px] font-bold tracking-tight" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+          <span className="text-[20px] font-bold tracking-tight" style={{ fontFamily: "'Sora', sans-serif" }}>
             Luminetic
           </span>
         </div>
@@ -51,7 +51,7 @@ export default function SignupPage() {
         <div className="text-[11px] tracking-[4px] uppercase mb-3" style={{ color: 'var(--pink)' }}>
           Get started
         </div>
-        <h1 className="text-3xl font-semibold mb-2" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+        <h1 className="text-3xl font-semibold mb-2" style={{ fontFamily: "'Sora', sans-serif" }}>
           Create account
         </h1>
         <p className="text-[13px] mb-8" style={{ color: 'var(--gray)' }}>
