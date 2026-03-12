@@ -118,7 +118,7 @@ function PriceCard({
       </ul>
 
       <a
-        href="#"
+        href="/signup"
         className="block w-full mt-7 py-3 text-center text-[12px] tracking-[1.5px] uppercase text-white border no-underline transition-all duration-300"
         style={{
           borderColor: featured ? 'var(--pink)' : 'var(--panel-border)',
@@ -169,7 +169,7 @@ export default function Pricing() {
   }, []);
 
   return (
-    <section id="pricing" className="relative z-[1] px-6 md:px-12 py-[120px] max-w-[1100px] mx-auto">
+    <section id="pricing" className="relative z-[1] px-8 md:px-16 py-[140px] max-w-[1200px] mx-auto">
       <div
         ref={labelRef}
         className="text-[11px] tracking-[4px] uppercase font-normal mb-4 animate-jarvis-text-in"
@@ -188,7 +188,7 @@ export default function Pricing() {
       >
         Start free. Scale when ready.
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {tiers.map((t, i) => (
           <PriceCard key={t.tier} {...t} index={i} />
         ))}

@@ -9,7 +9,7 @@ export default function Header() {
     >
       <div
         className="flex justify-between items-center py-6 px-10"
-        style={{ maxWidth: '1100px', margin: '0 auto', width: '100%' }}
+        style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}
       >
       <Link href="/" className="flex items-center gap-2 no-underline">
         <div
@@ -48,7 +48,7 @@ export default function Header() {
           </Link>
         ))}
         <Link
-          href="#"
+          href="/signup"
           className="px-5 py-2 text-[12px] tracking-[1.5px] uppercase text-white border transition-all duration-300 no-underline hover:shadow-[0_0_30px_var(--pink-glow)]"
           style={{ borderColor: 'var(--pink)', background: 'transparent' }}
           onMouseEnter={(e) => {

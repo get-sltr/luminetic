@@ -66,7 +66,7 @@ function HudPanel({
 export default function IPhoneHero() {
   return (
     <div
-      className="relative mb-[60px] flex items-center justify-center w-full"
+      className="relative mb-[80px] flex items-center justify-center w-full py-8"
       style={{
         opacity: 0,
         animation: 'jarvisPhoneIn 1.2s 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards',

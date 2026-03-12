@@ -1,7 +1,7 @@
 export default function Footer() {
   return (
     <footer
-      className="relative z-[1] px-6 md:px-12 py-[60px] flex justify-between items-center max-w-[1100px] mx-auto border-t"
+      className="relative z-[1] px-8 md:px-16 py-[80px] flex justify-between items-center max-w-[1200px] mx-auto border-t"
       style={{ borderColor: 'var(--panel-border)' }}
     >
       <div className="text-xs tracking-[1px]" style={{ color: 'var(--gray-dim)' }}>

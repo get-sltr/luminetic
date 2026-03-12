@@ -16,10 +16,10 @@ export default function Home() {
       <Header />
 
       {/* Hero Section */}
-      <section className="relative z-[1] min-h-screen flex flex-col items-center justify-center pt-[140px] pb-20 px-6 md:px-12 text-center">
+      <section className="relative z-[1] min-h-screen flex flex-col items-center justify-center pt-[160px] pb-28 px-8 md:px-16 text-center">
         {/* Tagline */}
         <div
-          className="text-sm font-normal tracking-[4px] uppercase mb-10 animate-jarvis-flicker"
+          className="text-sm font-normal tracking-[4px] uppercase mb-12 animate-jarvis-flicker"
           style={{
             fontFamily: "'Space Grotesk', sans-serif",
             color: 'var(--pink)',
@@ -34,7 +34,7 @@ export default function Home() {
 
         {/* Headline */}
         <h1
-          className="text-[36px] md:text-[52px] font-bold leading-[1.1] tracking-tight mb-5 animate-jarvis-text-in"
+          className="text-[40px] md:text-[56px] font-bold leading-[1.1] tracking-tight mb-6 animate-jarvis-text-in"
           style={{
             fontFamily: "'Space Grotesk', sans-serif",
             letterSpacing: '-2px',
@@ -52,7 +52,7 @@ export default function Home() {
         </h1>
 
         <p
-          className="text-base max-w-[440px] leading-relaxed mb-10 animate-jarvis-text-in"
+          className="text-[16px] max-w-[480px] leading-[1.7] mb-12 animate-jarvis-text-in"
           style={{ color: 'var(--gray)', animationDelay: '2.8s' }}
         >
           AI-powered pre-flight checks for App Store submission. Know exactly what reviewers will
@@ -61,7 +61,7 @@ export default function Home() {
 
         {/* CTA */}
         <a
-          href="#"
+          href="/signup"
           className="group relative inline-flex items-center gap-2.5 px-8 py-3.5 border text-[13px] font-normal tracking-[2px] uppercase text-white no-underline overflow-hidden transition-all duration-400 animate-jarvis-text-in"
           style={{
             borderColor: 'var(--pink)',
