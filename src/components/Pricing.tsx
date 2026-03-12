@@ -4,31 +4,24 @@ import { useEffect, useRef } from 'react';
 
 const tiers = [
   {
-    tier: 'Free',
-    price: '$0',
-    period: '/ forever',
-    features: ['1 scan per month', 'Basic checklist', 'URL health checks'],
-    featured: false,
-  },
-  {
-    tier: 'Indie',
-    price: '$19',
-    period: '/ month',
-    features: ['5 scans per month', 'AI readiness check', 'Review packet generator'],
+    tier: 'Starter',
+    price: '$15',
+    period: '/ 1 scan',
+    features: ['1 dual-model AI analysis', 'Pre-flight checklist', 'Review packet generator', 'Action plan with priorities'],
     featured: false,
   },
   {
     tier: 'Pro',
-    price: '$49',
-    period: '/ month',
-    features: ['Unlimited scans', 'App Store Connect integration', 'Team seats'],
+    price: '$40',
+    period: '/ 3 scans',
+    features: ['3 dual-model AI analyses', 'Maestro & Detox test gen', 'Build Memory intelligence', 'Score trend tracking'],
     featured: true,
   },
   {
     tier: 'Agency',
     price: '$149',
-    period: '/ month',
-    features: ['Multi-app support', 'Client dashboards', 'White-label packets', 'API access'],
+    period: '/ 10 scans',
+    features: ['10 dual-model AI analyses', 'Everything in Pro', 'Multi-app support', 'Priority analysis'],
     featured: false,
   },
 ];
@@ -186,9 +179,9 @@ export default function Pricing() {
           animationDelay: '0.2s',
         }}
       >
-        Start free. Scale when ready.
+        Pay per scan. No subscription.
       </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {tiers.map((t, i) => (
           <PriceCard key={t.tier} {...t} index={i} />
         ))}

@@ -25,11 +25,31 @@ export async function putUser(userId: string, email: string) {
       email,
       plan: "free",
       scanCount: 0,
+      scanCredits: 0,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
     ConditionExpression: "attribute_not_exists(PK)",
   }));
+}
+
+export async function useScanCredit(userId: string): Promise<boolean> {
+  try {
+    await db.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+      UpdateExpression: "ADD scanCredits :dec SET updatedAt = :now",
+      ConditionExpression: "scanCredits > :zero",
+      ExpressionAttributeValues: {
+        ":dec": -1,
+        ":zero": 0,
+        ":now": new Date().toISOString(),
+      },
+    }));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function getUser(userId: string) {

@@ -4,7 +4,7 @@
 import { NextRequest } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyToken } from "@/lib/auth";
-import { putScan, getUser, getMonthlyScansCount } from "@/lib/db";
+import { putScan, getUser, useScanCredit } from "@/lib/db";
 import { z } from "zod";
 import {
   BedrockRuntimeClient,
@@ -105,25 +105,28 @@ export async function POST(request: NextRequest) {
   const accessToken = request.cookies.get("access_token")?.value;
   const authUser = accessToken ? await verifyToken(accessToken) : null;
 
-  // Plan limits
-  const PLAN_LIMITS: Record<string, number> = { free: 1, indie: 5, pro: 999999, agency: 999999 };
-
+  // Credit check
   if (authUser) {
     try {
       const userRecord = await getUser(authUser.userId);
-      const plan = (userRecord?.plan as string) || "free";
-      const limit = PLAN_LIMITS[plan] ?? 1;
-      const used = await getMonthlyScansCount(authUser.userId);
-      if (used >= limit) {
+      const credits = (userRecord?.scanCredits as number) || 0;
+      if (credits <= 0) {
         return new Response(
-          JSON.stringify({ error: `You've reached your ${plan} plan limit of ${limit} scan${limit === 1 ? '' : 's'} this month. Upgrade for more.` }),
+          JSON.stringify({ error: "No scan credits remaining. Purchase a scan pack to continue." }),
+          { status: 429, headers: { "Content-Type": "application/json" } }
+        );
+      }
+      const used = await useScanCredit(authUser.userId);
+      if (!used) {
+        return new Response(
+          JSON.stringify({ error: "No scan credits remaining. Purchase a scan pack to continue." }),
           { status: 429, headers: { "Content-Type": "application/json" } }
         );
       }
     } catch (err) {
-      console.error("Plan check error:", err);
+      console.error("Credit check error:", err);
       return new Response(
-        JSON.stringify({ error: "Unable to verify plan limits. Please try again." }),
+        JSON.stringify({ error: "Unable to verify credits. Please try again." }),
         { status: 503, headers: { "Content-Type": "application/json" } }
       );
     }

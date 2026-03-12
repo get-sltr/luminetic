@@ -1,21 +1,18 @@
 import { getAuthUser } from '@/lib/auth';
-import { getUser, getScans, getMonthlyScansCount } from '@/lib/db';
+import { getUser, getScans } from '@/lib/db';
 import Link from 'next/link';
-
-const PLAN_LIMITS: Record<string, number> = { free: 1, indie: 5, pro: 999999, agency: 999999 };
 
 export default async function DashboardPage() {
   const authUser = await getAuthUser();
   if (!authUser) return null;
 
-  const [profile, scans, monthlyUsed] = await Promise.all([
+  const [profile, scans] = await Promise.all([
     getUser(authUser.userId),
     getScans(authUser.userId, 5),
-    getMonthlyScansCount(authUser.userId),
   ]);
 
   const plan = (profile?.plan as string) || 'free';
-  const limit = PLAN_LIMITS[plan] ?? 1;
+  const credits = (profile?.scanCredits as number) || 0;
   const scanCount = (profile?.scanCount as number) || 0;
   const recentScans = scans as Array<{ scanId: string; score: number; createdAt: string }>;
   const avgScore = recentScans.length
@@ -38,12 +35,12 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-12">
         {[
           { label: 'Total Scans', value: scanCount.toString() },
-          { label: 'Avg Readiness Score', value: avgScore !== null ? `${avgScore}/100` : '—' },
-          { label: 'This Month', value: limit > 9999 ? `${monthlyUsed} used` : `${monthlyUsed} / ${limit}` },
+          { label: 'Avg Score', value: avgScore !== null ? `${avgScore}/100` : '—' },
+          { label: 'Credits Left', value: credits.toString(), color: credits > 0 ? '#34d399' : '#ff6b6b' },
           { label: 'Plan', value: plan.toUpperCase() },
-        ].map(({ label, value }) => (
+        ].map((stat) => (
           <div
-            key={label}
+            key={stat.label}
             className="p-6 relative overflow-hidden"
             style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
           >
@@ -52,10 +49,10 @@ export default async function DashboardPage() {
               style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }}
             />
             <div className="text-[11px] tracking-[3px] uppercase mb-3" style={{ color: 'var(--gray)' }}>
-              {label}
+              {stat.label}
             </div>
-            <div className="text-3xl font-bold" style={{ fontFamily: "'Sora', sans-serif" }}>
-              {value}
+            <div className="text-3xl font-bold" style={{ fontFamily: "'Sora', sans-serif", color: ('color' in stat && stat.color) ? stat.color as string : 'var(--white)' }}>
+              {stat.value}
             </div>
           </div>
         ))}
@@ -86,6 +83,27 @@ export default async function DashboardPage() {
           Analyze Now →
         </Link>
       </div>
+
+      {/* Buy Credits */}
+      {credits <= 0 && (
+        <div
+          className="p-8 mb-12 relative overflow-hidden"
+          style={{ background: 'var(--panel-bg)', border: '1px solid rgba(255,107,107,0.2)' }}
+        >
+          <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(255,107,107,0.4), transparent)' }} />
+          <h2 className="text-lg font-semibold mb-2" style={{ fontFamily: "'Sora', sans-serif" }}>
+            No scan credits remaining
+          </h2>
+          <p className="text-[13px] mb-5" style={{ color: 'var(--gray)' }}>
+            Purchase a scan pack to run AI-powered analyses.
+          </p>
+          <div className="flex gap-3">
+            <Link href="/pricing" className="px-5 py-2.5 text-[12px] tracking-[2px] uppercase text-white no-underline" style={{ background: 'var(--pink)', border: '1px solid var(--pink)' }}>
+              Buy Credits →
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Recent scans */}
       <div>

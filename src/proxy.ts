@@ -17,6 +17,7 @@ const PUBLIC_PATHS = [
   "/api/auth/verify",
   "/api/auth/refresh",
   "/api/analyze",
+  "/api/webhooks",
 ];
 
 export async function proxy(request: NextRequest) {
