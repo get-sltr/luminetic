@@ -97,6 +97,36 @@ export async function getScans(userId: string, limit = 20) {
   return res.Items || [];
 }
 
+export async function getMonthlyScansCount(userId: string): Promise<number> {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const res = await db.send(new QueryCommand({
+    TableName: TABLE,
+    KeyConditionExpression: "PK = :pk AND SK BETWEEN :start AND :end",
+    ExpressionAttributeValues: {
+      ":pk": `USER#${userId}`,
+      ":start": `SCAN#${monthStart}`,
+      ":end": `SCAN#${now.toISOString()}~`,
+    },
+    Select: "COUNT",
+  }));
+  return res.Count || 0;
+}
+
+export async function getAllScansWithIssues(userId: string) {
+  const res = await db.send(new QueryCommand({
+    TableName: TABLE,
+    KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
+    ExpressionAttributeValues: {
+      ":pk": `USER#${userId}`,
+      ":prefix": "SCAN#",
+    },
+    ScanIndexForward: false,
+    ProjectionExpression: "scanId, score, createdAt, mergedResult",
+  }));
+  return res.Items || [];
+}
+
 export async function getScan(userId: string, scanId: string) {
   // Query by GSI to find by scanId
   const res = await db.send(new QueryCommand({

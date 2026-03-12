@@ -49,33 +49,57 @@ export default function AnalyzePage() {
     setStep('gemini');
 
     try {
-      // Simulate step progression while waiting for response
-      const geminiTimer = setTimeout(() => setStep('claude'), 3500);
-      const claudeTimer = setTimeout(() => setStep('saving'), 7000);
-
-      const res = await fetch('/api/analyze', {
+      const res = await fetch('/api/analyze-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ feedback: feedback.trim() }),
       });
 
-      clearTimeout(geminiTimer);
-      clearTimeout(claudeTimer);
-
-      const data = await res.json();
-
       if (!res.ok) {
+        const data = await res.json();
         setError(data.error || 'Analysis failed.');
         setStep('error');
         return;
       }
 
-      setStep('saving');
-      await new Promise((r) => setTimeout(r, 400));
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error('No stream');
 
-      setResult(data.result);
-      setScanId(data.scanId || null);
-      setStep('done');
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        let eventType = '';
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith('data: ') && eventType) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (eventType === 'status') {
+                if (data.step === 'gemini') setStep('gemini');
+                else if (data.step === 'gemini_done' || data.step === 'claude') setStep('claude');
+                else if (data.step === 'claude_done' || data.step === 'merging') setStep('saving');
+              } else if (eventType === 'result') {
+                setResult(data.result);
+                setScanId(data.scanId || null);
+                setStep('done');
+              } else if (eventType === 'error') {
+                setError(data.error || 'Analysis failed.');
+                setStep('error');
+              }
+            } catch { /* skip malformed */ }
+            eventType = '';
+          }
+        }
+      }
     } catch {
       setError('Something went wrong. Please try again.');
       setStep('error');

@@ -4,6 +4,7 @@ import { getScan } from "@/lib/db";
 import { generateTests } from "@/lib/test-gen/generator";
 import { uploadTestZip } from "@/lib/test-gen/s3";
 import { AnalysisIssue } from "@/lib/test-gen/types";
+import { z } from "zod";
 import { DynamoDBDocumentClient, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
@@ -20,15 +21,14 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { scanId, includeDetox = false, appId } = body as {
-      scanId: string;
-      includeDetox?: boolean;
-      appId?: string;
-    };
 
-    if (!scanId || typeof scanId !== "string") {
-      return NextResponse.json({ error: "scanId is required." }, { status: 400 });
-    }
+    const schema = z.object({
+      scanId: z.string().min(1, "scanId is required."),
+      includeDetox: z.boolean().optional().default(false),
+      appId: z.string().max(200).optional(),
+    });
+
+    const { scanId, includeDetox, appId } = schema.parse(body);
 
     // Fetch scan
     const scan = await getScan(user.userId, scanId);
@@ -92,6 +92,9 @@ export async function POST(request: NextRequest) {
       })),
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.issues[0]?.message || "Invalid input." }, { status: 400 });
+    }
     console.error("[generate-tests] Error:", error);
     return NextResponse.json(
       {

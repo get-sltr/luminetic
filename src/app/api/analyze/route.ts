@@ -6,7 +6,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyToken } from "@/lib/auth";
-import { putScan } from "@/lib/db";
+import { putScan, getUser, getMonthlyScansCount } from "@/lib/db";
+import { z } from "zod";
 import {
   BedrockRuntimeClient,
   InvokeModelCommand,
@@ -460,20 +461,40 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const feedback = body.email || body.feedback || body.text;
 
-    if (!feedback || typeof feedback !== "string" || feedback.trim().length < 10) {
-      return NextResponse.json(
-        { error: "Please paste valid App Store review feedback (minimum 10 characters)." },
-        { status: 400 }
-      );
-    }
+    const schema = z.object({
+      feedback: z.string().min(10, "Please paste valid App Store review feedback (minimum 10 characters).").max(10000).optional(),
+      email: z.string().min(10).max(10000).optional(),
+      text: z.string().min(10).max(10000).optional(),
+    }).refine((d) => d.feedback || d.email || d.text, {
+      message: "Please paste valid App Store review feedback (minimum 10 characters).",
+    });
 
-    const trimmedFeedback = feedback.trim().slice(0, 10000);
+    const parsed = schema.parse(body);
+    const trimmedFeedback = (parsed.feedback || parsed.email || parsed.text)!.trim().slice(0, 10000);
 
     // Check if user is authenticated (save scan if so)
     const accessToken = request.cookies.get("access_token")?.value;
     const authUser = accessToken ? await verifyToken(accessToken) : null;
+
+    // Plan limits
+    const PLAN_LIMITS: Record<string, number> = { free: 1, indie: 5, pro: 999999, agency: 999999 };
+    if (authUser) {
+      try {
+        const userRecord = await getUser(authUser.userId);
+        const plan = (userRecord?.plan as string) || "free";
+        const limit = PLAN_LIMITS[plan] ?? 1;
+        const used = await getMonthlyScansCount(authUser.userId);
+        if (used >= limit) {
+          return NextResponse.json(
+            { error: `You've reached your ${plan} plan limit of ${limit} scan${limit === 1 ? '' : 's'} this month. Upgrade for more.` },
+            { status: 429 }
+          );
+        }
+      } catch (err) {
+        console.error("Plan check error:", err);
+      }
+    }
 
     // LAYER 1: Gemini initial scan
     const geminiResult = await analyzeWithGemini(trimmedFeedback);
@@ -507,6 +528,12 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.issues[0]?.message || "Invalid input." },
+        { status: 400 }
+      );
+    }
     console.error("Analysis route error:", error);
     return NextResponse.json(
       {
