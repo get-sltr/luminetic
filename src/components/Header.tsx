@@ -25,7 +25,7 @@ export default function Header() {
       </Link>
 
       <nav className="flex items-center gap-9">
-        {['Features', 'Pricing', 'Docs'].map((label) => (
+        {['Features', 'Pricing'].map((label) => (
           <Link
             key={label}
             href={`#${label.toLowerCase()}`}

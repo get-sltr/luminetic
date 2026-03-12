@@ -245,7 +245,8 @@ async function analyzeWithClaude(
 
     const response = await bedrock.send(command);
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-    const raw = responseBody.content[0].text;
+    const raw = responseBody?.content?.[0]?.text;
+    if (!raw) throw new Error("Empty response from Bedrock");
     const cleaned = raw.replace(/```json\s*|```/g, "").trim();
     const data = JSON.parse(cleaned);
 
@@ -493,6 +494,10 @@ export async function POST(request: NextRequest) {
         }
       } catch (err) {
         console.error("Plan check error:", err);
+        return NextResponse.json(
+          { error: "Unable to verify plan limits. Please try again." },
+          { status: 503 }
+        );
       }
     }
 

@@ -122,6 +122,10 @@ export async function POST(request: NextRequest) {
       }
     } catch (err) {
       console.error("Plan check error:", err);
+      return new Response(
+        JSON.stringify({ error: "Unable to verify plan limits. Please try again." }),
+        { status: 503, headers: { "Content-Type": "application/json" } }
+      );
     }
   }
 
@@ -137,8 +141,8 @@ export async function POST(request: NextRequest) {
         let geminiLatency = 0;
         let geminiSuccess = false;
 
+        const gStart = Date.now();
         try {
-          const gStart = Date.now();
           const apiKey = await getGeminiKey();
           const genAI = new GoogleGenerativeAI(apiKey);
           const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro", generationConfig: { temperature: 0.2, maxOutputTokens: 4096 } });
@@ -149,12 +153,11 @@ export async function POST(request: NextRequest) {
           const raw = result.response.text();
           const cleaned = raw.replace(/```json\s*|```/g, "").trim();
           geminiData = JSON.parse(cleaned);
-          geminiLatency = Date.now() - gStart;
           geminiSuccess = true;
         } catch (err) {
           console.error("[Gemini error]", err);
-          geminiLatency = Date.now() - totalStart;
         }
+        geminiLatency = Date.now() - gStart;
 
         sendEvent(controller, "status", { step: "gemini_done", success: geminiSuccess, latency: geminiLatency });
 
@@ -164,9 +167,9 @@ export async function POST(request: NextRequest) {
         let claudeData: Record<string, unknown> | null = null;
         let claudeLatency = 0;
         let claudeSuccess = false;
+        const cStart = Date.now();
 
         try {
-          const cStart = Date.now();
           const userMessage = geminiData
             ? `ORIGINAL REVIEW FEEDBACK FROM APPLE:\n${trimmedFeedback}\n\nINITIAL ANALYSIS FROM GEMINI:\n${JSON.stringify(geminiData, null, 2)}\n\nPlease validate, correct, and enhance the above analysis.`
             : `ORIGINAL REVIEW FEEDBACK FROM APPLE:\n${trimmedFeedback}\n\nNOTE: The initial Gemini analysis failed. Please provide a complete standalone analysis in the confirmation format. Treat all issues as claude_added.`;
@@ -188,15 +191,15 @@ export async function POST(request: NextRequest) {
 
           const response = await bedrock.send(command);
           const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-          const raw = responseBody.content[0].text;
+          const raw = responseBody?.content?.[0]?.text;
+          if (!raw) throw new Error("Empty response from Bedrock");
           const cleaned = raw.replace(/```json\s*|```/g, "").trim();
           claudeData = JSON.parse(cleaned);
-          claudeLatency = Date.now() - cStart;
           claudeSuccess = true;
         } catch (err) {
           console.error("[Claude error]", err);
-          claudeLatency = Date.now() - (totalStart + geminiLatency);
         }
+        claudeLatency = Date.now() - cStart;
 
         sendEvent(controller, "status", { step: "claude_done", success: claudeSuccess, latency: claudeLatency });
 

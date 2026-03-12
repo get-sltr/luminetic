@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const url = new URL(request.url);
-  const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 50);
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "20", 10), 50);
 
   const scans = await getScans(user.userId, limit);
   return NextResponse.json({ success: true, data: scans });

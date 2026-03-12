@@ -21,9 +21,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Authentication failed." }, { status: 401 });
     }
 
-    // Decode sub from access token (it's a JWT — no need to verify here, middleware does that)
-    const payload = JSON.parse(Buffer.from(tokens.AccessToken.split(".")[1], "base64url").toString());
-    const userId = payload.sub as string;
+    // Decode sub from access token
+    const parts = tokens.AccessToken.split(".");
+    if (parts.length !== 3 || !parts[1]) {
+      return NextResponse.json({ error: "Authentication failed." }, { status: 401 });
+    }
+    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+    const userId = payload?.sub as string;
+    if (!userId) {
+      return NextResponse.json({ error: "Authentication failed." }, { status: 401 });
+    }
 
     // Ensure user record exists in DynamoDB
     try {
