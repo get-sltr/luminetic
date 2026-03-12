@@ -7,22 +7,28 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {/* Background effects */}
-      <div className="grid-bg" />
-      <div className="glow-orb glow-orb-1" />
-      <div className="glow-orb glow-orb-2" />
-      <div className="glow-orb glow-orb-3" />
-      <div className="scan-line" />
+    <div className="relative min-h-screen">
+      {/* Ambient glows */}
+      <div className="bg-glow-1" />
+      <div className="bg-glow-2" />
 
       {/* Content */}
       <div className="relative z-10">
 
-        {/* Nav */}
-        <nav className="flex items-center justify-between max-w-[1100px] mx-auto px-6 py-7 md:px-10">
+        {/* ── Nav ── */}
+        <nav className="flex items-center justify-between max-w-[1200px] mx-auto px-8 py-8 md:px-12">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#ff2d78] shadow-[0_0_20px_rgba(255,45,120,0.5)]" />
-            <span className="text-lg font-bold text-white tracking-tight" style={{ fontFamily: "var(--font-space)" }}>
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: "linear-gradient(135deg, #7c3aed, #6d28d9)" }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+            </div>
+            <span className="text-[18px] font-bold text-white tracking-tight" style={{ fontFamily: "var(--font-space)" }}>
               AppReady
             </span>
           </div>
@@ -34,7 +40,9 @@ export default function Home() {
             <a href="#about" className="nav-link">About</a>
           </div>
 
-          <a href="#try" className="desktop-cta btn-ghost">Try Free</a>
+          <a href="#try" className="desktop-cta btn-ghost" style={{ padding: "10px 24px", fontSize: 13 }}>
+            Get Started
+          </a>
 
           <button
             className="mobile-menu-btn"
@@ -53,60 +61,89 @@ export default function Home() {
 
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div
-            className="md:hidden animate-fade-in glass-card-static mx-6 mb-6 p-6 flex flex-col gap-4"
-          >
+          <div className="md:hidden animate-fade-in glass-card-static mx-6 mb-6 p-6 flex flex-col gap-4">
             <a href="#features" className="nav-link text-base" onClick={() => setMobileMenuOpen(false)}>Features</a>
             <a href="#how" className="nav-link text-base" onClick={() => setMobileMenuOpen(false)}>How It Works</a>
             <a href="#pricing" className="nav-link text-base" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
             <a href="#about" className="nav-link text-base" onClick={() => setMobileMenuOpen(false)}>About</a>
-            <a href="#try" className="btn-primary mt-2 text-center" onClick={() => setMobileMenuOpen(false)}>Try Free</a>
+            <a href="#try" className="btn-primary mt-2 text-center" onClick={() => setMobileMenuOpen(false)}>Get Started</a>
           </div>
         )}
 
-        {/* Hero */}
-        <section className="flex flex-col items-center text-center max-w-[850px] mx-auto px-6 pt-24 pb-20 md:pt-32 md:pb-24">
-          <div className="status-badge mb-10 animate-fade-up" style={{ animationDelay: "0.1s" }}>
-            <span className="status-dot" />
-            AI-Powered Submission Readiness
-          </div>
+        {/* ── Hero ── */}
+        <section className="max-w-[1200px] mx-auto px-8 pt-16 pb-32 md:pt-24 md:pb-40 md:px-12">
+          <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
 
-          <h1
-            className="text-[clamp(42px,8vw,80px)] font-bold leading-[1.02] tracking-[-0.04em] text-white mb-8 animate-fade-up"
-            style={{ fontFamily: "var(--font-space)", animationDelay: "0.2s" }}
-          >
-            Ship your app
-            <br />
-            <span className="shimmer-text">reviewer-ready</span>
-          </h1>
+            {/* Left: text */}
+            <div className="flex-1 text-center lg:text-left">
+              <div
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-[12px] font-medium text-[#a78bfa] mb-10 animate-fade-up"
+                style={{
+                  background: "rgba(124, 58, 237, 0.08)",
+                  border: "1px solid rgba(124, 58, 237, 0.12)",
+                  fontFamily: "var(--font-space)",
+                  letterSpacing: "0.05em",
+                  animationDelay: "0.1s",
+                }}
+              >
+                <span className="w-[6px] h-[6px] rounded-full bg-[#22c55e] shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+                AI-Powered Readiness
+              </div>
 
-          <p
-            className="text-[17px] leading-[1.7] text-white/35 max-w-[440px] mb-12 animate-fade-up"
-            style={{ animationDelay: "0.3s" }}
-          >
-            Paste your review feedback. Get an action plan in 60 seconds.
-            <br />
-            No signup required.
-          </p>
+              <h1
+                className="text-[clamp(38px,6vw,64px)] font-bold leading-[1.08] tracking-[-0.035em] text-white mb-7 animate-fade-up"
+                style={{ fontFamily: "var(--font-space)", animationDelay: "0.2s" }}
+              >
+                Ship your app{" "}
+                <span className="gradient-text">reviewer-ready</span>
+              </h1>
 
-          <div className="flex gap-4 animate-fade-up" style={{ animationDelay: "0.4s" }}>
-            <a href="#try" className="btn-primary">Get Started Free</a>
-            <a href="#features" className="btn-ghost">Learn More</a>
+              <p
+                className="text-[17px] leading-[1.75] text-white/40 max-w-[460px] mb-10 mx-auto lg:mx-0 animate-fade-up"
+                style={{ animationDelay: "0.3s" }}
+              >
+                Paste your review feedback from App Store Connect. Get a clear action plan in 60 seconds. No signup required.
+              </p>
+
+              <div className="flex flex-wrap gap-4 justify-center lg:justify-start animate-fade-up" style={{ animationDelay: "0.4s" }}>
+                <a href="#try" className="btn-primary">Get Started Free</a>
+                <a href="#features" className="btn-ghost">Explore Features</a>
+              </div>
+            </div>
+
+            {/* Right: orb visual */}
+            <div className="flex-shrink-0 animate-fade-up" style={{ animationDelay: "0.3s" }}>
+              <div className="hero-orb-wrap">
+                <div className="hero-orb-glow" />
+                <div className="hero-orb-outer" />
+                <div className="hero-orb-mid" />
+                <div className="hero-orb-inner" />
+
+                {/* Floating icons */}
+                <div className="orb-icon" style={{ top: "5%", left: "50%", transform: "translateX(-50%)", animationDelay: "0s" }}>📋</div>
+                <div className="orb-icon" style={{ top: "30%", right: "-8%", animationDelay: "0.8s" }}>✓</div>
+                <div className="orb-icon" style={{ bottom: "10%", right: "5%", animationDelay: "1.6s" }}>🔒</div>
+                <div className="orb-icon" style={{ bottom: "5%", left: "10%", animationDelay: "2.4s" }}>⚡</div>
+                <div className="orb-icon" style={{ top: "35%", left: "-8%", animationDelay: "3.2s" }}>📱</div>
+              </div>
+            </div>
           </div>
         </section>
 
-        {/* Parser */}
-        <section id="try" className="max-w-[660px] mx-auto px-6 pb-20">
+        {/* ── Parser ── */}
+        <section id="try" className="max-w-[700px] mx-auto px-8 pb-32">
+          <p className="section-label">Try It Now</p>
+          <h2
+            className="text-[clamp(22px,3vw,30px)] font-bold text-white text-center mb-10 tracking-[-0.02em]"
+            style={{ fontFamily: "var(--font-space)" }}
+          >
+            Paste your review feedback
+          </h2>
           <RejectionParser />
         </section>
 
-        {/* Social proof */}
-        <p className="text-center text-[13px] text-white/15 pb-28">
-          Helping developers meet App Store standards since day one.
-        </p>
-
-        {/* Features */}
-        <section id="features" className="max-w-[1080px] mx-auto px-6 pb-32">
+        {/* ── Features ── */}
+        <section id="features" className="max-w-[1100px] mx-auto px-8 pb-36 md:px-12">
           <p className="section-label">Features</p>
           <h2 className="section-heading">Everything you need to ship</h2>
           <div className="features-grid">
@@ -114,27 +151,32 @@ export default function Home() {
               {
                 num: "01",
                 title: "Smart Analysis Engine",
-                desc: "Upload your IPA or connect your repo. Scans Info.plist, entitlements, privacy manifests, IAP config, permissions, and screenshots.",
+                desc: "Scans Info.plist, entitlements, privacy manifests, IAP config, permissions, and screenshots for compliance.",
               },
               {
                 num: "02",
                 title: "AI Readiness Check",
-                desc: "Powered by AI that understands Apple's Review Guidelines and Human Interface Guidelines inside and out.",
+                desc: "Powered by AI trained on Apple's Review Guidelines and Human Interface Guidelines.",
               },
               {
                 num: "03",
                 title: "Review Packet Generator",
-                desc: "Auto-generates demo credentials, testing steps, and reviewer notes. Paste directly into App Store Connect.",
+                desc: "Auto-generates demo credentials, testing steps, and reviewer notes for App Store Connect.",
               },
               {
                 num: "04",
                 title: "Build Memory",
-                desc: "Tracks every submission. When you upload Build 61, it knows what was flagged on Build 58 and checks if it's resolved.",
+                desc: "Tracks every submission. Flags recurring issues and cross-references past feedback automatically.",
               },
               {
                 num: "05",
                 title: "Completeness Dashboard",
-                desc: "Pre-flight checklist: privacy policy, account deletion, screenshots, IAP products, age rating, export compliance. Readiness score 0–100.",
+                desc: "Pre-flight checklist covering privacy, account deletion, screenshots, IAP, age rating, and export compliance.",
+              },
+              {
+                num: "06",
+                title: "Readiness Score",
+                desc: "Get a 0–100 submission readiness score so you know exactly where you stand before submitting.",
               },
             ].map((f) => (
               <div key={f.num} className="glass-card p-8">
@@ -145,17 +187,17 @@ export default function Home() {
                 >
                   {f.title}
                 </h3>
-                <p className="text-[14px] leading-[1.6] text-white/25">{f.desc}</p>
+                <p className="text-[14px] leading-[1.65] text-white/30">{f.desc}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* How it works */}
-        <section id="how" className="max-w-[700px] mx-auto px-6 pb-32">
+        {/* ── How it works ── */}
+        <section id="how" className="max-w-[720px] mx-auto px-8 pb-36">
           <p className="section-label">How it works</p>
           <h2 className="section-heading">Three steps to submission</h2>
-          <div className="flex flex-col gap-10">
+          <div className="flex flex-col gap-12">
             {[
               {
                 step: "1",
@@ -177,20 +219,20 @@ export default function Home() {
                 <div className="step-number">{s.step}</div>
                 <div>
                   <h3
-                    className="text-[16px] font-bold text-white mb-2"
+                    className="text-[17px] font-bold text-white mb-2"
                     style={{ fontFamily: "var(--font-space)" }}
                   >
                     {s.title}
                   </h3>
-                  <p className="text-[14px] leading-[1.6] text-white/30">{s.desc}</p>
+                  <p className="text-[15px] leading-[1.7] text-white/35">{s.desc}</p>
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Pricing */}
-        <section id="pricing" className="max-w-[1000px] mx-auto px-6 pb-32">
+        {/* ── Pricing ── */}
+        <section id="pricing" className="max-w-[1060px] mx-auto px-8 pb-36 md:px-12">
           <p className="section-label">Pricing</p>
           <h2 className="section-heading">Start free, scale when ready</h2>
           <div className="pricing-grid">
@@ -200,7 +242,7 @@ export default function Home() {
                 price: "$0",
                 period: "forever",
                 desc: "For your first submission",
-                features: ["1 scan/month", "Basic checklist", "URL health checks"],
+                features: ["1 scan / month", "Basic checklist", "URL health checks"],
                 cta: "Get Started",
                 highlight: false,
               },
@@ -209,7 +251,7 @@ export default function Home() {
                 price: "$19",
                 period: "/month",
                 desc: "For active developers",
-                features: ["5 scans/month", "AI Readiness Check", "Review Packet Generator", "Build history"],
+                features: ["5 scans / month", "AI Readiness Check", "Review Packet Generator", "Build history"],
                 cta: "Start Indie",
                 highlight: true,
               },
@@ -226,7 +268,7 @@ export default function Home() {
                 name: "Agency",
                 price: "$149",
                 period: "/month",
-                desc: "For dev teams and agencies",
+                desc: "For teams & agencies",
                 features: ["Unlimited scans", "Multi-app support", "Client dashboards", "White-label packets", "API access"],
                 cta: "Contact Us",
                 highlight: false,
@@ -234,27 +276,27 @@ export default function Home() {
             ].map((plan) => (
               <div
                 key={plan.name}
-                className={plan.highlight ? "glass-card-highlight p-8 flex flex-col" : "glass-card p-8 flex flex-col"}
+                className={`${plan.highlight ? "glass-card-highlight" : "glass-card"} p-8 flex flex-col`}
               >
                 <span
-                  className="text-[12px] font-semibold tracking-[0.1em] uppercase mb-4"
+                  className="text-[12px] font-semibold tracking-[0.1em] uppercase mb-5"
                   style={{
                     fontFamily: "var(--font-space)",
-                    color: plan.highlight ? "#ff2d78" : "rgba(255,255,255,0.4)",
+                    color: plan.highlight ? "#a78bfa" : "rgba(255,255,255,0.4)",
                   }}
                 >
                   {plan.name}
                 </span>
-                <div className="mb-2">
+                <div className="mb-3">
                   <span
-                    className="text-[40px] font-bold text-white tracking-[-0.03em]"
+                    className="text-[42px] font-bold text-white tracking-[-0.03em]"
                     style={{ fontFamily: "var(--font-space)" }}
                   >
                     {plan.price}
                   </span>
                   <span className="text-[14px] text-white/30 ml-1">{plan.period}</span>
                 </div>
-                <p className="text-[14px] text-white/25 mb-6">{plan.desc}</p>
+                <p className="text-[14px] text-white/25 mb-7">{plan.desc}</p>
                 <ul className="list-none mb-8 grow">
                   {plan.features.map((feat) => (
                     <li key={feat} className="pricing-feature">{feat}</li>
@@ -271,22 +313,22 @@ export default function Home() {
           </div>
         </section>
 
-        {/* About */}
-        <section id="about" className="max-w-[600px] mx-auto px-6 pb-32 text-center">
+        {/* ── About ── */}
+        <section id="about" className="max-w-[640px] mx-auto px-8 pb-36 text-center">
           <p className="section-label">About</p>
           <h2 className="section-heading">Built for the ecosystem</h2>
-          <p className="text-[15px] leading-[1.8] text-white/30 mb-4">
+          <p className="text-[16px] leading-[1.85] text-white/30 mb-5">
             App Store Review keeps the ecosystem safe and high-quality. AppReady helps you align with those standards before you submit — so the process is smooth for everyone.
           </p>
-          <p className="text-[15px] leading-[1.8] text-white/30">
+          <p className="text-[16px] leading-[1.85] text-white/30">
             We built an AI that understands Apple&apos;s guidelines inside and out, so you can ship complete, stable, reviewer-ready apps every time.
           </p>
         </section>
 
-        {/* CTA */}
-        <section className="max-w-[600px] mx-auto px-6 pb-32 text-center">
+        {/* ── CTA ── */}
+        <section className="max-w-[640px] mx-auto px-8 pb-36 text-center">
           <p
-            className="text-[clamp(24px,4vw,36px)] font-bold text-white mb-6 tracking-[-0.03em]"
+            className="text-[clamp(24px,4vw,38px)] font-bold text-white mb-8 tracking-[-0.03em] leading-[1.2]"
             style={{ fontFamily: "var(--font-space)" }}
           >
             Ready to submit with confidence?
@@ -294,14 +336,14 @@ export default function Home() {
           <a href="#try" className="btn-primary">Try Free Now</a>
         </section>
 
-        {/* Footer */}
-        <footer className="text-center pb-12">
-          <div className="flex justify-center gap-8 mb-6 text-[13px]">
+        {/* ── Footer ── */}
+        <footer className="text-center pb-14 pt-8" style={{ borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+          <div className="flex justify-center gap-10 mb-6 text-[13px]">
             <a href="#features" className="nav-link">Features</a>
             <a href="#pricing" className="nav-link">Pricing</a>
             <a href="#about" className="nav-link">About</a>
           </div>
-          <p className="text-[11px] text-white/10 tracking-[0.05em]">
+          <p className="text-[11px] text-white/10 tracking-[0.06em]">
             SLTR Digital LLC &middot; AppReady
           </p>
         </footer>
