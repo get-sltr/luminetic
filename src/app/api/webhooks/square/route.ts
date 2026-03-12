@@ -57,15 +57,25 @@ export async function POST(request: NextRequest) {
     const event = JSON.parse(rawBody);
     const eventType = event.type as string;
 
-    // Handle payment completed
-    if (eventType === "payment.completed" || eventType === "order.fulfillment.updated") {
-      const order = event.data?.object?.order || event.data?.object?.payment?.order;
-      const metadata = order?.metadata;
+    // Handle payment events
+    if (eventType === "payment.created" || eventType === "payment.updated") {
+      const payment = event.data?.object?.payment;
+      const status = payment?.status;
 
-      if (metadata?.userId && metadata?.scans) {
-        const userId = metadata.userId;
-        const scansToAdd = parseInt(metadata.scans, 10);
-        const packId = metadata.packId || "unknown";
+      // Only process completed payments
+      if (status !== "COMPLETED") {
+        console.log(`[square-webhook] Payment status ${status}, skipping`);
+        return NextResponse.json({ received: true });
+      }
+
+      const order = payment?.order || event.data?.object?.order;
+      // Square checkout stores metadata on the order
+      const orderMetadata = order?.metadata;
+
+      if (orderMetadata?.userId && orderMetadata?.scans) {
+        const userId = orderMetadata.userId;
+        const scansToAdd = parseInt(orderMetadata.scans, 10);
+        const packId = orderMetadata.packId || "unknown";
 
         // Add scan credits to user
         await db.send(
