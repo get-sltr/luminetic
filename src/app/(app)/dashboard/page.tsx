@@ -12,6 +12,7 @@ export default async function DashboardPage() {
   ]);
 
   const plan = (profile?.plan as string) || 'free';
+  const isFounder = plan === 'founder';
   const credits = (profile?.scanCredits as number) || 0;
   const scanCount = (profile?.scanCount as number) || 0;
   const recentScans = scans as Array<{ scanId: string; score: number; createdAt: string }>;
@@ -36,7 +37,7 @@ export default async function DashboardPage() {
         {[
           { label: 'Total Scans', value: scanCount.toString() },
           { label: 'Avg Score', value: avgScore !== null ? `${avgScore}/100` : '—' },
-          { label: 'Credits Left', value: credits.toString(), color: credits > 0 ? '#34d399' : '#ff6b6b' },
+          { label: 'Credits Left', value: isFounder ? '∞' : credits.toString(), color: isFounder ? '#a78bfa' : credits > 0 ? '#34d399' : '#ff6b6b' },
           { label: 'Plan', value: plan.toUpperCase() },
         ].map((stat) => (
           <div
@@ -85,7 +86,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Buy Credits */}
-      {credits <= 0 && (
+      {!isFounder && credits <= 0 && (
         <div
           className="p-8 mb-12 relative overflow-hidden"
           style={{ background: 'var(--panel-bg)', border: '1px solid rgba(255,107,107,0.2)' }}

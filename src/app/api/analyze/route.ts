@@ -478,23 +478,26 @@ export async function POST(request: NextRequest) {
     const accessToken = request.cookies.get("access_token")?.value;
     const authUser = accessToken ? await verifyToken(accessToken) : null;
 
-    // Credit check
+    // Credit check (founders get unlimited access)
     if (authUser) {
       try {
         const userRecord = await getUser(authUser.userId);
-        const credits = (userRecord?.scanCredits as number) || 0;
-        if (credits <= 0) {
-          return NextResponse.json(
-            { error: "No scan credits remaining. Purchase a scan pack to continue." },
-            { status: 429 }
-          );
-        }
-        const used = await useScanCredit(authUser.userId);
-        if (!used) {
-          return NextResponse.json(
-            { error: "No scan credits remaining. Purchase a scan pack to continue." },
-            { status: 429 }
-          );
+        const isFounder = userRecord?.plan === "founder";
+        if (!isFounder) {
+          const credits = (userRecord?.scanCredits as number) || 0;
+          if (credits <= 0) {
+            return NextResponse.json(
+              { error: "No scan credits remaining. Purchase a scan pack to continue." },
+              { status: 429 }
+            );
+          }
+          const used = await useScanCredit(authUser.userId);
+          if (!used) {
+            return NextResponse.json(
+              { error: "No scan credits remaining. Purchase a scan pack to continue." },
+              { status: 429 }
+            );
+          }
         }
       } catch (err) {
         console.error("Credit check error:", err);
