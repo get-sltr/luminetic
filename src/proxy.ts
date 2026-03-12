@@ -2,10 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify, createRemoteJWKSet } from "jose";
 
 const REGION = process.env.AWS_REGION || "us-east-1";
-const POOL_ID = process.env.COGNITO_USER_POOL_ID!;
-const JWKS = createRemoteJWKSet(
-  new URL(`https://cognito-idp.${REGION}.amazonaws.com/${POOL_ID}/.well-known/jwks.json`)
-);
+
+let _jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+function getJWKS() {
+  if (!_jwks) {
+    const poolId = process.env.COGNITO_USER_POOL_ID;
+    if (!poolId) throw new Error("COGNITO_USER_POOL_ID is not set");
+    _jwks = createRemoteJWKSet(
+      new URL(`https://cognito-idp.${REGION}.amazonaws.com/${poolId}/.well-known/jwks.json`)
+    );
+  }
+  return _jwks;
+}
+function getPoolId() {
+  const id = process.env.COGNITO_USER_POOL_ID;
+  if (!id) throw new Error("COGNITO_USER_POOL_ID is not set");
+  return id;
+}
 
 const PUBLIC_PATHS = [
   "/",
@@ -36,8 +49,8 @@ export async function proxy(request: NextRequest) {
 
   if (accessToken) {
     try {
-      await jwtVerify(accessToken, JWKS, {
-        issuer: `https://cognito-idp.${REGION}.amazonaws.com/${POOL_ID}`,
+      await jwtVerify(accessToken, getJWKS(), {
+        issuer: `https://cognito-idp.${REGION}.amazonaws.com/${getPoolId()}`,
       });
       return NextResponse.next();
     } catch {

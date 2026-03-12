@@ -48,6 +48,6 @@ export async function POST(request: NextRequest) {
     }
     const message = error instanceof Error ? error.message : "Login failed.";
     const status = message.includes("NotAuthorized") || message.includes("Incorrect") ? 401 : 400;
-    return NextResponse.json({ error: "Incorrect email or password.", debug: message }, { status });
+    return NextResponse.json({ error: "Incorrect email or password." }, { status });
   }
 }

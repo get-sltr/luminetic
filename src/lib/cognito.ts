@@ -12,11 +12,15 @@ export const cognitoClient = new CognitoIdentityProviderClient({
   region: process.env.AWS_REGION || "us-east-1",
 });
 
-const CLIENT_ID = process.env.COGNITO_CLIENT_ID!;
+function getClientId() {
+  const id = process.env.COGNITO_CLIENT_ID;
+  if (!id) throw new Error("COGNITO_CLIENT_ID is not set");
+  return id;
+}
 
 export async function signUp(email: string, password: string) {
   const command = new SignUpCommand({
-    ClientId: CLIENT_ID,
+    ClientId: getClientId(),
     Username: email,
     Password: password,
     UserAttributes: [{ Name: "email", Value: email }],
@@ -26,7 +30,7 @@ export async function signUp(email: string, password: string) {
 
 export async function confirmSignUp(email: string, code: string) {
   const command = new ConfirmSignUpCommand({
-    ClientId: CLIENT_ID,
+    ClientId: getClientId(),
     Username: email,
     ConfirmationCode: code,
   });
@@ -36,7 +40,7 @@ export async function confirmSignUp(email: string, code: string) {
 export async function signIn(email: string, password: string) {
   const command = new InitiateAuthCommand({
     AuthFlow: AuthFlowType.USER_PASSWORD_AUTH,
-    ClientId: CLIENT_ID,
+    ClientId: getClientId(),
     AuthParameters: {
       USERNAME: email,
       PASSWORD: password,
@@ -58,7 +62,7 @@ export async function signOut(accessToken: string) {
 export async function refreshSession(refreshToken: string) {
   const command = new InitiateAuthCommand({
     AuthFlow: AuthFlowType.REFRESH_TOKEN_AUTH,
-    ClientId: CLIENT_ID,
+    ClientId: getClientId(),
     AuthParameters: { REFRESH_TOKEN: refreshToken },
   });
   return cognitoClient.send(command);
