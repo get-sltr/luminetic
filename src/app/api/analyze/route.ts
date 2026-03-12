@@ -236,7 +236,7 @@ async function analyzeWithClaude(
     };
 
     const command = new InvokeModelCommand({
-      modelId: "us.anthropic.claude-opus-4-6-v1",
+      modelId: "us.anthropic.claude-opus-4-5-v1",
       contentType: "application/json",
       accept: "application/json",
       body: JSON.stringify(payload),
