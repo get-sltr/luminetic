@@ -13,9 +13,26 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "AppReady - Package your app so Apple says yes on the first try",
+  title: "AppReady - Ship reviewer-ready apps to the App Store",
   description:
-    "AI-powered submission readiness platform. Catch rejections before they happen.",
+    "AI-powered App Store submission readiness. Paste your review feedback, get an action plan in 60 seconds. Meet Apple's guidelines before you submit.",
+  metadataBase: new URL("https://appready.dev"),
+  icons: {
+    icon: "/favicon.svg",
+  },
+  openGraph: {
+    title: "AppReady - Ship reviewer-ready apps to the App Store",
+    description:
+      "AI-powered App Store submission readiness. Paste your review feedback, get an action plan in 60 seconds.",
+    type: "website",
+    siteName: "AppReady",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AppReady - Ship reviewer-ready apps to the App Store",
+    description:
+      "AI-powered App Store submission readiness. Paste your review feedback, get an action plan in 60 seconds.",
+  },
 };
 
 export default function RootLayout({

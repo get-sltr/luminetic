@@ -1,164 +1,115 @@
-import { WaveCanvas } from "@/components/WaveCanvas";
-import { FloatingOrbs } from "@/components/FloatingOrbs";
+"use client";
+
+import { useState } from "react";
 import { RejectionParser } from "@/components/RejectionParser";
 
 export default function Home() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
-    <div style={{ position: "relative", minHeight: "100vh", overflow: "hidden", background: "#000" }}>
-      <WaveCanvas />
-      <FloatingOrbs />
+    <div className="relative min-h-screen overflow-hidden">
+      {/* Background effects */}
+      <div className="grid-bg" />
+      <div className="glow-orb glow-orb-1" />
+      <div className="glow-orb glow-orb-2" />
+      <div className="glow-orb glow-orb-3" />
+      <div className="scan-line" />
 
-      {/* Dot grid */}
-      <div
-        style={{
-          position: "fixed",
-          bottom: 64,
-          right: 64,
-          width: 120,
-          height: 120,
-          opacity: 0.2,
-          pointerEvents: "none",
-          backgroundImage: "radial-gradient(circle, rgba(255, 45, 120, 0.5) 1.2px, transparent 1.2px)",
-          backgroundSize: "14px 14px",
-        }}
-      />
-
-      {/* All content */}
-      <div style={{ position: "relative", zIndex: 10 }}>
+      {/* Content */}
+      <div className="relative z-10">
 
         {/* Nav */}
-        <nav style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          maxWidth: 1100,
-          margin: "0 auto",
-          padding: "28px 40px",
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#ff2d78" }} />
-            <span style={{ fontSize: 18, fontWeight: 700, color: "#fff", fontFamily: "var(--font-space)", letterSpacing: "-0.03em" }}>
+        <nav className="flex items-center justify-between max-w-[1100px] mx-auto px-6 py-7 md:px-10">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-[#ff2d78] shadow-[0_0_20px_rgba(255,45,120,0.5)]" />
+            <span className="text-lg font-bold text-white tracking-tight" style={{ fontFamily: "var(--font-space)" }}>
               AppReady
             </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 40, fontSize: 14, color: "rgba(255,255,255,0.3)" }}>
-            <a href="#features" style={{ color: "inherit", textDecoration: "none" }}>Features</a>
-            <a href="#pricing" style={{ color: "inherit", textDecoration: "none" }}>Pricing</a>
-            <a href="#about" style={{ color: "inherit", textDecoration: "none" }}>About</a>
+          <div className="desktop-nav flex items-center gap-10">
+            <a href="#features" className="nav-link">Features</a>
+            <a href="#how" className="nav-link">How It Works</a>
+            <a href="#pricing" className="nav-link">Pricing</a>
+            <a href="#about" className="nav-link">About</a>
           </div>
 
-          <a
-            href="#try"
-            style={{
-              padding: "10px 24px",
-              borderRadius: 100,
-              fontSize: 13,
-              fontWeight: 500,
-              color: "#fff",
-              border: "1px solid rgba(255,255,255,0.15)",
-              textDecoration: "none",
-              fontFamily: "var(--font-space)",
-            }}
+          <a href="#try" className="desktop-cta btn-ghost">Try Free</a>
+
+          <button
+            className="mobile-menu-btn"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Toggle menu"
           >
-            Try Free
-          </a>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2">
+              {mobileMenuOpen ? (
+                <path d="M18 6L6 18M6 6l12 12" />
+              ) : (
+                <path d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
         </nav>
 
-        {/* Hero */}
-        <section style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          textAlign: "center",
-          maxWidth: 800,
-          margin: "0 auto",
-          padding: "120px 24px 80px",
-        }}>
-          <p style={{
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: "0.3em",
-            textTransform: "uppercase",
-            color: "#ff2d78",
-            marginBottom: 40,
-            fontFamily: "var(--font-space)",
-          }}>
-            Stop getting rejected
-          </p>
+        {/* Mobile menu */}
+        {mobileMenuOpen && (
+          <div
+            className="md:hidden animate-fade-in glass-card-static mx-6 mb-6 p-6 flex flex-col gap-4"
+          >
+            <a href="#features" className="nav-link text-base" onClick={() => setMobileMenuOpen(false)}>Features</a>
+            <a href="#how" className="nav-link text-base" onClick={() => setMobileMenuOpen(false)}>How It Works</a>
+            <a href="#pricing" className="nav-link text-base" onClick={() => setMobileMenuOpen(false)}>Pricing</a>
+            <a href="#about" className="nav-link text-base" onClick={() => setMobileMenuOpen(false)}>About</a>
+            <a href="#try" className="btn-primary mt-2 text-center" onClick={() => setMobileMenuOpen(false)}>Try Free</a>
+          </div>
+        )}
 
-          <h1 style={{
-            fontSize: "clamp(48px, 8vw, 82px)",
-            fontWeight: 700,
-            lineHeight: 1.02,
-            letterSpacing: "-0.04em",
-            color: "#fff",
-            marginBottom: 32,
-            fontFamily: "var(--font-space)",
-          }}>
-            Package your app
+        {/* Hero */}
+        <section className="flex flex-col items-center text-center max-w-[850px] mx-auto px-6 pt-24 pb-20 md:pt-32 md:pb-24">
+          <div className="status-badge mb-10 animate-fade-up" style={{ animationDelay: "0.1s" }}>
+            <span className="status-dot" />
+            AI-Powered Submission Readiness
+          </div>
+
+          <h1
+            className="text-[clamp(42px,8vw,80px)] font-bold leading-[1.02] tracking-[-0.04em] text-white mb-8 animate-fade-up"
+            style={{ fontFamily: "var(--font-space)", animationDelay: "0.2s" }}
+          >
+            Ship your app
             <br />
-            <span style={{ color: "#ff2d78" }}>so Apple says yes</span>
+            <span className="shimmer-text">reviewer-ready</span>
           </h1>
 
-          <p style={{
-            fontSize: 17,
-            lineHeight: 1.7,
-            color: "rgba(255,255,255,0.35)",
-            maxWidth: 420,
-            marginBottom: 80,
-          }}>
-            Paste your rejection email. Get a fix plan in 60 seconds.
+          <p
+            className="text-[17px] leading-[1.7] text-white/35 max-w-[440px] mb-12 animate-fade-up"
+            style={{ animationDelay: "0.3s" }}
+          >
+            Paste your review feedback. Get an action plan in 60 seconds.
             <br />
             No signup required.
           </p>
+
+          <div className="flex gap-4 animate-fade-up" style={{ animationDelay: "0.4s" }}>
+            <a href="#try" className="btn-primary">Get Started Free</a>
+            <a href="#features" className="btn-ghost">Learn More</a>
+          </div>
         </section>
 
         {/* Parser */}
-        <section id="try" style={{ maxWidth: 640, margin: "0 auto", padding: "0 24px 80px" }}>
+        <section id="try" className="max-w-[660px] mx-auto px-6 pb-20">
           <RejectionParser />
         </section>
 
         {/* Social proof */}
-        <p style={{
-          textAlign: "center",
-          fontSize: 13,
-          color: "rgba(255,255,255,0.15)",
-          paddingBottom: 112,
-        }}>
-          Built by an indie dev who burned 60+ builds learning what Apple actually wants.
+        <p className="text-center text-[13px] text-white/15 pb-28">
+          Helping developers meet App Store standards since day one.
         </p>
 
         {/* Features */}
-        <section id="features" style={{ maxWidth: 1060, margin: "0 auto", padding: "0 24px 128px" }}>
-          <h2 style={{
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: "0.3em",
-            textTransform: "uppercase",
-            color: "#ff2d78",
-            textAlign: "center",
-            marginBottom: 16,
-            fontFamily: "var(--font-space)",
-          }}>
-            Features
-          </h2>
-          <p style={{
-            fontSize: "clamp(28px, 4vw, 40px)",
-            fontWeight: 700,
-            color: "#fff",
-            textAlign: "center",
-            marginBottom: 64,
-            fontFamily: "var(--font-space)",
-            letterSpacing: "-0.03em",
-          }}>
-            Everything you need to ship
-          </p>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, 1fr)",
-            gap: 20,
-          }}>
+        <section id="features" className="max-w-[1080px] mx-auto px-6 pb-32">
+          <p className="section-label">Features</p>
+          <h2 className="section-heading">Everything you need to ship</h2>
+          <div className="features-grid">
             {[
               {
                 num: "01",
@@ -167,129 +118,71 @@ export default function Home() {
               },
               {
                 num: "02",
-                title: "AI Review Simulator",
-                desc: "Thinks like an Apple reviewer. Built on a RAG index of 200+ guidelines, HIG, and real rejection patterns.",
+                title: "AI Readiness Check",
+                desc: "Powered by AI that understands Apple's Review Guidelines and Human Interface Guidelines inside and out.",
               },
               {
                 num: "03",
                 title: "Review Packet Generator",
-                desc: "Auto-generates demo credentials, testing steps, and everything the reviewer needs. Pastes directly into App Store Connect.",
+                desc: "Auto-generates demo credentials, testing steps, and reviewer notes. Paste directly into App Store Connect.",
               },
               {
                 num: "04",
                 title: "Build Memory",
-                desc: "Remembers every submission. When you upload Build 61, it knows Build 58 was rejected for 2.1(b) and checks if you fixed it.",
+                desc: "Tracks every submission. When you upload Build 61, it knows what was flagged on Build 58 and checks if it's resolved.",
               },
               {
                 num: "05",
                 title: "Completeness Dashboard",
-                desc: "Pre-flight checklist: privacy policy, account deletion, screenshots, IAP products, age rating, export compliance. Readiness score 0-100.",
+                desc: "Pre-flight checklist: privacy policy, account deletion, screenshots, IAP products, age rating, export compliance. Readiness score 0–100.",
               },
             ].map((f) => (
-              <div
-                key={f.num}
-                style={{
-                  borderRadius: 16,
-                  padding: 32,
-                  background: "rgba(255,255,255,0.02)",
-                  border: "1px solid rgba(255,255,255,0.05)",
-                }}
-              >
-                <span style={{ display: "block", fontSize: 12, fontFamily: "monospace", color: "#ff2d78", marginBottom: 20 }}>
-                  {f.num}
-                </span>
-                <h3 style={{
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: "#fff",
-                  marginBottom: 12,
-                  fontFamily: "var(--font-space)",
-                  letterSpacing: "-0.01em",
-                }}>
+              <div key={f.num} className="glass-card p-8">
+                <span className="feature-num">{f.num}</span>
+                <h3
+                  className="text-[16px] font-bold text-white mb-3 tracking-[-0.01em]"
+                  style={{ fontFamily: "var(--font-space)" }}
+                >
                   {f.title}
                 </h3>
-                <p style={{ fontSize: 14, lineHeight: 1.6, color: "rgba(255,255,255,0.25)" }}>
-                  {f.desc}
-                </p>
+                <p className="text-[14px] leading-[1.6] text-white/25">{f.desc}</p>
               </div>
             ))}
           </div>
         </section>
 
         {/* How it works */}
-        <section style={{ maxWidth: 700, margin: "0 auto", padding: "0 24px 128px" }}>
-          <h2 style={{
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: "0.3em",
-            textTransform: "uppercase",
-            color: "#ff2d78",
-            textAlign: "center",
-            marginBottom: 16,
-            fontFamily: "var(--font-space)",
-          }}>
-            How it works
-          </h2>
-          <p style={{
-            fontSize: "clamp(28px, 4vw, 40px)",
-            fontWeight: 700,
-            color: "#fff",
-            textAlign: "center",
-            marginBottom: 64,
-            fontFamily: "var(--font-space)",
-            letterSpacing: "-0.03em",
-          }}>
-            Three steps to approval
-          </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 40 }}>
+        <section id="how" className="max-w-[700px] mx-auto px-6 pb-32">
+          <p className="section-label">How it works</p>
+          <h2 className="section-heading">Three steps to submission</h2>
+          <div className="flex flex-col gap-10">
             {[
               {
                 step: "1",
-                title: "Paste your rejection",
-                desc: "Copy the email from Apple Resolution Center and drop it in.",
+                title: "Paste your review feedback",
+                desc: "Copy the feedback from App Store Connect and drop it in.",
               },
               {
                 step: "2",
-                title: "Get your fix plan",
-                desc: "AI analyzes the exact guideline, explains the issue, and gives you step-by-step fixes.",
+                title: "Get your action plan",
+                desc: "AI identifies the relevant guideline, explains what needs attention, and gives you step-by-step fixes.",
               },
               {
                 step: "3",
-                title: "Resubmit with confidence",
+                title: "Submit with confidence",
                 desc: "Follow the plan, attach the auto-generated review packet, and ship.",
               },
             ].map((s) => (
-              <div key={s.step} style={{ display: "flex", gap: 24, alignItems: "flex-start" }}>
-                <div style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: "50%",
-                  background: "rgba(255, 45, 120, 0.1)",
-                  border: "1px solid rgba(255, 45, 120, 0.2)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: "#ff2d78",
-                  fontFamily: "var(--font-space)",
-                  flexShrink: 0,
-                }}>
-                  {s.step}
-                </div>
+              <div key={s.step} className="flex gap-6 items-start">
+                <div className="step-number">{s.step}</div>
                 <div>
-                  <h3 style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: "#fff",
-                    marginBottom: 6,
-                    fontFamily: "var(--font-space)",
-                  }}>
+                  <h3
+                    className="text-[16px] font-bold text-white mb-2"
+                    style={{ fontFamily: "var(--font-space)" }}
+                  >
                     {s.title}
                   </h3>
-                  <p style={{ fontSize: 14, lineHeight: 1.6, color: "rgba(255,255,255,0.3)" }}>
-                    {s.desc}
-                  </p>
+                  <p className="text-[14px] leading-[1.6] text-white/30">{s.desc}</p>
                 </div>
               </div>
             ))}
@@ -297,41 +190,16 @@ export default function Home() {
         </section>
 
         {/* Pricing */}
-        <section id="pricing" style={{ maxWidth: 960, margin: "0 auto", padding: "0 24px 128px" }}>
-          <h2 style={{
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: "0.3em",
-            textTransform: "uppercase",
-            color: "#ff2d78",
-            textAlign: "center",
-            marginBottom: 16,
-            fontFamily: "var(--font-space)",
-          }}>
-            Pricing
-          </h2>
-          <p style={{
-            fontSize: "clamp(28px, 4vw, 40px)",
-            fontWeight: 700,
-            color: "#fff",
-            textAlign: "center",
-            marginBottom: 64,
-            fontFamily: "var(--font-space)",
-            letterSpacing: "-0.03em",
-          }}>
-            Start free, scale when ready
-          </p>
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 16,
-          }}>
+        <section id="pricing" className="max-w-[1000px] mx-auto px-6 pb-32">
+          <p className="section-label">Pricing</p>
+          <h2 className="section-heading">Start free, scale when ready</h2>
+          <div className="pricing-grid">
             {[
               {
                 name: "Free",
                 price: "$0",
                 period: "forever",
-                desc: "For your first rejection",
+                desc: "For your first submission",
                 features: ["1 scan/month", "Basic checklist", "URL health checks"],
                 cta: "Get Started",
                 highlight: false,
@@ -341,7 +209,7 @@ export default function Home() {
                 price: "$19",
                 period: "/month",
                 desc: "For active developers",
-                features: ["5 scans/month", "AI Review Simulator", "Review Packet Generator", "Build history"],
+                features: ["5 scans/month", "AI Readiness Check", "Review Packet Generator", "Build history"],
                 cta: "Start Indie",
                 highlight: true,
               },
@@ -366,78 +234,35 @@ export default function Home() {
             ].map((plan) => (
               <div
                 key={plan.name}
-                style={{
-                  borderRadius: 16,
-                  padding: 32,
-                  background: plan.highlight ? "rgba(255, 45, 120, 0.06)" : "rgba(255,255,255,0.02)",
-                  border: plan.highlight ? "1px solid rgba(255, 45, 120, 0.2)" : "1px solid rgba(255,255,255,0.05)",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
+                className={plan.highlight ? "glass-card-highlight p-8 flex flex-col" : "glass-card p-8 flex flex-col"}
               >
-                <span style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: plan.highlight ? "#ff2d78" : "rgba(255,255,255,0.4)",
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  fontFamily: "var(--font-space)",
-                  marginBottom: 16,
-                }}>
+                <span
+                  className="text-[12px] font-semibold tracking-[0.1em] uppercase mb-4"
+                  style={{
+                    fontFamily: "var(--font-space)",
+                    color: plan.highlight ? "#ff2d78" : "rgba(255,255,255,0.4)",
+                  }}
+                >
                   {plan.name}
                 </span>
-                <div style={{ marginBottom: 8 }}>
-                  <span style={{
-                    fontSize: 40,
-                    fontWeight: 700,
-                    color: "#fff",
-                    fontFamily: "var(--font-space)",
-                    letterSpacing: "-0.03em",
-                  }}>
+                <div className="mb-2">
+                  <span
+                    className="text-[40px] font-bold text-white tracking-[-0.03em]"
+                    style={{ fontFamily: "var(--font-space)" }}
+                  >
                     {plan.price}
                   </span>
-                  <span style={{ fontSize: 14, color: "rgba(255,255,255,0.3)", marginLeft: 4 }}>
-                    {plan.period}
-                  </span>
+                  <span className="text-[14px] text-white/30 ml-1">{plan.period}</span>
                 </div>
-                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.25)", marginBottom: 24 }}>
-                  {plan.desc}
-                </p>
-                <ul style={{ listStyle: "none", marginBottom: 32, flexGrow: 1 }}>
+                <p className="text-[14px] text-white/25 mb-6">{plan.desc}</p>
+                <ul className="list-none mb-8 grow">
                   {plan.features.map((feat) => (
-                    <li key={feat} style={{
-                      fontSize: 13,
-                      color: "rgba(255,255,255,0.4)",
-                      lineHeight: 1.6,
-                      paddingLeft: 16,
-                      position: "relative",
-                      marginBottom: 6,
-                    }}>
-                      <span style={{
-                        position: "absolute",
-                        left: 0,
-                        color: "#ff2d78",
-                      }}>+</span>
-                      {feat}
-                    </li>
+                    <li key={feat} className="pricing-feature">{feat}</li>
                   ))}
                 </ul>
                 <a
                   href="#try"
-                  style={{
-                    display: "block",
-                    textAlign: "center",
-                    padding: "12px 24px",
-                    borderRadius: 100,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "#fff",
-                    background: plan.highlight ? "#ff2d78" : "transparent",
-                    border: plan.highlight ? "none" : "1px solid rgba(255,255,255,0.1)",
-                    textDecoration: "none",
-                    fontFamily: "var(--font-space)",
-                    boxShadow: plan.highlight ? "0 0 30px rgba(255, 45, 120, 0.25)" : "none",
-                  }}
+                  className={plan.highlight ? "btn-primary text-center" : "btn-ghost text-center"}
                 >
                   {plan.cta}
                 </a>
@@ -447,95 +272,36 @@ export default function Home() {
         </section>
 
         {/* About */}
-        <section id="about" style={{ maxWidth: 600, margin: "0 auto", padding: "0 24px 128px", textAlign: "center" }}>
-          <h2 style={{
-            fontSize: 12,
-            fontWeight: 600,
-            letterSpacing: "0.3em",
-            textTransform: "uppercase",
-            color: "#ff2d78",
-            marginBottom: 16,
-            fontFamily: "var(--font-space)",
-          }}>
-            About
-          </h2>
-          <p style={{
-            fontSize: "clamp(28px, 4vw, 40px)",
-            fontWeight: 700,
-            color: "#fff",
-            marginBottom: 32,
-            fontFamily: "var(--font-space)",
-            letterSpacing: "-0.03em",
-          }}>
-            Built from rejection
+        <section id="about" className="max-w-[600px] mx-auto px-6 pb-32 text-center">
+          <p className="section-label">About</p>
+          <h2 className="section-heading">Built for the ecosystem</h2>
+          <p className="text-[15px] leading-[1.8] text-white/30 mb-4">
+            App Store Review keeps the ecosystem safe and high-quality. AppReady helps you align with those standards before you submit — so the process is smooth for everyone.
           </p>
-          <p style={{
-            fontSize: 15,
-            lineHeight: 1.8,
-            color: "rgba(255,255,255,0.3)",
-            marginBottom: 16,
-          }}>
-            AppReady was born from 60+ failed App Store submissions. Every guideline violation, every vague rejection email, every week-long back-and-forth with Apple Review.
-          </p>
-          <p style={{
-            fontSize: 15,
-            lineHeight: 1.8,
-            color: "rgba(255,255,255,0.3)",
-          }}>
-            We turned that pain into an AI that understands what Apple actually wants, so you can ship your app without the guesswork.
+          <p className="text-[15px] leading-[1.8] text-white/30">
+            We built an AI that understands Apple&apos;s guidelines inside and out, so you can ship complete, stable, reviewer-ready apps every time.
           </p>
         </section>
 
         {/* CTA */}
-        <section style={{
-          maxWidth: 600,
-          margin: "0 auto",
-          padding: "0 24px 128px",
-          textAlign: "center",
-        }}>
-          <p style={{
-            fontSize: "clamp(24px, 4vw, 36px)",
-            fontWeight: 700,
-            color: "#fff",
-            marginBottom: 24,
-            fontFamily: "var(--font-space)",
-            letterSpacing: "-0.03em",
-          }}>
-            Ready to stop getting rejected?
-          </p>
-          <a
-            href="#try"
-            style={{
-              display: "inline-block",
-              padding: "14px 40px",
-              borderRadius: 100,
-              fontSize: 15,
-              fontWeight: 600,
-              color: "#fff",
-              background: "#ff2d78",
-              textDecoration: "none",
-              fontFamily: "var(--font-space)",
-              boxShadow: "0 0 50px rgba(255, 45, 120, 0.3), 0 4px 20px rgba(0,0,0,0.4)",
-            }}
+        <section className="max-w-[600px] mx-auto px-6 pb-32 text-center">
+          <p
+            className="text-[clamp(24px,4vw,36px)] font-bold text-white mb-6 tracking-[-0.03em]"
+            style={{ fontFamily: "var(--font-space)" }}
           >
-            Try Free Now
-          </a>
+            Ready to submit with confidence?
+          </p>
+          <a href="#try" className="btn-primary">Try Free Now</a>
         </section>
 
         {/* Footer */}
-        <footer style={{ textAlign: "center", paddingBottom: 48 }}>
-          <div style={{
-            display: "flex",
-            justifyContent: "center",
-            gap: 32,
-            marginBottom: 24,
-            fontSize: 13,
-          }}>
-            <a href="#features" style={{ color: "rgba(255,255,255,0.2)", textDecoration: "none" }}>Features</a>
-            <a href="#pricing" style={{ color: "rgba(255,255,255,0.2)", textDecoration: "none" }}>Pricing</a>
-            <a href="#about" style={{ color: "rgba(255,255,255,0.2)", textDecoration: "none" }}>About</a>
+        <footer className="text-center pb-12">
+          <div className="flex justify-center gap-8 mb-6 text-[13px]">
+            <a href="#features" className="nav-link">Features</a>
+            <a href="#pricing" className="nav-link">Pricing</a>
+            <a href="#about" className="nav-link">About</a>
           </div>
-          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.1)", letterSpacing: "0.05em" }}>
+          <p className="text-[11px] text-white/10 tracking-[0.05em]">
             SLTR Digital LLC &middot; AppReady
           </p>
         </footer>

@@ -37,17 +37,18 @@ export function RejectionParser() {
 
   return (
     <div className="w-full">
-      <div
-        className="rounded-2xl p-8"
-        style={{
-          background: "rgba(255, 255, 255, 0.04)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
-        }}
-      >
+      <div className="glass-card-static p-8">
+        <div className="flex items-center gap-2 mb-6">
+          <div className="w-3 h-3 rounded-full bg-[#ff2d78]/30 border border-[#ff2d78]/40" />
+          <div className="w-3 h-3 rounded-full bg-white/10 border border-white/10" />
+          <div className="w-3 h-3 rounded-full bg-white/10 border border-white/10" />
+          <span className="ml-3 text-[11px] text-white/20 font-mono tracking-wider">ANALYZER</span>
+        </div>
+
         <textarea
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="Paste your Apple rejection email here..."
+          placeholder="Paste your App Store review feedback here..."
           rows={5}
           className="w-full bg-transparent text-[15px] leading-7 text-white placeholder-white/20 resize-none outline-none"
           style={{
@@ -61,20 +62,12 @@ export function RejectionParser() {
           style={{ borderTop: "1px solid rgba(255, 255, 255, 0.06)" }}
         >
           <span className="text-[12px] text-white/15">
-            Free. No signup required.
+            Free &middot; No signup required
           </span>
           <button
             onClick={handleSubmit}
             disabled={loading || !email.trim()}
-            className="px-7 py-3 rounded-full text-[14px] font-semibold text-white transition-all duration-300 cursor-pointer disabled:opacity-20 disabled:cursor-not-allowed"
-            style={{
-              fontFamily: "var(--font-space)",
-              background: "#ff2d78",
-              boxShadow:
-                !loading && email.trim()
-                  ? "0 0 40px rgba(255, 45, 120, 0.35), 0 4px 16px rgba(0,0,0,0.4)"
-                  : "none",
-            }}
+            className="btn-primary disabled:opacity-20 disabled:cursor-not-allowed disabled:shadow-none"
           >
             {loading ? (
               <span className="flex items-center gap-2.5">
@@ -93,11 +86,10 @@ export function RejectionParser() {
 
       {error && (
         <div
-          className="mt-6 rounded-xl p-5 text-[14px] leading-6 text-red-300"
+          className="mt-6 glass-card-static p-5 text-[14px] leading-6 text-red-300 animate-fade-up"
           style={{
             background: "rgba(255, 60, 60, 0.06)",
-            border: "1px solid rgba(255, 60, 60, 0.15)",
-            animation: "fadeUp 0.4s ease-out forwards",
+            borderColor: "rgba(255, 60, 60, 0.15)",
           }}
         >
           {error}
@@ -106,12 +98,11 @@ export function RejectionParser() {
 
       {result && (
         <div
-          className="mt-8 rounded-2xl p-8 text-[14px] leading-7 text-white/70 whitespace-pre-line"
+          className="mt-8 glass-card-static p-8 text-[14px] leading-7 text-white/70 whitespace-pre-line animate-fade-up"
           style={{
             fontFamily: "var(--font-inter)",
             background: "rgba(255, 45, 120, 0.04)",
-            border: "1px solid rgba(255, 45, 120, 0.12)",
-            animation: "fadeUp 0.4s ease-out forwards",
+            borderColor: "rgba(255, 45, 120, 0.12)",
           }}
         >
           {result}
