@@ -96,6 +96,9 @@ export default function Home() {
       </section>
 
       <Features />
+      <div className="max-w-[1200px] mx-auto px-8 md:px-16">
+        <div className="h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--panel-border), transparent)' }} />
+      </div>
       <Pricing />
       <Footer />
     </>

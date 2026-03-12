@@ -72,7 +72,7 @@ function PriceCard({
   return (
     <div
       ref={ref}
-      className="relative px-6 py-8 transition-all duration-[600ms]"
+      className="relative px-7 py-10 transition-all duration-[600ms]"
       style={{
         background: 'var(--panel-bg)',
         border: featured ? '1px solid var(--pink-dim)' : '1px solid var(--panel-border)',
@@ -169,7 +169,7 @@ export default function Pricing() {
   }, []);
 
   return (
-    <section id="pricing" className="relative z-[1] px-8 md:px-16 py-[140px] max-w-[1200px] mx-auto">
+    <section id="pricing" className="relative z-[1] px-8 md:px-16 pt-[100px] pb-[180px] max-w-[1200px] mx-auto">
       <div
         ref={labelRef}
         className="text-[11px] tracking-[4px] uppercase font-normal mb-4 animate-jarvis-text-in"
@@ -179,7 +179,7 @@ export default function Pricing() {
       </div>
       <h2
         ref={titleRef}
-        className="text-4xl font-semibold tracking-tight mb-[60px] animate-jarvis-text-in"
+        className="text-4xl font-semibold tracking-tight mb-16 animate-jarvis-text-in"
         style={{
           fontFamily: "'Space Grotesk', sans-serif",
           animationPlayState: 'paused',

@@ -49,7 +49,7 @@ function FeatureCard({ name, desc, index }: { name: string; desc: string; index:
   return (
     <div
       ref={ref}
-      className="relative overflow-hidden p-9 transition-all duration-[600ms]"
+      className="relative overflow-hidden p-10 transition-all duration-[600ms]"
       style={{
         background: 'var(--panel-bg)',
         border: '1px solid var(--panel-border)',
@@ -130,7 +130,7 @@ export default function Features() {
   }, []);
 
   return (
-    <section id="features" className="relative z-[1] px-8 md:px-16 py-[140px] max-w-[1200px] mx-auto">
+    <section id="features" className="relative z-[1] px-8 md:px-16 pt-[100px] pb-[160px] max-w-[1200px] mx-auto">
       <div
         ref={labelRef}
         className="text-[11px] tracking-[4px] uppercase font-normal mb-4 animate-jarvis-text-in"
@@ -140,7 +140,7 @@ export default function Features() {
       </div>
       <h2
         ref={titleRef}
-        className="text-4xl font-semibold tracking-tight mb-[60px] animate-jarvis-text-in"
+        className="text-4xl font-semibold tracking-tight mb-16 animate-jarvis-text-in"
         style={{
           fontFamily: "'Space Grotesk', sans-serif",
           animationPlayState: 'paused',
