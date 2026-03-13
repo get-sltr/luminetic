@@ -11,6 +11,7 @@ function LoginForm() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -65,17 +66,27 @@ function LoginForm() {
         <label className="block text-[11px] tracking-[2px] uppercase mb-2" style={{ color: 'var(--gray)' }}>
           Password
         </label>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          autoComplete="current-password"
-          className="w-full px-4 py-3 text-sm bg-transparent text-white outline-none transition-all duration-300"
-          style={{ border: '1px solid var(--panel-border)' }}
-          onFocus={(e) => (e.target.style.borderColor = 'var(--pink-dim)')}
-          onBlur={(e) => (e.target.style.borderColor = 'var(--panel-border)')}
-        />
+        <div className="relative">
+          <input
+            type={showPassword ? 'text' : 'password'}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoComplete="current-password"
+            className="w-full px-4 py-3 pr-16 text-sm bg-transparent text-white outline-none transition-all duration-300"
+            style={{ border: '1px solid var(--panel-border)' }}
+            onFocus={(e) => (e.target.style.borderColor = 'var(--pink-dim)')}
+            onBlur={(e) => (e.target.style.borderColor = 'var(--panel-border)')}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] tracking-[1px] uppercase bg-transparent border-none cursor-pointer"
+            style={{ color: 'var(--gray)' }}
+          >
+            {showPassword ? 'Hide' : 'Show'}
+          </button>
+        </div>
       </div>
 
       {error && (
