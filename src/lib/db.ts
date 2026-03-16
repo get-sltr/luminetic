@@ -33,7 +33,7 @@ export async function putUser(userId: string, email: string) {
   }));
 }
 
-export async function useScanCredit(userId: string): Promise<boolean> {
+export async function deductScanCredit(userId: string): Promise<boolean> {
   try {
     await db.send(new UpdateCommand({
       TableName: TABLE,

@@ -19,7 +19,16 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid email or password format." }, { status: 400 });
     }
-    const message = error instanceof Error ? error.message : "Signup failed.";
+    const raw = error instanceof Error ? error.message : "";
+    // Map Cognito errors to user-friendly messages without leaking internals
+    let message = "Signup failed. Please try again.";
+    if (raw.includes("UsernameExistsException") || raw.includes("already exists")) {
+      message = "An account with this email already exists.";
+    } else if (raw.includes("InvalidPasswordException") || raw.includes("password")) {
+      message = "Password does not meet requirements. Use 12+ characters with uppercase, lowercase, number, and symbol.";
+    } else if (raw.includes("InvalidParameterException")) {
+      message = "Invalid email or password format.";
+    }
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

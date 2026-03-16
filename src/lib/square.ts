@@ -32,8 +32,8 @@ export async function getSquareClient(): Promise<SquareClient> {
   });
 }
 
-export const SQUARE_LOCATION_ID = "LA734SKS22172";
-export const SQUARE_APP_ID = "sq0idp-wpV9sdOfB-BsA2aM-KoE9w";
+export const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID || "LA734SKS22172";
+export const SQUARE_APP_ID = process.env.SQUARE_APP_ID || "sq0idp-wpV9sdOfB-BsA2aM-KoE9w";
 
 export interface ScanPack {
   id: string;

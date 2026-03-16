@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { WebhooksHelper } = require("square") as { WebhooksHelper: { verifySignature: (body: string, sig: string, key: string, url: string) => boolean } };
 import { db } from "@/lib/db";
-import { UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { UpdateCommand, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import {
   SecretsManagerClient,
   GetSecretValueCommand,
@@ -30,32 +30,66 @@ async function getWebhookSignatureKey(): Promise<string> {
   return key;
 }
 
+/** Check if we already processed this event (idempotency). */
+async function isEventProcessed(eventId: string): Promise<boolean> {
+  const res = await db.send(
+    new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `WEBHOOK#${eventId}`, SK: "EVENT" },
+      ProjectionExpression: "PK",
+    })
+  );
+  return !!res.Item;
+}
+
+/** Mark an event as processed. TTL = 30 days. */
+async function markEventProcessed(eventId: string, userId: string, scans: number) {
+  await db.send(
+    new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: `WEBHOOK#${eventId}`,
+        SK: "EVENT",
+        userId,
+        scans,
+        processedAt: new Date().toISOString(),
+        ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+      },
+    })
+  );
+}
+
+const VALID_PACK_IDS = new Set(["starter", "pro", "agency"]);
+const MAX_SCANS_PER_PACK = 10;
+
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
     const signature = request.headers.get("x-square-hmacsha256-signature") || "";
 
-    // Verify webhook signature
-    let signatureKey: string;
-    try {
-      signatureKey = await getWebhookSignatureKey();
-    } catch {
-      // If webhook sig secret doesn't exist yet, log and process anyway in dev
-      console.warn("[square-webhook] No webhook signature key configured, skipping verification");
-      signatureKey = "";
-    }
+    // Always verify webhook signature — fail hard if key is unavailable
+    const signatureKey = await getWebhookSignatureKey();
 
-    if (signatureKey) {
-      const url = `${request.headers.get("x-forwarded-proto") || "https"}://${request.headers.get("host")}${request.nextUrl.pathname}`;
-      const isValid = WebhooksHelper.verifySignature(rawBody, signature, signatureKey, url);
-      if (!isValid) {
-        console.error("[square-webhook] Invalid signature");
-        return NextResponse.json({ error: "Invalid signature." }, { status: 401 });
-      }
+    const url = `${request.headers.get("x-forwarded-proto") || "https"}://${request.headers.get("host")}${request.nextUrl.pathname}`;
+    const isValid = WebhooksHelper.verifySignature(rawBody, signature, signatureKey, url);
+    if (!isValid) {
+      console.error("[square-webhook] Invalid signature");
+      return NextResponse.json({ error: "Invalid signature." }, { status: 401 });
     }
 
     const event = JSON.parse(rawBody);
+    const eventId = event.event_id as string | undefined;
     const eventType = event.type as string;
+
+    // Require event_id for idempotency
+    if (!eventId) {
+      return NextResponse.json({ error: "Missing event_id." }, { status: 400 });
+    }
+
+    // Idempotency: skip if already processed
+    if (await isEventProcessed(eventId)) {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
 
     // Handle payment events
     if (eventType === "payment.created" || eventType === "payment.updated") {
@@ -64,18 +98,27 @@ export async function POST(request: NextRequest) {
 
       // Only process completed payments
       if (status !== "COMPLETED") {
-        console.log(`[square-webhook] Payment status ${status}, skipping`);
         return NextResponse.json({ received: true });
       }
 
       const order = payment?.order || event.data?.object?.order;
-      // Square checkout stores metadata on the order
       const orderMetadata = order?.metadata;
 
       if (orderMetadata?.userId && orderMetadata?.scans) {
         const userId = orderMetadata.userId;
         const scansToAdd = parseInt(orderMetadata.scans, 10);
         const packId = orderMetadata.packId || "unknown";
+
+        // Validate metadata
+        if (isNaN(scansToAdd) || scansToAdd <= 0 || scansToAdd > MAX_SCANS_PER_PACK) {
+          console.error(`[square-webhook] Invalid scans value: ${orderMetadata.scans}`);
+          return NextResponse.json({ error: "Invalid scan count." }, { status: 400 });
+        }
+
+        if (packId !== "unknown" && !VALID_PACK_IDS.has(packId)) {
+          console.error(`[square-webhook] Invalid packId: ${packId}`);
+          return NextResponse.json({ error: "Invalid pack." }, { status: 400 });
+        }
 
         // Add scan credits to user
         await db.send(
@@ -92,7 +135,8 @@ export async function POST(request: NextRequest) {
           })
         );
 
-        console.log(`[square-webhook] Added ${scansToAdd} credits to user ${userId} (pack: ${packId})`);
+        // Record event as processed (idempotency)
+        await markEventProcessed(eventId, userId, scansToAdd);
       }
     }
 

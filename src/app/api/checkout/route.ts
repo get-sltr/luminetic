@@ -26,7 +26,9 @@ export async function POST(request: NextRequest) {
     const square = await getSquareClient();
     const idempotencyKey = randomUUID();
 
-    const origin = request.headers.get("origin") || "https://luminetic.io";
+    const ALLOWED_ORIGINS = ["https://luminetic.io", "https://www.luminetic.io"];
+    const requestOrigin = request.headers.get("origin") || "";
+    const origin = ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : "https://luminetic.io";
 
     const response = await square.checkout.paymentLinks.create({
       idempotencyKey,

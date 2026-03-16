@@ -4,7 +4,7 @@
 import { NextRequest } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyToken } from "@/lib/auth";
-import { putScan, getUser, useScanCredit } from "@/lib/db";
+import { putScan, getUser, deductScanCredit } from "@/lib/db";
 import { z } from "zod";
 import {
   BedrockRuntimeClient,
@@ -102,11 +102,19 @@ export async function POST(request: NextRequest) {
   }
 
   const trimmedFeedback = (parsed.feedback || parsed.email || parsed.text)!.trim().slice(0, 10000);
+
+  // Require authentication
   const accessToken = request.cookies.get("access_token")?.value;
   const authUser = accessToken ? await verifyToken(accessToken) : null;
+  if (!authUser) {
+    return new Response(
+      JSON.stringify({ error: "Sign in to run an analysis." }),
+      { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
 
   // Credit check (founders get unlimited access)
-  if (authUser) {
+  {
     try {
       const userRecord = await getUser(authUser.userId);
       const isFounder = userRecord?.plan === "founder";
@@ -118,7 +126,7 @@ export async function POST(request: NextRequest) {
             { status: 429, headers: { "Content-Type": "application/json" } }
           );
         }
-        const used = await useScanCredit(authUser.userId);
+        const used = await deductScanCredit(authUser.userId);
         if (!used) {
           return new Response(
             JSON.stringify({ error: "No scan credits remaining. Purchase a scan pack to continue." }),

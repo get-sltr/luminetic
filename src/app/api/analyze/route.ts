@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyToken } from "@/lib/auth";
-import { putScan, getUser, useScanCredit } from "@/lib/db";
+import { putScan, getUser, deductScanCredit } from "@/lib/db";
 import { z } from "zod";
 import {
   BedrockRuntimeClient,
@@ -474,12 +474,18 @@ export async function POST(request: NextRequest) {
     const parsed = schema.parse(body);
     const trimmedFeedback = (parsed.feedback || parsed.email || parsed.text)!.trim().slice(0, 10000);
 
-    // Check if user is authenticated (save scan if so)
+    // Require authentication
     const accessToken = request.cookies.get("access_token")?.value;
     const authUser = accessToken ? await verifyToken(accessToken) : null;
+    if (!authUser) {
+      return NextResponse.json(
+        { error: "Sign in to run an analysis." },
+        { status: 401 }
+      );
+    }
 
     // Credit check (founders get unlimited access)
-    if (authUser) {
+    {
       try {
         const userRecord = await getUser(authUser.userId);
         const isFounder = userRecord?.plan === "founder";
@@ -491,7 +497,7 @@ export async function POST(request: NextRequest) {
               { status: 429 }
             );
           }
-          const used = await useScanCredit(authUser.userId);
+          const used = await deductScanCredit(authUser.userId);
           if (!used) {
             return NextResponse.json(
               { error: "No scan credits remaining. Purchase a scan pack to continue." },
@@ -548,15 +554,7 @@ export async function POST(request: NextRequest) {
     }
     console.error("Analysis route error:", error);
     return NextResponse.json(
-      {
-        error: "Analysis failed. Please try again.",
-        details:
-          process.env.NODE_ENV === "development"
-            ? error instanceof Error
-              ? error.message
-              : String(error)
-            : undefined,
-      },
+      { error: "Analysis failed. Please try again." },
       { status: 500 }
     );
   }

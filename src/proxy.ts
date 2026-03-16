@@ -29,7 +29,6 @@ const PUBLIC_PATHS = [
   "/api/auth/signup",
   "/api/auth/verify",
   "/api/auth/refresh",
-  "/api/analyze",
   "/api/webhooks",
 ];
 

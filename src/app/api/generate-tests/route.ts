@@ -97,15 +97,7 @@ export async function POST(request: NextRequest) {
     }
     console.error("[generate-tests] Error:", error);
     return NextResponse.json(
-      {
-        error: error instanceof Error ? error.message : "Test generation failed.",
-        details:
-          process.env.NODE_ENV === "development"
-            ? error instanceof Error
-              ? error.stack
-              : String(error)
-            : undefined,
-      },
+      { error: "Test generation failed. Please try again." },
       { status: 500 }
     );
   }
