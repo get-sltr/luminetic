@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
 import { getSquareClient, SQUARE_LOCATION_ID, SCAN_PACKS } from "@/lib/square";
+import { checkoutLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 
@@ -13,6 +14,15 @@ export async function POST(request: NextRequest) {
     const user = await getAuthUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    }
+
+    // Rate limit by userId
+    const rl = checkoutLimiter.check(user.userId);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many checkout attempts. Please wait a moment." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+      );
     }
 
     const body = await request.json();

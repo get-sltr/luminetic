@@ -5,6 +5,7 @@ import { NextRequest } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyToken } from "@/lib/auth";
 import { putScan, getUser, deductScanCredit } from "@/lib/db";
+import { analyzeLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 import {
   BedrockRuntimeClient,
@@ -110,6 +111,15 @@ export async function POST(request: NextRequest) {
     return new Response(
       JSON.stringify({ error: "Sign in to run an analysis." }),
       { status: 401, headers: { "Content-Type": "application/json" } }
+    );
+  }
+
+  // Rate limit by userId
+  const rl = analyzeLimiter.check(authUser.userId);
+  if (!rl.allowed) {
+    return new Response(
+      JSON.stringify({ error: "Too many requests. Please wait before running another analysis." }),
+      { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
     );
   }
 

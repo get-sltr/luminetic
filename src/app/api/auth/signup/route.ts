@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { signUp } from "@/lib/cognito";
 import { z } from "zod";
+import { authLimiter, getClientIp } from "@/lib/rate-limit";
 
 const schema = z.object({
   email: z.string().email(),
@@ -8,6 +9,16 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  // Rate limit by IP
+  const ip = getClientIp(request);
+  const rl = authLimiter.check(ip);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Too many attempts. Please try again later." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    );
+  }
+
   try {
     const body = await request.json();
     const { email, password } = schema.parse(body);

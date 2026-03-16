@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyToken } from "@/lib/auth";
 import { putScan, getUser, deductScanCredit } from "@/lib/db";
+import { analyzeLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 import {
   BedrockRuntimeClient,
@@ -481,6 +482,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Sign in to run an analysis." },
         { status: 401 }
+      );
+    }
+
+    // Rate limit by userId
+    const rl = analyzeLimiter.check(authUser.userId);
+    if (!rl.allowed) {
+      return NextResponse.json(
+        { error: "Too many requests. Please wait before running another analysis." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
       );
     }
 

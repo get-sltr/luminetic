@@ -9,9 +9,12 @@ const secretsClient = new SecretsManagerClient({
 });
 
 let cachedToken: string | null = null;
+let tokenFetchedAt = 0;
+const TOKEN_TTL_MS = 30 * 60 * 1000; // Re-fetch from Secrets Manager every 30 minutes
 
 async function getSquareToken(): Promise<string> {
-  if (cachedToken) return cachedToken;
+  const now = Date.now();
+  if (cachedToken && now - tokenFetchedAt < TOKEN_TTL_MS) return cachedToken;
   const command = new GetSecretValueCommand({
     SecretId: "luminetic/square-access-token",
   });
@@ -21,6 +24,7 @@ async function getSquareToken(): Promise<string> {
     : null;
   if (!token) throw new Error("Square access token not found in Secrets Manager");
   cachedToken = token;
+  tokenFetchedAt = now;
   return token;
 }
 
