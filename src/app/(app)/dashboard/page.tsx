@@ -1,6 +1,18 @@
 import { getAuthUser } from '@/lib/auth';
 import { getUser, getScans } from '@/lib/db';
 import Link from 'next/link';
+import {
+  IconTarget,
+  IconTrendUp,
+  IconCredits,
+  IconStar,
+  IconChecklist,
+  IconPacket,
+  IconMemory,
+  IconAnalyze,
+  IconArrowRight,
+  IconWarning,
+} from '@/components/icons';
 
 const PACK_CREDITS: Record<string, number> = {
   starter: 1,
@@ -48,33 +60,44 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
     console.error('[dashboard] Failed to load user data:', err);
   }
 
+  const statIcons = [IconTarget, IconTrendUp, IconCredits, IconStar];
+  const statGradients = [
+    'linear-gradient(135deg, rgba(255, 45, 120, 0.08), rgba(167, 139, 250, 0.04))',
+    'linear-gradient(135deg, rgba(96, 165, 250, 0.08), rgba(52, 211, 153, 0.04))',
+    'linear-gradient(135deg, rgba(52, 211, 153, 0.08), rgba(251, 191, 36, 0.04))',
+    'linear-gradient(135deg, rgba(167, 139, 250, 0.08), rgba(255, 45, 120, 0.04))',
+  ];
+
+  const stats = [
+    { label: 'Total Scans', value: scanCount.toString() },
+    { label: 'Avg Score', value: avgScore !== null ? `${avgScore}` : '\u2014', suffix: avgScore !== null ? '/100' : '' },
+    {
+      label: 'Credits Left',
+      value: isFounder ? '\u221E' : credits.toString(),
+      color: isFounder ? '#a78bfa' : credits > 0 ? '#34d399' : '#f87171',
+    },
+    { label: 'Plan', value: plan.toUpperCase() },
+  ];
+
   return (
     <div className="min-h-screen pt-24 pb-20" style={{ background: 'var(--black)' }}>
       <div className="max-w-[1100px] mx-auto px-6 md:px-10">
 
         {/* Purchase confirmation */}
         {purchasedCredits && (
-          <div
-            className="rounded-xl p-6 mb-8 relative overflow-hidden"
-            style={{
-              background: 'rgba(74, 222, 128, 0.06)',
-              border: '1px solid rgba(74, 222, 128, 0.15)',
-              backdropFilter: 'blur(20px)',
-            }}
+          <div className="glass-card rounded-2xl p-6 mb-8 relative overflow-hidden animate-fade-in-up"
+            style={{ background: 'rgba(74, 222, 128, 0.06)', borderColor: 'rgba(74, 222, 128, 0.15)' }}
           >
-            <div
-              className="absolute top-0 left-0 w-full h-[1px]"
-              style={{ background: 'linear-gradient(90deg, transparent, rgba(74,222,128,0.6), transparent)' }}
-            />
+            <div className="glow-line" style={{ background: 'linear-gradient(90deg, transparent, rgba(74,222,128,0.6), transparent)' }} />
             <div className="flex items-center gap-3 mb-2">
               <div className="w-2 h-2 rounded-full" style={{ background: '#4ade80', boxShadow: '0 0 8px rgba(74,222,128,0.5)' }} />
-              <h2 className="text-base font-semibold" style={{ fontFamily: "'Sora', sans-serif", color: '#4ade80' }}>
+              <h2 className="text-base font-semibold" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif", color: '#4ade80' }}>
                 Payment received
               </h2>
             </div>
             <p className="text-sm ml-5" style={{ color: 'var(--gray)' }}>
               {purchasedCredits} scan credit{purchasedCredits > 1 ? 's' : ''} added to your account.{' '}
-              <Link href="/analyze" className="no-underline font-medium transition-colors" style={{ color: 'var(--pink)' }}>
+              <Link href="/analyze" className="no-underline font-medium hover-text" style={{ color: 'var(--pink)' }}>
                 Run an analysis now &rarr;
               </Link>
             </p>
@@ -83,108 +106,73 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
 
         {/* Header */}
         <div className="mb-10">
-          <div
-            className="text-[10px] tracking-[4px] uppercase mb-3 font-medium"
-            style={{ color: 'var(--pink)' }}
-          >
-            Overview
-          </div>
-          <h1
-            className="text-4xl font-semibold tracking-tight"
-            style={{ fontFamily: "'Sora', sans-serif", color: 'var(--white)' }}
-          >
+          <div className="section-label mb-3">Overview</div>
+          <h1 className="page-title" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
             Dashboard
           </h1>
         </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-          {[
-            { label: 'Total Scans', value: scanCount.toString(), icon: '◎' },
-            { label: 'Avg Score', value: avgScore !== null ? `${avgScore}` : '—', suffix: avgScore !== null ? '/100' : '', icon: '◆' },
-            {
-              label: 'Credits Left',
-              value: isFounder ? '∞' : credits.toString(),
-              color: isFounder ? '#a78bfa' : credits > 0 ? '#34d399' : '#ff6b6b',
-              icon: '⬡',
-            },
-            { label: 'Plan', value: plan.toUpperCase(), icon: '△' },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className="group rounded-xl p-6 relative overflow-hidden transition-all duration-300"
-              style={{
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-                backdropFilter: 'blur(10px)',
-              }}
-            >
-              {/* Top glow line */}
+          {stats.map((stat, idx) => {
+            const StatIcon = statIcons[idx];
+            return (
               <div
-                className="absolute top-0 left-0 w-full h-[1px] opacity-40"
-                style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }}
-              />
-              {/* Corner accent */}
-              <div
-                className="absolute top-0 right-0 w-16 h-16 opacity-[0.03]"
-                style={{
-                  background: 'radial-gradient(circle at top right, var(--pink), transparent)',
-                }}
-              />
-              <div className="flex items-center justify-between mb-4">
-                <div
-                  className="text-[10px] tracking-[3px] uppercase font-medium"
-                  style={{ color: 'var(--gray)' }}
-                >
-                  {stat.label}
+                key={stat.label}
+                className="glass-card rounded-2xl p-6 relative overflow-hidden hover-lift"
+                style={{ background: statGradients[idx] }}
+              >
+                <div className="glow-line" />
+                <div className="flex items-center justify-between mb-4">
+                  <div
+                    className="text-[10px] tracking-[3px] uppercase font-medium"
+                    style={{ color: 'var(--gray)' }}
+                  >
+                    {stat.label}
+                  </div>
+                  <div
+                    className="w-8 h-8 rounded-lg flex items-center justify-center"
+                    style={{ background: 'var(--surface-2)' }}
+                  >
+                    <StatIcon width={16} height={16} style={{ color: 'var(--pink)', opacity: 0.7 }} />
+                  </div>
                 </div>
-                <span className="text-[14px] opacity-20" style={{ color: 'var(--pink)' }}>
-                  {stat.icon}
-                </span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span
-                  className="text-3xl font-bold tracking-tight"
-                  style={{
-                    fontFamily: "'Sora', sans-serif",
-                    color: ('color' in stat && stat.color) ? stat.color as string : 'var(--white)',
-                  }}
-                >
-                  {stat.value}
-                </span>
-                {'suffix' in stat && stat.suffix && (
-                  <span className="text-sm font-normal" style={{ color: 'var(--gray)' }}>
-                    {stat.suffix}
+                <div className="flex items-baseline gap-1">
+                  <span
+                    className="text-3xl font-bold tracking-tight"
+                    style={{
+                      fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif",
+                      color: ('color' in stat && stat.color) ? stat.color as string : 'var(--white)',
+                    }}
+                  >
+                    {stat.value}
                   </span>
-                )}
+                  {'suffix' in stat && stat.suffix && (
+                    <span className="text-sm font-normal" style={{ color: 'var(--gray)' }}>
+                      {stat.suffix}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
-        {/* CTA — Run Analysis */}
+        {/* CTA -- Run Analysis */}
         <div
-          className="rounded-xl p-8 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between relative overflow-hidden transition-all duration-300 group"
-          style={{
-            background: 'linear-gradient(135deg, rgba(255, 45, 120, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%)',
-            border: '1px solid rgba(255, 45, 120, 0.12)',
-            backdropFilter: 'blur(10px)',
-          }}
+          className="glass-card glass-card-glow rounded-2xl p-8 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between relative overflow-hidden group"
+          style={{ background: 'var(--gradient-surface)' }}
         >
-          {/* Top glow */}
-          <div
-            className="absolute top-0 left-0 w-full h-[1px]"
-            style={{ background: 'linear-gradient(90deg, transparent, var(--pink), transparent)' }}
-          />
+          <div className="glow-line" style={{ background: 'linear-gradient(90deg, transparent, var(--pink), transparent)', opacity: 0.8 }} />
           {/* Background glow orb */}
           <div
-            className="absolute -right-20 -top-20 w-60 h-60 opacity-[0.06] rounded-full"
+            className="absolute -right-20 -top-20 w-60 h-60 opacity-[0.08] rounded-full"
             style={{ background: 'radial-gradient(circle, var(--pink), transparent)' }}
           />
           <div className="relative z-10 mb-4 md:mb-0">
             <h2
               className="text-xl font-semibold mb-2 tracking-tight"
-              style={{ fontFamily: "'Sora', sans-serif", color: 'var(--white)' }}
+              style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif", color: 'var(--white)' }}
             >
               Run a new analysis
             </h2>
@@ -194,49 +182,70 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
           </div>
           <Link
             href="/analyze"
-            className="relative z-10 shrink-0 md:ml-8 px-7 py-3.5 rounded-lg text-[11px] tracking-[2px] uppercase text-white no-underline font-semibold transition-all duration-300"
-            style={{
-              background: 'var(--pink)',
-              boxShadow: '0 0 20px rgba(255, 45, 120, 0.2), 0 4px 12px rgba(0, 0, 0, 0.3)',
-            }}
+            className="btn-primary relative z-10 shrink-0 md:ml-8 px-8 py-4 rounded-2xl text-[11px] tracking-[2px] uppercase text-white no-underline font-semibold flex items-center gap-2"
           >
-            Analyze Now &rarr;
+            <IconAnalyze width={16} height={16} />
+            Analyze Now
+            <IconArrowRight width={14} height={14} />
           </Link>
+        </div>
+
+        {/* Quick Action Links */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          {[
+            { href: '/completeness', label: 'Pre-Flight', Icon: IconChecklist },
+            { href: '/review-packet', label: 'Review Packet', Icon: IconPacket },
+            { href: '/memory', label: 'Memory', Icon: IconMemory },
+          ].map(({ href, label, Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className="glass-card rounded-xl p-4 flex items-center gap-3 no-underline hover-lift hover-glow"
+            >
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                style={{ background: 'var(--surface-2)' }}
+              >
+                <Icon width={16} height={16} style={{ color: 'var(--pink)', opacity: 0.7 }} />
+              </div>
+              <span className="text-[11px] tracking-[1.5px] uppercase font-medium" style={{ color: 'var(--gray)' }}>
+                {label}
+              </span>
+            </Link>
+          ))}
         </div>
 
         {/* Buy Credits (low/no credits) */}
         {!isFounder && credits <= 0 && (
           <div
-            className="rounded-xl p-8 mb-6 relative overflow-hidden"
-            style={{
-              background: 'rgba(255, 107, 107, 0.03)',
-              border: '1px solid rgba(255, 107, 107, 0.12)',
-              backdropFilter: 'blur(10px)',
-            }}
+            className="glass-card rounded-2xl p-8 mb-6 relative overflow-hidden"
+            style={{ borderColor: 'rgba(248, 113, 113, 0.2)', background: 'rgba(248, 113, 113, 0.03)' }}
           >
-            <div
-              className="absolute top-0 left-0 w-full h-[1px]"
-              style={{ background: 'linear-gradient(90deg, transparent, rgba(255,107,107,0.4), transparent)' }}
-            />
+            <div className="glow-line" style={{ background: 'linear-gradient(90deg, transparent, rgba(248,113,113,0.4), transparent)' }} />
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h2
-                  className="text-lg font-semibold mb-1.5 tracking-tight"
-                  style={{ fontFamily: "'Sora', sans-serif", color: 'var(--white)' }}
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ background: 'rgba(248, 113, 113, 0.1)' }}
                 >
-                  No scan credits remaining
-                </h2>
-                <p className="text-sm" style={{ color: 'var(--gray)' }}>
-                  Purchase a scan pack to run AI-powered analyses.
-                </p>
+                  <IconWarning width={18} height={18} style={{ color: 'var(--red)' }} />
+                </div>
+                <div>
+                  <h2
+                    className="text-lg font-semibold mb-1.5 tracking-tight"
+                    style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif", color: 'var(--white)' }}
+                  >
+                    No scan credits remaining
+                  </h2>
+                  <p className="text-sm" style={{ color: 'var(--gray)' }}>
+                    Purchase a scan pack to run AI-powered analyses.
+                  </p>
+                </div>
               </div>
               <Link
                 href="/pricing"
-                className="shrink-0 px-6 py-3 rounded-lg text-[11px] tracking-[2px] uppercase text-white no-underline font-semibold transition-all duration-300"
-                style={{
-                  background: 'rgba(255, 107, 107, 0.15)',
-                  border: '1px solid rgba(255, 107, 107, 0.3)',
-                }}
+                className="btn-secondary shrink-0 px-6 py-3 rounded-xl text-[11px] tracking-[2px] uppercase no-underline font-semibold text-center"
+                style={{ borderColor: 'rgba(248, 113, 113, 0.3)', color: 'var(--red)' }}
               >
                 Buy Credits &rarr;
               </Link>
@@ -249,14 +258,14 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
           <div className="flex items-center justify-between mb-5">
             <h2
               className="text-lg font-semibold tracking-tight"
-              style={{ fontFamily: "'Sora', sans-serif", color: 'var(--white)' }}
+              style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif", color: 'var(--white)' }}
             >
               Recent scans
             </h2>
             {recentScans.length > 0 && (
               <Link
                 href="/history"
-                className="text-[11px] tracking-[1px] uppercase no-underline font-medium transition-colors duration-200"
+                className="text-[11px] tracking-[1px] uppercase no-underline font-medium hover-text"
                 style={{ color: 'var(--gray)' }}
               >
                 View all &rarr;
@@ -265,22 +274,18 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
           </div>
 
           {recentScans.length === 0 ? (
-            <div
-              className="rounded-xl p-16 text-center relative overflow-hidden"
-              style={{
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-              }}
-            >
+            <div className="glass-card rounded-2xl p-16 text-center relative overflow-hidden">
+              <div className="glow-line" />
               <div
-                className="absolute top-0 left-0 w-full h-[1px] opacity-30"
-                style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }}
-              />
-              <div className="text-3xl mb-4 opacity-20">◎</div>
+                className="w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4"
+                style={{ background: 'var(--surface-2)' }}
+              >
+                <IconTarget width={22} height={22} style={{ color: 'var(--pink)', opacity: 0.4 }} />
+              </div>
               <p className="text-sm mb-1" style={{ color: 'var(--gray)' }}>
                 No scans yet
               </p>
-              <p className="text-xs" style={{ color: 'rgba(136, 136, 136, 0.6)' }}>
+              <p className="text-xs" style={{ color: 'var(--text-dim)' }}>
                 Run your first analysis to get started.
               </p>
             </div>
@@ -288,34 +293,28 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
             <div className="flex flex-col gap-2">
               {recentScans.map((scan, i) => {
                 const scoreColor =
-                  scan.score >= 80 ? '#4ade80' : scan.score >= 60 ? '#facc15' : '#f87171';
+                  scan.score >= 80 ? 'var(--green)' : scan.score >= 60 ? 'var(--amber)' : 'var(--red)';
                 const scoreBg =
                   scan.score >= 80
-                    ? 'rgba(74,222,128,0.06)'
+                    ? 'rgba(52,211,153,0.08)'
                     : scan.score >= 60
-                      ? 'rgba(250,204,21,0.06)'
-                      : 'rgba(248,113,113,0.06)';
-                const scoreBorder =
-                  scan.score >= 80
-                    ? 'rgba(74,222,128,0.15)'
-                    : scan.score >= 60
-                      ? 'rgba(250,204,21,0.15)'
-                      : 'rgba(248,113,113,0.15)';
+                      ? 'rgba(251,191,36,0.08)'
+                      : 'rgba(248,113,113,0.08)';
 
                 return (
                   <Link
                     key={scan.scanId}
                     href={`/history/${scan.scanId}`}
-                    className="rounded-lg flex items-center justify-between px-6 py-4 no-underline transition-all duration-200 group/scan"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid rgba(255, 255, 255, 0.06)',
-                    }}
+                    className="glass-card rounded-xl flex items-center justify-between px-6 py-4 no-underline hover-bg group/scan"
                   >
                     <div className="flex items-center gap-4">
+                      <div
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ background: scoreColor }}
+                      />
                       <span
                         className="text-[11px] font-medium tabular-nums"
-                        style={{ color: 'var(--gray)', fontFamily: "'Sora', sans-serif" }}
+                        style={{ color: 'var(--gray)', fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}
                       >
                         #{String(i + 1).padStart(2, '0')}
                       </span>
@@ -330,12 +329,12 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
                       </span>
                     </div>
                     <span
-                      className="text-[12px] font-semibold px-3 py-1.5 rounded-md tabular-nums"
+                      className="badge tabular-nums"
                       style={{
-                        fontFamily: "'Sora', sans-serif",
+                        fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif",
                         color: scoreColor,
+                        borderColor: scoreColor,
                         background: scoreBg,
-                        border: `1px solid ${scoreBorder}`,
                       }}
                     >
                       {scan.score}/100

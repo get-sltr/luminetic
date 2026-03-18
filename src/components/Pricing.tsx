@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { IconCheck } from '@/components/icons';
 
 const tiers = [
   {
@@ -65,20 +66,18 @@ function PriceCard({
   return (
     <div
       ref={ref}
-      className="relative px-7 md:px-8 py-10 md:py-12 transition-all duration-[600ms]"
+      className={`glass-card hover-lift rounded-2xl relative px-7 md:px-8 py-10 md:py-12 transition-all duration-[600ms] ${featured ? 'glass-card-glow' : ''}`}
       style={{
-        background: 'var(--panel-bg)',
-        border: featured ? '1px solid var(--pink-dim)' : '1px solid var(--panel-border)',
-        boxShadow: featured ? '0 0 40px rgba(255,45,120,0.05)' : 'none',
         opacity: 0,
         transform: 'translateY(30px)',
         transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        borderColor: featured ? 'var(--border-active)' : undefined,
       }}
     >
       {featured && (
         <div
-          className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-3 py-[3px] text-[9px] tracking-[2px] font-medium text-white"
-          style={{ background: 'var(--pink)' }}
+          className="badge absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-4 py-1 text-[9px] tracking-[2px] font-semibold rounded-full"
+          style={{ background: 'var(--gradient-accent)', color: 'white' }}
         >
           POPULAR
         </div>
@@ -87,7 +86,7 @@ function PriceCard({
       <div className="text-[11px] tracking-[3px] uppercase mb-4" style={{ color: 'var(--gray)' }}>
         {tier}
       </div>
-      <div style={{ fontFamily: "'Sora', sans-serif" }} className="text-4xl font-bold mb-1">
+      <div style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }} className="text-4xl font-bold mb-1">
         {price}{' '}
         <span className="text-sm font-light" style={{ color: 'var(--gray)' }}>
           {period}
@@ -98,12 +97,14 @@ function PriceCard({
         {features.map((f) => (
           <li
             key={f}
-            className="flex items-center gap-2.5 py-3 text-[13px] border-b"
-            style={{ color: 'var(--gray)', borderColor: 'rgba(255,255,255,0.03)' }}
+            className="flex items-center gap-3 py-3 text-[13px] border-b"
+            style={{ color: 'var(--gray)', borderColor: 'var(--border)' }}
           >
-            <span
-              className="w-1 h-1 rounded-full shrink-0"
-              style={{ background: 'var(--pink)' }}
+            <IconCheck
+              width={14}
+              height={14}
+              className="shrink-0"
+              style={{ color: 'var(--green)' }}
             />
             {f}
           </li>
@@ -112,27 +113,7 @@ function PriceCard({
 
       <a
         href="/signup"
-        className="block w-full mt-8 py-3.5 text-center text-[12px] tracking-[1.5px] uppercase text-white border no-underline transition-all duration-300"
-        style={{
-          borderColor: featured ? 'var(--pink)' : 'var(--panel-border)',
-          background: featured ? 'var(--pink)' : 'transparent',
-        }}
-        onMouseEnter={(e) => {
-          if (!featured) {
-            e.currentTarget.style.borderColor = 'var(--pink)';
-            e.currentTarget.style.boxShadow = '0 0 20px var(--pink-glow)';
-          } else {
-            e.currentTarget.style.background = '#e0245c';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!featured) {
-            e.currentTarget.style.borderColor = 'var(--panel-border)';
-            e.currentTarget.style.boxShadow = 'none';
-          } else {
-            e.currentTarget.style.background = 'var(--pink)';
-          }
-        }}
+        className={`block w-full mt-8 py-3.5 text-center text-[12px] tracking-[1.5px] uppercase no-underline rounded-xl ${featured ? 'btn-primary' : 'btn-secondary'}`}
       >
         Get Started
       </a>
@@ -165,8 +146,8 @@ export default function Pricing() {
     <section id="pricing" className="relative z-[1] px-6 md:px-16 lg:px-24 pt-[120px] pb-[200px] max-w-[1200px] mx-auto">
       <div
         ref={labelRef}
-        className="text-[11px] tracking-[4px] uppercase font-normal mb-4 animate-jarvis-text-in"
-        style={{ color: 'var(--pink)', animationPlayState: 'paused' }}
+        className="section-label mb-4 animate-jarvis-text-in"
+        style={{ animationPlayState: 'paused' }}
       >
         Pricing
       </div>
@@ -174,7 +155,7 @@ export default function Pricing() {
         ref={titleRef}
         className="text-4xl font-semibold tracking-tight mb-16 animate-jarvis-text-in"
         style={{
-          fontFamily: "'Sora', sans-serif",
+          fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif",
           animationPlayState: 'paused',
           animationDelay: '0.2s',
         }}

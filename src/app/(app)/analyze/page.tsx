@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import AnalysisResults from '@/components/AnalysisResults';
 import TestDownloader from '@/components/TestDownloader';
+import { IconCheck, IconZap, IconBrain, IconWarning } from '@/components/icons';
 
 type Step = 'idle' | 'gemini' | 'claude' | 'saving' | 'done' | 'error';
 
@@ -28,9 +29,9 @@ interface MergedResult {
 }
 
 const STEPS = [
-  { key: 'gemini', label: 'Scanning with Gemini 2.5 Pro...' },
-  { key: 'claude', label: 'Verifying with Claude Opus...' },
-  { key: 'saving', label: 'Preparing your results...' },
+  { key: 'gemini', label: 'Scanning with Gemini 2.5 Pro...', Icon: IconZap },
+  { key: 'claude', label: 'Verifying with Claude Opus...', Icon: IconBrain },
+  { key: 'saving', label: 'Preparing your results...', Icon: IconCheck },
 ];
 
 export default function AnalyzePage() {
@@ -122,12 +123,10 @@ export default function AnalyzePage() {
   }
 
   return (
-    <div className="max-w-[1100px] mx-auto px-10 py-12">
+    <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-12">
       <div className="mb-10">
-        <div className="text-[11px] tracking-[4px] uppercase mb-2" style={{ color: 'var(--pink)' }}>
-          Dual-Model Analysis
-        </div>
-        <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Sora', sans-serif" }}>
+        <div className="section-label mb-3">Dual-Model Analysis</div>
+        <h1 className="page-title" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
           Analyze rejection
         </h1>
       </div>
@@ -143,16 +142,17 @@ export default function AnalyzePage() {
               onChange={(e) => setFeedback(e.target.value)}
               rows={12}
               placeholder="Paste Apple's review feedback or rejection notice here..."
-              className="w-full px-5 py-4 text-sm bg-transparent text-white outline-none resize-none transition-all duration-300 leading-relaxed"
-              style={{ border: '1px solid var(--panel-border)', fontFamily: "'Sora', sans-serif" }}
-              onFocus={(e) => (e.target.style.borderColor = 'var(--pink-dim)')}
-              onBlur={(e) => (e.target.style.borderColor = 'var(--panel-border)')}
+              className="input-field rounded-2xl resize-none leading-relaxed"
+              style={{ padding: '20px', fontSize: '14px', fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}
             />
           </div>
 
           {error && (
-            <div className="text-[13px] px-4 py-3 mb-4" style={{ color: '#ff6b6b', background: 'rgba(255,107,107,0.05)', border: '1px solid rgba(255,107,107,0.15)' }}>
-              {error}
+            <div className="glass-card rounded-xl px-5 py-4 mb-4 flex items-start gap-3"
+              style={{ borderColor: 'rgba(248, 113, 113, 0.2)', background: 'rgba(248, 113, 113, 0.04)' }}
+            >
+              <IconWarning width={16} height={16} className="shrink-0 mt-0.5" style={{ color: 'var(--red)' }} />
+              <span className="text-[13px]" style={{ color: 'var(--red)' }}>{error}</span>
             </div>
           )}
 
@@ -163,15 +163,10 @@ export default function AnalyzePage() {
             <button
               type="submit"
               disabled={!feedback.trim()}
-              className="px-8 py-3.5 text-[12px] tracking-[2px] uppercase text-white font-medium transition-all duration-300"
-              style={{
-                background: feedback.trim() ? 'var(--pink)' : 'transparent',
-                border: '1px solid var(--pink)',
-                cursor: feedback.trim() ? 'pointer' : 'not-allowed',
-                opacity: feedback.trim() ? 1 : 0.5,
-              }}
+              className="btn-primary px-8 py-4 rounded-2xl text-[12px] tracking-[2px] uppercase font-medium flex items-center gap-2"
             >
-              Scan Now →
+              <IconZap width={16} height={16} />
+              Scan Now
             </button>
           </div>
         </form>
@@ -182,23 +177,22 @@ export default function AnalyzePage() {
           <div className="mt-8 text-center">
             <button
               onClick={handleReset}
-              className="px-6 py-3 text-[12px] tracking-[2px] uppercase transition-all duration-300 bg-transparent cursor-pointer"
-              style={{ border: '1px solid var(--panel-border)', color: 'var(--gray)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--pink-dim)'; e.currentTarget.style.color = 'var(--white)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--panel-border)'; e.currentTarget.style.color = 'var(--gray)'; }}
+              className="btn-secondary px-6 py-3 rounded-xl text-[12px] tracking-[2px] uppercase cursor-pointer"
             >
-              ← New Analysis
+              &larr; New Analysis
             </button>
           </div>
         </>
       ) : (
         /* Progress Steps */
-        <div
-          className="p-12 flex flex-col items-center justify-center gap-8"
-          style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', minHeight: '320px' }}
+        <div className="glass-card rounded-2xl p-12 flex flex-col items-center justify-center gap-8 relative overflow-hidden"
+          style={{ minHeight: '320px' }}
         >
-          <div className="flex flex-col gap-5 w-full max-w-[360px]">
-            {STEPS.map(({ key, label }) => {
+          <div className="glow-line" />
+
+          {/* Horizontal stepper */}
+          <div className="flex items-center gap-0 w-full max-w-[560px]">
+            {STEPS.map(({ key, label, Icon }, idx) => {
               const stepOrder = ['gemini', 'claude', 'saving'];
               const currentIdx = stepOrder.indexOf(step);
               const thisIdx = stepOrder.indexOf(key);
@@ -206,29 +200,41 @@ export default function AnalyzePage() {
               const isActive = thisIdx === currentIdx;
 
               return (
-                <div key={key} className="flex items-center gap-4">
-                  <div
-                    className="w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[10px] transition-all duration-500"
-                    style={{
-                      background: isDone ? 'var(--pink)' : isActive ? 'transparent' : 'transparent',
-                      border: isDone ? '1px solid var(--pink)' : isActive ? '1px solid var(--pink)' : '1px solid var(--panel-border)',
-                      boxShadow: isActive ? '0 0 12px var(--pink-glow)' : 'none',
-                    }}
-                  >
-                    {isDone && '✓'}
-                    {isActive && (
-                      <span
-                        className="w-2 h-2 rounded-full"
-                        style={{ background: 'var(--pink)', animation: 'pulse 1s ease-in-out infinite' }}
-                      />
-                    )}
+                <div key={key} className="flex items-center flex-1">
+                  <div className="flex flex-col items-center gap-3 flex-1">
+                    <div
+                      className="w-10 h-10 rounded-full shrink-0 flex items-center justify-center transition-all duration-500"
+                      style={{
+                        background: isDone ? 'var(--pink)' : isActive ? 'var(--surface-2)' : 'var(--surface-1)',
+                        border: isDone ? '1px solid var(--pink)' : isActive ? '1px solid var(--pink-dim)' : '1px solid var(--border)',
+                        boxShadow: isActive ? '0 0 20px var(--pink-glow)' : 'none',
+                      }}
+                    >
+                      {isDone ? (
+                        <IconCheck width={16} height={16} style={{ color: 'white' }} />
+                      ) : isActive ? (
+                        <Icon width={16} height={16} style={{ color: 'var(--pink)', animation: 'breathe 2s ease-in-out infinite' }} />
+                      ) : (
+                        <Icon width={16} height={16} style={{ color: 'var(--gray-dim)' }} />
+                      )}
+                    </div>
+                    <span
+                      className="text-[11px] text-center transition-all duration-300 leading-tight"
+                      style={{ color: isActive ? 'var(--white)' : isDone ? 'var(--gray)' : 'var(--gray-dim)' }}
+                    >
+                      {label}
+                    </span>
                   </div>
-                  <span
-                    className="text-[13px] transition-all duration-300"
-                    style={{ color: isActive ? 'var(--white)' : isDone ? 'var(--gray)' : 'var(--gray-dim)' }}
-                  >
-                    {label}
-                  </span>
+                  {/* Connecting line */}
+                  {idx < STEPS.length - 1 && (
+                    <div
+                      className="h-[1px] w-full -mt-6"
+                      style={{
+                        background: isDone ? 'var(--pink)' : 'var(--border)',
+                        transition: 'background 0.5s ease',
+                      }}
+                    />
+                  )}
                 </div>
               );
             })}

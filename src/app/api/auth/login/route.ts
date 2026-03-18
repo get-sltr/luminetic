@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { signIn } from "@/lib/cognito";
-import { putUser } from "@/lib/db";
+import { putUser, getUser } from "@/lib/db";
 import { setAuthCookies } from "@/lib/auth";
 import { z } from "zod";
 import { authLimiter, getClientIp } from "@/lib/rate-limit";
@@ -50,7 +50,16 @@ export async function POST(request: NextRequest) {
       // Already exists — that's fine
     }
 
-    const response = NextResponse.json({ success: true });
+    // Check credits to determine redirect
+    let credits = 0;
+    try {
+      const userRecord = await getUser(userId);
+      credits = userRecord?.scan_credits ?? 0;
+    } catch {
+      // Default to 0 credits
+    }
+
+    const response = NextResponse.json({ success: true, credits });
     setAuthCookies(response, tokens.AccessToken, tokens.RefreshToken);
     return response;
   } catch (error) {

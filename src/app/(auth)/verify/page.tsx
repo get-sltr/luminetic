@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { IconShield } from '@/components/icons';
 
 function VerifyForm() {
   const router = useRouter();
@@ -41,14 +42,19 @@ function VerifyForm() {
 
   return (
     <>
-      <p className="text-[13px] mb-8" style={{ color: 'var(--gray)' }}>
-        We sent a 6-digit code to <span className="text-white">{email}</span>
+      <p className="text-[13px] mb-8 text-center" style={{ color: 'var(--gray)' }}>
+        We sent a 6-digit code to{' '}
+        <span
+          className="inline-block mt-1 px-3 py-1 rounded-md text-white text-[13px] font-medium"
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)' }}
+        >
+          {email}
+        </span>
       </p>
+
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
-          <label className="block text-[11px] tracking-[2px] uppercase mb-2" style={{ color: 'var(--gray)' }}>
-            Verification code
-          </label>
+          <label className="section-label block mb-2 text-center">Verification code</label>
           <input
             type="text"
             value={code}
@@ -56,15 +62,13 @@ function VerifyForm() {
             required
             maxLength={6}
             placeholder="000000"
-            className="w-full px-4 py-3 bg-transparent text-white outline-none tracking-[8px] text-center transition-all duration-300"
-            style={{ border: '1px solid var(--panel-border)', fontFamily: "'Sora', sans-serif", fontSize: '22px' }}
-            onFocus={(e) => (e.target.style.borderColor = 'var(--pink-dim)')}
-            onBlur={(e) => (e.target.style.borderColor = 'var(--panel-border)')}
+            className="input-field w-full text-center"
+            style={{ letterSpacing: '8px', fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif", fontSize: '22px' }}
           />
         </div>
 
         {error && (
-          <div className="text-[13px] px-4 py-3" style={{ color: '#ff6b6b', background: 'rgba(255,107,107,0.05)', border: '1px solid rgba(255,107,107,0.15)' }}>
+          <div className="text-[13px] px-4 py-3 rounded-lg" style={{ color: '#ff6b6b', background: 'rgba(255,107,107,0.06)', border: '1px solid rgba(255,107,107,0.15)' }}>
             {error}
           </div>
         )}
@@ -72,8 +76,8 @@ function VerifyForm() {
         <button
           type="submit"
           disabled={loading || code.length !== 6}
-          className="w-full py-3.5 text-[12px] tracking-[2px] uppercase font-medium text-white transition-all duration-300 mt-2"
-          style={{ background: loading || code.length !== 6 ? 'var(--pink-dim)' : 'var(--pink)', border: 'none', cursor: loading || code.length !== 6 ? 'not-allowed' : 'pointer' }}
+          className="btn-primary w-full mt-2"
+          style={{ opacity: code.length !== 6 ? 0.5 : 1 }}
         >
           {loading ? 'Verifying...' : 'Verify Email'}
         </button>
@@ -84,23 +88,26 @@ function VerifyForm() {
 
 export default function VerifyPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center px-6" style={{ background: '#000' }}>
-      <div className="w-full max-w-[400px]">
-        <div className="flex items-center gap-2 mb-12">
-          <div className="w-2 h-2 rounded-full" style={{ background: 'var(--pink)', boxShadow: '0 0 12px var(--pink-dim)' }} />
-          <span className="text-[20px] font-bold tracking-tight" style={{ fontFamily: "'Sora', sans-serif" }}>
-            Luminetic
-          </span>
+    <div className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--black)' }}>
+      <div className="w-full max-w-md">
+        <div className="glass-card rounded-2xl p-8 sm:p-10 text-center">
+          {/* Shield icon */}
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-6"
+            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)' }}
+          >
+            <IconShield width={26} height={26} style={{ color: 'var(--pink)' }} />
+          </div>
+
+          <div className="section-label mb-3" style={{ color: 'var(--pink)' }}>One more step</div>
+          <h1 className="page-title text-3xl mb-2" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
+            Verify email
+          </h1>
+
+          <Suspense fallback={<div className="text-sm" style={{ color: 'var(--gray)' }}>Loading...</div>}>
+            <VerifyForm />
+          </Suspense>
         </div>
-        <div className="text-[11px] tracking-[4px] uppercase mb-3" style={{ color: 'var(--pink)' }}>
-          One more step
-        </div>
-        <h1 className="text-3xl font-semibold mb-2" style={{ fontFamily: "'Sora', sans-serif" }}>
-          Verify email
-        </h1>
-        <Suspense fallback={<div className="text-sm" style={{ color: 'var(--gray)' }}>Loading...</div>}>
-          <VerifyForm />
-        </Suspense>
       </div>
     </div>
   );

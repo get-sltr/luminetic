@@ -209,7 +209,7 @@ export default function ReviewPacketPage() {
         <div className="text-[11px] tracking-[4px] uppercase mb-2" style={{ color: 'var(--pink)' }}>
           Review Packet
         </div>
-        <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Sora', sans-serif" }}>
+        <h1 className="text-3xl font-semibold" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
           Generate Review Notes
         </h1>
         <p className="text-[14px] mt-2" style={{ color: 'var(--gray)' }}>

@@ -17,14 +17,14 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ sca
   const hasIssues = (mergedResult?.issues?.length || 0) > 0;
 
   return (
-    <div className="max-w-[1100px] mx-auto px-10 py-12">
+    <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-12">
       <div className="flex items-center gap-4 mb-10">
-        <Link href="/history" className="text-[12px] no-underline transition-colors" style={{ color: 'var(--gray)' }}>
-          ← History
+        <Link href="/history" className="text-[12px] no-underline hover-text" style={{ color: 'var(--gray)' }}>
+          &larr; History
         </Link>
-        <div className="w-px h-4" style={{ background: 'var(--panel-border)' }} />
+        <div className="w-px h-4" style={{ background: 'var(--border)' }} />
         <div>
-          <div className="text-[11px] tracking-[4px] uppercase mb-0.5" style={{ color: 'var(--pink)' }}>
+          <div className="section-label mb-0.5">
             Scan Result
           </div>
           <div className="text-[13px]" style={{ color: 'var(--gray)' }}>

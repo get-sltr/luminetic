@@ -1,8 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+
+function getPasswordStrength(pw: string): { level: number; label: string; color: string } {
+  if (!pw) return { level: 0, label: '', color: 'transparent' };
+  let score = 0;
+  if (pw.length >= 8) score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[a-z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+  if (score <= 2) return { level: 1, label: 'Weak', color: '#ef4444' };
+  if (score <= 4) return { level: 2, label: 'Fair', color: '#f59e0b' };
+  return { level: 3, label: 'Strong', color: '#22c55e' };
+}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -11,6 +28,8 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const strength = useMemo(() => getPasswordStrength(password), [password]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,93 +59,111 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6" style={{ background: '#000' }}>
-      <div className="w-full max-w-[440px]">
-        <div className="flex items-center gap-2 mb-12">
-          <div className="w-2 h-2 rounded-full" style={{ background: 'var(--pink)', boxShadow: '0 0 12px var(--pink-dim)' }} />
-          <span className="text-[20px] font-bold tracking-tight" style={{ fontFamily: "'Sora', sans-serif" }}>
-            Luminetic
-          </span>
-        </div>
+    <div style={{ background: 'var(--black)' }}>
+      <div className="grid-bg" />
+      <Header />
 
-        <div className="text-[11px] tracking-[4px] uppercase mb-3" style={{ color: 'var(--pink)' }}>
-          Get started
-        </div>
-        <h1 className="text-3xl font-semibold mb-2" style={{ fontFamily: "'Sora', sans-serif" }}>
-          Create account
-        </h1>
-        <p className="text-[13px] mb-8" style={{ color: 'var(--gray)' }}>
-          Password must be 12+ characters with uppercase, lowercase, number, and symbol.
-        </p>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <div>
-            <label className="block text-[11px] tracking-[2px] uppercase mb-2" style={{ color: 'var(--gray)' }}>
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-              className="w-full px-4 py-3.5 text-sm bg-transparent text-white outline-none transition-all duration-300"
-              style={{ border: '1px solid var(--panel-border)' }}
-              onFocus={(e) => (e.target.style.borderColor = 'var(--pink-dim)')}
-              onBlur={(e) => (e.target.style.borderColor = 'var(--panel-border)')}
-            />
+      <main className="min-h-screen flex items-center justify-center px-6 pt-[100px] pb-[80px]">
+        <div className="w-full max-w-[420px]">
+          <div className="text-[11px] font-medium tracking-[4px] uppercase mb-4" style={{ color: 'var(--pink)' }}>
+            Get Started
           </div>
+          <h1 className="text-[32px] font-bold mb-2" style={{ letterSpacing: '-0.5px' }}>
+            Create account
+          </h1>
+          <p className="text-[13px] mb-10" style={{ color: 'var(--gray)' }}>
+            Password must be 12+ characters with uppercase, lowercase, number, and symbol.
+          </p>
 
-          <div>
-            <label className="block text-[11px] tracking-[2px] uppercase mb-2" style={{ color: 'var(--gray)' }}>
-              Password
-            </label>
-            <div className="relative">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <div>
+              <label className="block text-[11px] tracking-[2px] uppercase mb-2" style={{ color: 'var(--gray)' }}>
+                Email
+              </label>
               <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                autoComplete="new-password"
-                className="w-full px-4 py-3 pr-16 text-sm bg-transparent text-white outline-none transition-all duration-300"
-                style={{ border: '1px solid var(--panel-border)' }}
-                onFocus={(e) => (e.target.style.borderColor = 'var(--pink-dim)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--panel-border)')}
+                autoComplete="email"
+                placeholder="you@company.com"
+                className="input-field"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] tracking-[1px] uppercase bg-transparent border-none cursor-pointer"
-                style={{ color: 'var(--gray)' }}
-              >
-                {showPassword ? 'Hide' : 'Show'}
-              </button>
             </div>
-          </div>
 
-          {error && (
-            <div className="text-[13px] px-4 py-3" style={{ color: '#ff6b6b', background: 'rgba(255,107,107,0.05)', border: '1px solid rgba(255,107,107,0.15)' }}>
-              {error}
+            <div>
+              <label className="block text-[11px] tracking-[2px] uppercase mb-2" style={{ color: 'var(--gray)' }}>
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  className="input-field pr-16"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] tracking-[1px] uppercase bg-transparent border-none cursor-pointer hover-text"
+                  style={{ color: 'var(--gray)' }}
+                >
+                  {showPassword ? 'Hide' : 'Show'}
+                </button>
+              </div>
+
+              {password.length > 0 && (
+                <div className="mt-3">
+                  <div className="flex gap-1.5">
+                    {[1, 2, 3].map((seg) => (
+                      <div
+                        key={seg}
+                        className="h-1 flex-1 transition-all duration-300"
+                        style={{ background: seg <= strength.level ? strength.color : 'var(--border)' }}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-[11px] mt-1.5 tracking-wide" style={{ color: strength.color }}>
+                    {strength.label}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 text-[12px] tracking-[2px] uppercase font-medium text-white transition-all duration-300 mt-2"
-            style={{ background: loading ? 'var(--pink-dim)' : 'var(--pink)', border: 'none', cursor: loading ? 'not-allowed' : 'pointer' }}
-          >
-            {loading ? 'Creating account...' : 'Create Account'}
-          </button>
-        </form>
+            {error && (
+              <div className="text-[13px] px-4 py-3" style={{ color: 'var(--red)', background: 'rgba(248,113,113,0.05)', border: '1px solid rgba(248,113,113,0.12)' }}>
+                {error}
+              </div>
+            )}
 
-        <p className="text-[13px] text-center mt-8" style={{ color: 'var(--gray)' }}>
-          Already have an account?{' '}
-          <Link href="/login" className="text-white hover:underline">
-            Sign in
-          </Link>
-        </p>
-      </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full text-white text-[12px] tracking-[2px] uppercase font-medium mt-2"
+              style={{
+                background: loading ? 'var(--pink-dim)' : 'var(--pink)',
+                padding: '16px',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                border: 'none',
+                opacity: loading ? 0.6 : 1,
+              }}
+            >
+              {loading ? 'Creating account...' : 'Create Account'}
+            </button>
+          </form>
+
+          <p className="text-[13px] text-center mt-8" style={{ color: 'var(--gray)' }}>
+            Already have an account?{' '}
+            <Link href="/login" className="text-white hover:underline">
+              Sign in
+            </Link>
+          </p>
+        </div>
+      </main>
+
+      <Footer />
     </div>
   );
 }

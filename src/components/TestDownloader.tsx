@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { IconDownload } from './icons';
 
 interface TestFile {
   filename: string;
@@ -63,25 +64,17 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
       </div>
 
       {status === 'idle' || status === 'error' ? (
-        <div
-          className="p-6 relative overflow-hidden"
-          style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
-        >
-          <div
-            className="absolute top-0 left-0 w-full h-px"
-            style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }}
-          />
-
+        <div className="glass-card p-6 relative overflow-hidden rounded-2xl">
+          <div className="glow-line" />
           <div className="mb-5">
-            <h3 className="text-[16px] font-medium mb-1" style={{ fontFamily: "'Sora', sans-serif" }}>
-              Generate Maestro & Detox Test Suite
+            <h3 className="text-[16px] font-medium mb-1" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
+              Generate Maestro &amp; Detox Test Suite
             </h3>
             <p className="text-[13px]" style={{ color: 'var(--gray)' }}>
               AI-generated test scripts targeting each issue found in your analysis.
             </p>
           </div>
 
-          {/* Options */}
           <div className="flex flex-col gap-3 mb-5">
             <div>
               <label className="block text-[11px] tracking-[2px] uppercase mb-1.5" style={{ color: 'var(--gray)' }}>
@@ -92,10 +85,7 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
                 value={appId}
                 onChange={(e) => setAppId(e.target.value)}
                 placeholder="com.yourcompany.yourapp"
-                className="w-full max-w-[360px] px-3 py-2 text-sm bg-transparent text-white outline-none transition-all duration-300"
-                style={{ border: '1px solid var(--panel-border)' }}
-                onFocus={(e) => (e.target.style.borderColor = 'var(--pink-dim)')}
-                onBlur={(e) => (e.target.style.borderColor = 'var(--panel-border)')}
+                className="input-field max-w-[360px]"
               />
             </div>
 
@@ -113,32 +103,20 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
           </div>
 
           {error && (
-            <div
-              className="text-[13px] px-4 py-3 mb-4"
-              style={{ color: '#ff6b6b', background: 'rgba(255,107,107,0.05)', border: '1px solid rgba(255,107,107,0.15)' }}
-            >
+            <div className="glass-card text-[13px] px-4 py-3 mb-4 rounded-xl"
+              style={{ color: 'var(--red)', background: 'rgba(248,113,113,0.05)', borderColor: 'rgba(248,113,113,0.15)' }}>
               {error}
             </div>
           )}
 
-          <button
-            onClick={handleGenerate}
-            className="px-6 py-3 text-[12px] tracking-[2px] uppercase text-white font-medium transition-all duration-300"
-            style={{ background: 'var(--pink)', border: '1px solid var(--pink)', cursor: 'pointer' }}
-          >
-            Generate Test Suite →
+          <button onClick={handleGenerate} className="btn-primary px-6 py-3 text-[12px] tracking-[2px] uppercase">
+            Generate Test Suite &rarr;
           </button>
         </div>
       ) : status === 'generating' ? (
-        <div
-          className="p-8 flex flex-col items-center justify-center"
-          style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)', minHeight: '160px' }}
-        >
-          <div className="flex items-center gap-3 mb-3">
-            <span
-              className="w-3 h-3 rounded-full"
-              style={{ background: 'var(--pink)', animation: 'pulse 1s ease-in-out infinite' }}
-            />
+        <div className="glass-card p-8 flex flex-col items-center justify-center gap-3 rounded-2xl" style={{ minHeight: '160px' }}>
+          <div className="flex items-center gap-3">
+            <span className="w-3 h-3 rounded-full animate-pulse" style={{ background: 'var(--pink)' }} />
             <span className="text-[13px]">Generating test scripts...</span>
           </div>
           <p className="text-[12px]" style={{ color: 'var(--gray)' }}>
@@ -146,33 +124,23 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
           </p>
         </div>
       ) : (
-        /* ready */
         <div className="flex flex-col gap-4">
           {/* Download bar */}
-          <div
-            className="p-5 flex items-center justify-between relative overflow-hidden"
-            style={{ background: 'var(--panel-bg)', border: '1px solid var(--pink-dim)' }}
-          >
-            <div
-              className="absolute top-0 left-0 w-full h-px"
-              style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }}
-            />
+          <div className="glass-card glass-card-glow p-5 flex items-center justify-between relative overflow-hidden rounded-2xl">
+            <div className="glow-line" />
             <div>
-              <div className="text-[14px] font-medium mb-0.5" style={{ fontFamily: "'Sora', sans-serif" }}>
+              <div className="text-[14px] font-medium mb-0.5" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
                 {tests.length} test {tests.length === 1 ? 'file' : 'files'} generated
               </div>
               {expiresAt && (
                 <div className="text-[11px]" style={{ color: 'var(--gray)' }}>
-                  Download link expires {new Date(expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                  Download expires {new Date(expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </div>
               )}
             </div>
             {downloadUrl && (
-              <a
-                href={downloadUrl}
-                className="px-5 py-2.5 text-[12px] tracking-[2px] uppercase text-white no-underline transition-all duration-300"
-                style={{ background: 'var(--pink)', border: '1px solid var(--pink)' }}
-              >
+              <a href={downloadUrl} className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-[12px] tracking-[2px] uppercase no-underline">
+                <IconDownload width={14} height={14} />
                 Download ZIP
               </a>
             )}
@@ -184,20 +152,15 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
               <div key={test.filename}>
                 <button
                   onClick={() => setPreviewFile(previewFile === test.filename ? null : test.filename)}
-                  className="w-full flex items-center justify-between px-5 py-3 text-left bg-transparent cursor-pointer transition-all duration-200"
-                  style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--pink-dim)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = previewFile === test.filename ? 'var(--pink-dim)' : 'var(--panel-border)')}
+                  className="w-full flex items-center justify-between px-5 py-3 text-left glass-card hover-bg cursor-pointer rounded-xl"
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-[13px] text-white font-mono">{test.filename}</span>
-                    <span
-                      className="text-[9px] tracking-[1.5px] uppercase px-2 py-0.5"
+                    <span className="badge"
                       style={{
-                        color: test.format === 'maestro' ? '#60a5fa' : '#a78bfa',
-                        border: `1px solid ${test.format === 'maestro' ? '#60a5fa' : '#a78bfa'}44`,
-                      }}
-                    >
+                        color: test.format === 'maestro' ? 'var(--blue)' : 'var(--purple)',
+                        borderColor: test.format === 'maestro' ? 'rgba(96,165,250,0.25)' : 'rgba(167,139,250,0.25)',
+                      }}>
                       {test.format}
                     </span>
                   </div>
@@ -207,8 +170,8 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
                 </button>
 
                 {previewFile === test.filename && (
-                  <div className="px-1 pb-1" style={{ background: 'var(--panel-bg)' }}>
-                    <div className="text-[11px] px-4 py-2" style={{ color: 'var(--gray)' }}>
+                  <div className="px-5 pb-3 pt-1">
+                    <div className="text-[11px]" style={{ color: 'var(--gray)' }}>
                       {test.issueDescription}
                     </div>
                   </div>
@@ -217,14 +180,11 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
             ))}
           </div>
 
-          {/* Regenerate */}
           <div className="text-center">
             <button
               onClick={() => { setStatus('idle'); setTests([]); setDownloadUrl(null); }}
-              className="text-[11px] tracking-[1.5px] uppercase bg-transparent border-none cursor-pointer transition-colors duration-200"
+              className="text-[11px] tracking-[1.5px] uppercase bg-transparent border-none cursor-pointer hover-text"
               style={{ color: 'var(--gray)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--white)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--gray)')}
             >
               Regenerate with different options
             </button>
