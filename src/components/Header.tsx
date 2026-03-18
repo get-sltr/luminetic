@@ -8,7 +8,7 @@ export default function Header() {
       className="fixed top-0 left-0 w-full z-50 bg-black/60 backdrop-blur-[20px] border-b border-white/[0.08] animate-jarvis-slide-down"
     >
       <div
-        className="flex justify-between items-center py-6 px-10"
+        className="flex justify-between items-center py-5 px-6 md:px-10 lg:px-16"
         style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}
       >
       <Link href="/" className="flex items-center gap-2 no-underline">

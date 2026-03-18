@@ -16,7 +16,7 @@ export default function Home() {
       <Header />
 
       {/* Hero Section */}
-      <section className="relative z-[1] min-h-screen flex flex-col items-center justify-center pt-[160px] pb-28 px-8 md:px-16 text-center">
+      <section className="relative z-[1] min-h-screen flex flex-col items-center justify-center pt-[180px] pb-40 px-6 md:px-16 lg:px-24 text-center">
         {/* Tagline */}
         <div
           className="text-sm font-normal tracking-[4px] uppercase mb-12 animate-jarvis-flicker"
@@ -52,7 +52,7 @@ export default function Home() {
         </h1>
 
         <p
-          className="text-[16px] max-w-[480px] leading-[1.7] mb-12 animate-jarvis-text-in"
+          className="text-[17px] max-w-[520px] leading-[1.8] mb-14 animate-jarvis-text-in"
           style={{ color: 'var(--gray)', animationDelay: '2.8s' }}
         >
           AI-powered pre-flight checks for App Store submission. Know exactly what reviewers will
@@ -96,7 +96,7 @@ export default function Home() {
       </section>
 
       <Features />
-      <div className="max-w-[1200px] mx-auto px-8 md:px-16">
+      <div className="max-w-[1200px] mx-auto px-6 md:px-16 lg:px-24">
         <div className="h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--panel-border), transparent)' }} />
       </div>
       <Pricing />

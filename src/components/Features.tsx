@@ -49,7 +49,7 @@ function FeatureCard({ name, desc, index }: { name: string; desc: string; index:
   return (
     <div
       ref={ref}
-      className="relative overflow-hidden p-10 transition-all duration-[600ms]"
+      className="relative overflow-hidden p-8 md:p-10 lg:p-12 transition-all duration-[600ms]"
       style={{
         background: 'var(--panel-bg)',
         border: '1px solid var(--panel-border)',
@@ -91,7 +91,7 @@ function FeatureCard({ name, desc, index }: { name: string; desc: string; index:
       >
         {name}
       </h3>
-      <p className="text-sm leading-relaxed" style={{ color: 'var(--gray)' }}>
+      <p className="text-[14px] leading-[1.8]" style={{ color: 'var(--gray)' }}>
         {desc}
       </p>
 
@@ -130,7 +130,7 @@ export default function Features() {
   }, []);
 
   return (
-    <section id="features" className="relative z-[1] px-8 md:px-16 pt-[100px] pb-[160px] max-w-[1200px] mx-auto">
+    <section id="features" className="relative z-[1] px-6 md:px-16 lg:px-24 pt-[120px] pb-[180px] max-w-[1200px] mx-auto">
       <div
         ref={labelRef}
         className="text-[11px] tracking-[4px] uppercase font-normal mb-4 animate-jarvis-text-in"
@@ -149,7 +149,7 @@ export default function Features() {
       >
         Everything you need to ship clean.
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
         {features.map((f, i) => (
           <FeatureCard key={f.name} {...f} index={i} />
         ))}
