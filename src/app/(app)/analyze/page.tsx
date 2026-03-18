@@ -49,10 +49,14 @@ export default function AnalyzePage() {
     setStep('gemini');
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 90_000); // 90 second max
+
       const res = await fetch('/api/analyze-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ feedback: feedback.trim() }),
+        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -70,7 +74,7 @@ export default function AnalyzePage() {
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) { clearTimeout(timeout); break; }
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
@@ -100,8 +104,12 @@ export default function AnalyzePage() {
           }
         }
       }
-    } catch {
-      setError('Something went wrong. Please try again.');
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setError('Analysis timed out. Please try again.');
+      } else {
+        setError('Something went wrong. Please try again.');
+      }
       setStep('error');
     }
   }

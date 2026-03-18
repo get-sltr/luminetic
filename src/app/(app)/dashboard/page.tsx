@@ -2,26 +2,73 @@ import { getAuthUser } from '@/lib/auth';
 import { getUser, getScans } from '@/lib/db';
 import Link from 'next/link';
 
-export default async function DashboardPage() {
+const PACK_CREDITS: Record<string, number> = {
+  starter: 1,
+  pro: 3,
+  agency: 10,
+};
+
+export default async function DashboardPage(props: { searchParams: Promise<Record<string, string | undefined>> }) {
   const authUser = await getAuthUser();
   if (!authUser) return null;
 
-  const [profile, scans] = await Promise.all([
-    getUser(authUser.userId),
-    getScans(authUser.userId, 5),
-  ]);
+  let purchasedCredits: number | null = null;
+  try {
+    const params = await props.searchParams;
+    const packId = params?.purchased;
+    if (packId && packId in PACK_CREDITS) {
+      purchasedCredits = PACK_CREDITS[packId];
+    }
+  } catch {
+    // searchParams unavailable — not critical
+  }
 
-  const plan = (profile?.plan as string) || 'free';
-  const isFounder = plan === 'founder';
-  const credits = (profile?.scanCredits as number) || 0;
-  const scanCount = (profile?.scanCount as number) || 0;
-  const recentScans = scans as Array<{ scanId: string; score: number; createdAt: string }>;
-  const avgScore = recentScans.length
-    ? Math.round(recentScans.reduce((sum, s) => sum + (s.score || 0), 0) / recentScans.length)
-    : null;
+  let plan = 'free';
+  let isFounder = false;
+  let credits = 0;
+  let scanCount = 0;
+  let recentScans: Array<{ scanId: string; score: number; createdAt: string }> = [];
+  let avgScore: number | null = null;
+
+  try {
+    const [profile, scans] = await Promise.all([
+      getUser(authUser.userId),
+      getScans(authUser.userId, 5),
+    ]);
+
+    plan = (profile?.plan as string) || 'free';
+    isFounder = plan === 'founder';
+    credits = (profile?.scanCredits as number) || 0;
+    scanCount = (profile?.scanCount as number) || 0;
+    recentScans = (scans || []) as Array<{ scanId: string; score: number; createdAt: string }>;
+    avgScore = recentScans.length
+      ? Math.round(recentScans.reduce((sum, s) => sum + (s.score || 0), 0) / recentScans.length)
+      : null;
+  } catch (err) {
+    console.error('[dashboard] Failed to load user data:', err);
+  }
 
   return (
     <div className="max-w-[1100px] mx-auto px-10 py-12">
+      {/* Purchase confirmation */}
+      {purchasedCredits && (
+        <div
+          className="p-6 mb-8 relative overflow-hidden"
+          style={{ background: 'rgba(74,222,128,0.04)', border: '1px solid rgba(74,222,128,0.2)' }}
+        >
+          <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(74,222,128,0.5), transparent)' }} />
+          <h2 className="text-lg font-semibold mb-1" style={{ fontFamily: "'Sora', sans-serif", color: '#4ade80' }}>
+            Payment received
+          </h2>
+          <p className="text-[13px]" style={{ color: 'var(--gray)' }}>
+            {purchasedCredits} scan credit{purchasedCredits > 1 ? 's' : ''} added to your account.{' '}
+            <Link href="/analyze" className="no-underline" style={{ color: 'var(--pink)' }}>
+              Run an analysis now →
+            </Link>
+          </p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="mb-12">
         <div className="text-[11px] tracking-[4px] uppercase mb-2" style={{ color: 'var(--pink)' }}>

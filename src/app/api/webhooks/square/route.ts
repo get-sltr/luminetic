@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { WebhooksHelper } = require("square") as { WebhooksHelper: { verifySignature: (body: string, sig: string, key: string, url: string) => boolean } };
+import { WebhooksHelper } from "square";
 import { db } from "@/lib/db";
 import { UpdateCommand, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import {
@@ -71,7 +70,12 @@ export async function POST(request: NextRequest) {
     const signatureKey = await getWebhookSignatureKey();
 
     const url = `${request.headers.get("x-forwarded-proto") || "https"}://${request.headers.get("host")}${request.nextUrl.pathname}`;
-    const isValid = WebhooksHelper.verifySignature(rawBody, signature, signatureKey, url);
+    const isValid = await WebhooksHelper.verifySignature({
+      requestBody: rawBody,
+      signatureHeader: signature,
+      signatureKey,
+      notificationUrl: url,
+    });
     if (!isValid) {
       console.error("[square-webhook] Invalid signature");
       return NextResponse.json({ error: "Invalid signature." }, { status: 401 });
