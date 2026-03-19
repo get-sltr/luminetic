@@ -20,17 +20,23 @@ async function getSquareToken(): Promise<string> {
   // Fall back to Secrets Manager (works locally with AWS CLI credentials)
   const now = Date.now();
   if (cachedToken && now - tokenFetchedAt < TOKEN_TTL_MS) return cachedToken;
-  const command = new GetSecretValueCommand({
-    SecretId: "luminetic/square-access-token",
-  });
-  const response = await secretsClient.send(command);
-  const token = response.SecretString
-    ? JSON.parse(response.SecretString).SQUARE_ACCESS_TOKEN
-    : null;
-  if (!token) throw new Error("Square access token not found in Secrets Manager");
-  cachedToken = token;
-  tokenFetchedAt = now;
-  return token;
+  try {
+    const command = new GetSecretValueCommand({
+      SecretId: "luminetic/square-access-token",
+    });
+    const response = await secretsClient.send(command);
+    const token = response.SecretString
+      ? JSON.parse(response.SecretString).SQUARE_ACCESS_TOKEN
+      : null;
+    if (!token) throw new Error("Square access token not found in Secrets Manager");
+    cachedToken = token;
+    tokenFetchedAt = now;
+    return token;
+  } catch {
+    throw new Error(
+      "Square access token is not configured. Set SQUARE_ACCESS_TOKEN environment variable."
+    );
+  }
 }
 
 export async function getSquareClient(): Promise<SquareClient> {
