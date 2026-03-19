@@ -134,6 +134,14 @@ export default function RootLayout({
     <html lang="en">
       <head>
         <Script
+          src="https://cdn.consentmanager.net/delivery/autoblocking/f2cd906b925a9.js"
+          data-cmp-ab="1"
+          data-cmp-host="b.delivery.consentmanager.net"
+          data-cmp-cdn="cdn.consentmanager.net"
+          data-cmp-codesrc="16"
+          strategy="beforeInteractive"
+        />
+        <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-Z5G4M2RXHK"
           strategy="afterInteractive"
         />
