@@ -76,9 +76,10 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid input." }, { status: 400 });
     }
-    console.error("[checkout] Error:", error);
+    const errorMessage = error instanceof Error ? error.message : "Checkout failed.";
+    console.error("[checkout] Error:", errorMessage, error);
     return NextResponse.json(
-      { error: "Checkout failed. Please try again." },
+      { error: errorMessage || "Checkout failed. Please try again." },
       { status: 500 }
     );
   }
