@@ -14,11 +14,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   try {
     const dbUser = await getUser(user.userId);
     role = dbUser?.role ?? 'user';
-    const credits = dbUser?.scanCredits ?? 0;
-
-    if (!isFounderOrAdmin(role) && credits <= 0) {
-      redirect('/pricing');
-    }
+    // Credit gate temporarily disabled while Square checkout is being configured
+    // const credits = dbUser?.scanCredits ?? 0;
+    // if (!isFounderOrAdmin(role) && credits <= 0) {
+    //   redirect('/pricing');
+    // }
   } catch {
     // If DB check fails, let them through
   }
