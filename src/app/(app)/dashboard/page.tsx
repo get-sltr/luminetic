@@ -9,7 +9,6 @@ import {
   IconMemory,
   IconAnalyze,
   IconArrowRight,
-  IconWarning,
   IconTarget,
 } from '@/components/icons';
 
@@ -170,40 +169,6 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
                 <IconArrowRight width={14} height={14} />
               </span>
             </Link>
-
-            {/* No Credits Warning */}
-            {!isFounder && credits <= 0 && (
-              <div
-                className="p-8 flex items-center justify-between"
-                style={{
-                  background: 'rgba(248, 113, 113, 0.03)',
-                  border: '1px solid rgba(248, 113, 113, 0.15)',
-                }}
-              >
-                <div className="flex items-center gap-4">
-                  <IconWarning width={16} height={16} style={{ color: 'var(--red)' }} />
-                  <div>
-                    <div className="text-[11px] tracking-[2px] uppercase font-bold mb-1" style={{ color: 'var(--white)' }}>
-                      No scan credits
-                    </div>
-                    <div className="text-[11px]" style={{ color: 'var(--gray)' }}>
-                      Purchase credits to run analyses.
-                    </div>
-                  </div>
-                </div>
-                <Link
-                  href="/pricing"
-                  className="no-underline text-[10px] tracking-[3px] uppercase font-medium"
-                  style={{
-                    color: 'var(--red)',
-                    border: '1px solid rgba(248, 113, 113, 0.3)',
-                    padding: '12px 20px',
-                  }}
-                >
-                  Buy Credits &rarr;
-                </Link>
-              </div>
-            )}
 
             {/* Quick Actions */}
             <div className="flex flex-col gap-[1px]" style={{ background: 'var(--border)' }}>

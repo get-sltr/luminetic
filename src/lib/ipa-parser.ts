@@ -1,5 +1,6 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import JSZip from "jszip";
+import bplist from "bplist-parser";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION || "us-east-1" });
 const BUCKET = process.env.S3_BUCKET!;
@@ -217,13 +218,21 @@ export async function parseIpa(s3Key: string): Promise<IpaMetadata> {
 
   const plistData = await plistFile.async("uint8array");
   const plistText = new TextDecoder("utf-8", { fatal: false }).decode(plistData);
-  const plist = parseXmlPlist(plistText);
+
+  let plist: Record<string, unknown> | null = null;
+
+  // Detect binary plist (starts with "bplist") vs XML plist
+  if (plistText.startsWith("bplist")) {
+    const parsed = bplist.parseBuffer(Buffer.from(plistData));
+    if (parsed && parsed.length > 0 && typeof parsed[0] === "object") {
+      plist = parsed[0] as Record<string, unknown>;
+    }
+  } else {
+    plist = parseXmlPlist(plistText);
+  }
 
   if (!plist) {
-    throw new Error(
-      "Could not parse Info.plist. Binary plists are not supported — " +
-        "only XML format Info.plist files can be parsed."
-    );
+    throw new Error("Could not parse Info.plist. The file may be corrupted.");
   }
 
   // 4. Extract embedded.mobileprovision entitlements
@@ -267,9 +276,14 @@ export async function parseIpa(s3Key: string): Promise<IpaMetadata> {
     exportCompliance: getBool("ITSAppUsesNonExemptEncryption"),
     supportsIndirectInputEvents: getBool("UIApplicationSupportsIndirectInputEvents"),
     privacyUsageDescriptions: collectPrivacyUsageDescriptions(plist),
-    requiredDeviceCapabilities: toStringArray(plist["UIRequiredDeviceCapabilities"]),
+    requiredDeviceCapabilities: (() => {
+      const caps = plist["UIRequiredDeviceCapabilities"];
+      if (Array.isArray(caps)) return caps.filter((c): c is string => typeof c === "string");
+      if (caps && typeof caps === "object") return Object.keys(caps);
+      return [];
+    })(),
     backgroundModes: toStringArray(plist["UIBackgroundModes"]),
-    urlSchemes: [],
+    urlSchemes: extractUrlTypes(plist["CFBundleURLTypes"]).flatMap(t => t.schemes || []),
     urlTypes: extractUrlTypes(plist["CFBundleURLTypes"]),
     queriesSchemes: toStringArray(plist["LSApplicationQueriesSchemes"]),
     entitlements,

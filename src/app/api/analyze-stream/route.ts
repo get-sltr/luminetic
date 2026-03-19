@@ -381,7 +381,8 @@ export async function POST(request: NextRequest) {
         const oStart = Date.now();
 
         try {
-          const userMessage = `APP METADATA:\n${contextForAI}\n\nGEMINI ANALYSIS:\n${JSON.stringify(geminiData, null, 2)}\n\nCLAUDE SONNET VALIDATION:\n${JSON.stringify(sonnetData, null, 2)}\n\nReconcile all findings and produce the final assessment.`;
+          const contextLabel = isIpaFlow ? "APP METADATA" : "FEEDBACK";
+          const userMessage = `${contextLabel}:\n${contextForAI}\n\nGEMINI ANALYSIS:\n${JSON.stringify(geminiData, null, 2)}\n\nCLAUDE SONNET VALIDATION:\n${JSON.stringify(sonnetData, null, 2)}\n\nReconcile all findings and produce the final assessment.`;
 
           const payload = {
             anthropic_version: "bedrock-2023-05-31",

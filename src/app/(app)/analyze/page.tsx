@@ -87,7 +87,7 @@ export default function AnalyzePage() {
         throw new Error(data.error || 'Failed to get upload URL.');
       }
 
-      const { uploadUrl, key, bundleId: detectedBundleId, appName: detectedAppName } = await presignRes.json();
+      const { uploadUrl, s3Key: key, bundleId: detectedBundleId, appName: detectedAppName } = await presignRes.json();
 
       // Upload directly to S3
       const xhr = new XMLHttpRequest();
@@ -410,7 +410,7 @@ export default function AnalyzePage() {
                   onBlur={(e) => e.currentTarget.style.borderColor = 'var(--border)'}
                 />
                 <input
-                  type="text"
+                  type="password"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="password"
@@ -589,18 +589,10 @@ export default function AnalyzePage() {
             {/* Horizontal stepper */}
             <div className="flex items-center gap-0 w-full max-w-[560px]">
               {PROGRESS_STEPS.map(({ keys, label, Icon }, idx) => {
-                const allKeys = PROGRESS_STEPS.map(s => s.keys);
-                const flatBefore = allKeys.slice(0, idx).flat();
-                const isDone = flatBefore.length > 0
-                  ? !flatBefore.includes(step) && !keys.includes(step)
-                    ? (() => {
-                        const allFlat = allKeys.flat();
-                        const currentStepIdx = allFlat.indexOf(step);
-                        const lastKeyOfThisGroup = allFlat.indexOf(keys[keys.length - 1]);
-                        return currentStepIdx > lastKeyOfThisGroup;
-                      })()
-                    : false
-                  : false;
+                const allFlat = PROGRESS_STEPS.flatMap(s => s.keys);
+                const lastKeyIdx = allFlat.indexOf(keys[keys.length - 1]);
+                const currentStepIdx = allFlat.indexOf(step);
+                const isDone = step === 'done' || (currentStepIdx > lastKeyIdx);
                 const isActive = keys.includes(step);
 
                 return (

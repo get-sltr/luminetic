@@ -60,15 +60,22 @@ export default function PricingPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ packId }),
+        redirect: 'follow',
       });
 
-      if (res.status === 401) {
-        // Not logged in — redirect to signup
-        window.location.href = '/signup';
+      // If redirected to login page (HTML response), send user to login
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        window.location.href = '/login?redirect=/pricing';
         return;
       }
 
       const data = await res.json();
+
+      if (res.status === 401) {
+        window.location.href = '/login?redirect=/pricing';
+        return;
+      }
 
       if (!res.ok) {
         setError(data.error || 'Checkout failed.');
@@ -76,8 +83,12 @@ export default function PricingPage() {
         return;
       }
 
-      // Redirect to Square checkout
-      window.location.href = data.url;
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setError('No checkout URL returned. Please try again.');
+        setLoading(null);
+      }
     } catch {
       setError('Something went wrong. Please try again.');
       setLoading(null);

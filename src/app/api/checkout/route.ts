@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
     const square = await getSquareClient();
     const idempotencyKey = randomUUID();
 
-    const ALLOWED_ORIGINS = ["https://luminetic.io", "https://www.luminetic.io"];
+    const ALLOWED_ORIGINS = ["https://luminetic.io", "https://www.luminetic.io", "http://localhost:3000"];
     const requestOrigin = request.headers.get("origin") || "";
     const origin = ALLOWED_ORIGINS.includes(requestOrigin) ? requestOrigin : "https://luminetic.io";
 

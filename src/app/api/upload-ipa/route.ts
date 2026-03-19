@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
+import { getUser } from "@/lib/db";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { checkoutLimiter } from "@/lib/rate-limit";
@@ -33,6 +34,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Credit check before issuing presigned URL
+    const userRecord = await getUser(user.userId);
+    const isFounder = userRecord?.plan === "founder" || userRecord?.role === "founder" || userRecord?.role === "admin";
+    if (!isFounder) {
+      const credits = (userRecord?.scanCredits as number) || 0;
+      if (credits <= 0) {
+        return NextResponse.json({ error: "No scan credits remaining." }, { status: 429 });
+      }
+    }
+
     const body = await request.json();
     const { filename, contentType } = schema.parse(body);
 
@@ -50,7 +61,7 @@ export async function POST(request: NextRequest) {
       { expiresIn: 600 } // 10 minutes
     );
 
-    return NextResponse.json({ uploadUrl, key: s3Key });
+    return NextResponse.json({ uploadUrl, s3Key });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid input." }, { status: 400 });

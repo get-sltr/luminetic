@@ -1,4 +1,4 @@
-import { SquareClient } from "square";
+import { SquareClient, SquareEnvironment } from "square";
 import {
   SecretsManagerClient,
   GetSecretValueCommand,
@@ -29,14 +29,27 @@ async function getSquareToken(): Promise<string> {
 }
 
 export async function getSquareClient(): Promise<SquareClient> {
+  const isSandbox = process.env.SQUARE_ENVIRONMENT === "sandbox";
+
+  if (isSandbox) {
+    const sandboxToken = process.env.SQUARE_SANDBOX_ACCESS_TOKEN;
+    if (!sandboxToken) throw new Error("SQUARE_SANDBOX_ACCESS_TOKEN not set");
+    return new SquareClient({
+      token: sandboxToken,
+      environment: SquareEnvironment.Sandbox,
+    });
+  }
+
   const token = await getSquareToken();
   return new SquareClient({
     token,
-    environment: "production",
+    environment: SquareEnvironment.Production,
   });
 }
 
-export const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID || "LA734SKS22172";
+export const SQUARE_LOCATION_ID = process.env.SQUARE_ENVIRONMENT === "sandbox"
+  ? "L2JFTMEF0VC8N"
+  : (process.env.SQUARE_LOCATION_ID || "LA734SKS22172");
 export const SQUARE_APP_ID = process.env.SQUARE_APP_ID || "sq0idp-wpV9sdOfB-BsA2aM-KoE9w";
 
 export interface ScanPack {
