@@ -13,6 +13,7 @@ import {
   IconMenu,
   IconX,
   IconLogout,
+  IconShield,
 } from '@/components/icons';
 
 const navLinks = [
@@ -24,7 +25,8 @@ const navLinks = [
   { href: '/history', label: 'History', Icon: IconHistory },
 ];
 
-export default function AppNav({ email, plan }: { email: string; plan: string }) {
+export default function AppNav({ email, plan, role = 'user' }: { email: string; plan: string; role?: string }) {
+  const isAdmin = role === 'founder' || role === 'admin';
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -105,6 +107,21 @@ export default function AppNav({ email, plan }: { email: string; plan: string })
                 </Link>
               );
             })}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className={`relative flex items-center gap-2 px-3.5 py-2 rounded-lg text-[11px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 ${
+                  pathname === '/admin' ? '' : 'hover-text'
+                }`}
+                style={{
+                  color: pathname === '/admin' ? 'var(--pink)' : 'var(--pink)',
+                  background: pathname === '/admin' ? 'rgba(255,45,120,0.08)' : 'transparent',
+                }}
+              >
+                <IconShield width={14} height={14} style={{ opacity: pathname === '/admin' ? 1 : 0.7 }} />
+                Admin
+              </Link>
+            )}
           </nav>
 
           {/* Right Side */}
@@ -189,6 +206,22 @@ export default function AppNav({ email, plan }: { email: string; plan: string })
                 </Link>
               );
             })}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                onClick={() => setMobileOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 ${
+                  pathname === '/admin' ? '' : 'hover-bg'
+                }`}
+                style={{
+                  color: 'var(--pink)',
+                  background: pathname === '/admin' ? 'rgba(255,45,120,0.08)' : 'transparent',
+                }}
+              >
+                <IconShield width={18} height={18} style={{ opacity: pathname === '/admin' ? 1 : 0.7 }} />
+                Admin
+              </Link>
+            )}
           </nav>
 
           <div className="mt-8 pt-6" style={{ borderTop: '1px solid var(--border)' }}>

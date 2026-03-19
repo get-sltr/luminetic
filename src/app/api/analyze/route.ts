@@ -498,7 +498,7 @@ export async function POST(request: NextRequest) {
     {
       try {
         const userRecord = await getUser(authUser.userId);
-        const isFounder = userRecord?.plan === "founder";
+        const isFounder = userRecord?.plan === "founder" || userRecord?.role === "founder" || userRecord?.role === "admin";
         if (!isFounder) {
           const credits = (userRecord?.scanCredits as number) || 0;
           if (credits <= 0) {

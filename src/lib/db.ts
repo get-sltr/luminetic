@@ -5,6 +5,7 @@ import {
   GetCommand,
   QueryCommand,
   UpdateCommand,
+  ScanCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 
@@ -24,6 +25,7 @@ export async function putUser(userId: string, email: string) {
       userId,
       email,
       plan: "free",
+      role: "user",
       scanCount: 0,
       scanCredits: 0,
       createdAt: new Date().toISOString(),
@@ -167,4 +169,55 @@ export async function getScan(userId: string, scanId: string) {
     Limit: 1,
   }));
   return res.Items?.[0] || null;
+}
+
+// ── Admin ──────────────────────────────────────────────────
+
+export async function listUsers() {
+  const items: Record<string, unknown>[] = [];
+  let lastKey: Record<string, unknown> | undefined;
+
+  do {
+    const res = await db.send(new ScanCommand({
+      TableName: TABLE,
+      FilterExpression: "SK = :profile",
+      ExpressionAttributeValues: { ":profile": "PROFILE" },
+      ProjectionExpression: "userId, email, #p, #r, scanCredits, scanCount, createdAt, updatedAt",
+      ExpressionAttributeNames: { "#p": "plan", "#r": "role" },
+      ExclusiveStartKey: lastKey,
+    }));
+    if (res.Items) items.push(...res.Items);
+    lastKey = res.LastEvaluatedKey;
+  } while (lastKey);
+
+  return items;
+}
+
+export async function updateUserRole(userId: string, role: string) {
+  await db.send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+    UpdateExpression: "SET #r = :role, updatedAt = :now",
+    ExpressionAttributeNames: { "#r": "role" },
+    ExpressionAttributeValues: { ":role": role, ":now": new Date().toISOString() },
+  }));
+}
+
+export async function updateUserCredits(userId: string, credits: number) {
+  await db.send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+    UpdateExpression: "SET scanCredits = :credits, updatedAt = :now",
+    ExpressionAttributeValues: { ":credits": credits, ":now": new Date().toISOString() },
+  }));
+}
+
+export async function updateUserPlan(userId: string, plan: string) {
+  await db.send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+    UpdateExpression: "SET #p = :plan, updatedAt = :now",
+    ExpressionAttributeNames: { "#p": "plan" },
+    ExpressionAttributeValues: { ":plan": plan, ":now": new Date().toISOString() },
+  }));
 }
