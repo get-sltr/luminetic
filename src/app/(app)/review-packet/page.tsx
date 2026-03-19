@@ -130,10 +130,7 @@ function InputField({ label, value, onChange, placeholder, type = 'text' }: {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="w-full px-4 py-3 text-sm bg-transparent text-white outline-none transition-all duration-300"
-        style={{ border: '1px solid var(--panel-border)' }}
-        onFocus={(e) => (e.target.style.borderColor = 'var(--pink-dim)')}
-        onBlur={(e) => (e.target.style.borderColor = 'var(--panel-border)')}
+        className="input-field"
       />
     </div>
   );
@@ -152,10 +149,7 @@ function TextAreaField({ label, value, onChange, placeholder, rows = 4 }: {
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={rows}
-        className="w-full px-4 py-3 text-sm bg-transparent text-white outline-none resize-none transition-all duration-300 leading-relaxed"
-        style={{ border: '1px solid var(--panel-border)' }}
-        onFocus={(e) => (e.target.style.borderColor = 'var(--pink-dim)')}
-        onBlur={(e) => (e.target.style.borderColor = 'var(--panel-border)')}
+        className="input-field resize-none leading-relaxed"
       />
     </div>
   );
@@ -166,7 +160,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
     <label className="flex items-center gap-3 cursor-pointer py-2">
       <div
         className="w-9 h-5 rounded-full relative transition-all duration-200 cursor-pointer"
-        style={{ background: checked ? 'var(--pink)' : 'var(--panel-border)' }}
+        style={{ background: checked ? 'var(--pink)' : 'var(--border)' }}
         onClick={() => onChange(!checked)}
       >
         <div
@@ -204,12 +198,12 @@ export default function ReviewPacketPage() {
   }
 
   return (
-    <div className="max-w-[1100px] mx-auto px-10 py-12">
+    <div className="w-full px-6 md:px-12 lg:px-20 pt-28 pb-20">
       <div className="mb-10">
-        <div className="text-[11px] tracking-[4px] uppercase mb-2" style={{ color: 'var(--pink)' }}>
+        <div className="text-[11px] font-medium tracking-[5px] uppercase mb-2" style={{ color: 'var(--pink)' }}>
           Review Packet
         </div>
-        <h1 className="text-3xl font-semibold" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
+        <h1 className="text-[11px] font-medium tracking-[5px] uppercase" style={{ color: 'var(--white)' }}>
           Generate Review Notes
         </h1>
         <p className="text-[14px] mt-2" style={{ color: 'var(--gray)' }}>
@@ -221,10 +215,9 @@ export default function ReviewPacketPage() {
         <div className="flex flex-col gap-8">
           {/* App Info */}
           <div
-            className="p-6 relative overflow-hidden"
-            style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
+            className="glass-card p-6 relative overflow-hidden"
           >
-            <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }} />
+            <div className="glow-line" />
             <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--pink)' }}>App Info</div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <InputField label="App Name" value={data.appName} onChange={(v) => update('appName', v)} placeholder="My App" />
@@ -235,10 +228,9 @@ export default function ReviewPacketPage() {
 
           {/* Demo Credentials */}
           <div
-            className="p-6 relative overflow-hidden"
-            style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
+            className="glass-card p-6 relative overflow-hidden"
           >
-            <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }} />
+            <div className="glow-line" />
             <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--pink)' }}>Demo Credentials</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputField label="Demo Email" value={data.demoEmail} onChange={(v) => update('demoEmail', v)} placeholder="demo@example.com" />
@@ -248,10 +240,9 @@ export default function ReviewPacketPage() {
 
           {/* Testing Steps */}
           <div
-            className="p-6 relative overflow-hidden"
-            style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
+            className="glass-card p-6 relative overflow-hidden"
           >
-            <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }} />
+            <div className="glow-line" />
             <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--pink)' }}>Testing Instructions</div>
             <TextAreaField
               label="Testing Steps (one per line)"
@@ -273,10 +264,9 @@ export default function ReviewPacketPage() {
 
           {/* Feature Toggles */}
           <div
-            className="p-6 relative overflow-hidden"
-            style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
+            className="glass-card p-6 relative overflow-hidden"
           >
-            <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }} />
+            <div className="glow-line" />
             <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--pink)' }}>Features</div>
 
             <div className="flex flex-col gap-3">
@@ -307,13 +297,7 @@ export default function ReviewPacketPage() {
             <button
               onClick={handleGenerate}
               disabled={!data.appName.trim()}
-              className="px-8 py-3.5 text-[12px] tracking-[2px] uppercase text-white font-medium transition-all duration-300"
-              style={{
-                background: data.appName.trim() ? 'var(--pink)' : 'transparent',
-                border: '1px solid var(--pink)',
-                cursor: data.appName.trim() ? 'pointer' : 'not-allowed',
-                opacity: data.appName.trim() ? 1 : 0.5,
-              }}
+              className="btn-primary px-8 py-3.5 text-[12px] tracking-[2px] uppercase cursor-pointer"
             >
               Generate Packet
             </button>
@@ -322,19 +306,16 @@ export default function ReviewPacketPage() {
       ) : (
         <div className="flex flex-col gap-6">
           {/* Output */}
-          <div
-            className="relative overflow-hidden"
-            style={{ background: 'var(--panel-bg)', border: '1px solid var(--pink-dim)' }}
-          >
-            <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }} />
-            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--panel-border)' }}>
+          <div className="glass-card relative overflow-hidden">
+            <div className="glow-line" />
+            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
               <div className="text-[11px] tracking-[3px] uppercase" style={{ color: 'var(--pink)' }}>
                 Generated Packet
               </div>
               <button
                 onClick={handleCopy}
-                className="px-4 py-2 text-[11px] tracking-[1.5px] uppercase transition-all duration-200 bg-transparent cursor-pointer"
-                style={{ border: '1px solid var(--panel-border)', color: copied ? '#34d399' : 'var(--gray)' }}
+                className="btn-secondary px-4 py-2 text-[11px] tracking-[1.5px] uppercase cursor-pointer"
+                style={{ color: copied ? '#34d399' : undefined }}
               >
                 {copied ? 'Copied!' : 'Copy to Clipboard'}
               </button>
@@ -351,17 +332,13 @@ export default function ReviewPacketPage() {
           <div className="flex items-center gap-4 justify-center">
             <button
               onClick={() => setGenerated(false)}
-              className="px-6 py-3 text-[12px] tracking-[2px] uppercase transition-all duration-300 bg-transparent cursor-pointer"
-              style={{ border: '1px solid var(--panel-border)', color: 'var(--gray)' }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--pink-dim)'; e.currentTarget.style.color = 'var(--white)'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--panel-border)'; e.currentTarget.style.color = 'var(--gray)'; }}
+              className="btn-secondary px-6 py-3 text-[12px] tracking-[2px] uppercase cursor-pointer"
             >
               Edit
             </button>
             <button
               onClick={handleCopy}
-              className="px-6 py-3 text-[12px] tracking-[2px] uppercase text-white transition-all duration-300 cursor-pointer"
-              style={{ background: 'var(--pink)', border: '1px solid var(--pink)' }}
+              className="btn-primary px-6 py-3 text-[12px] tracking-[2px] uppercase cursor-pointer"
             >
               {copied ? 'Copied!' : 'Copy for App Store Connect'}
             </button>

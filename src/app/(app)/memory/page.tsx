@@ -81,10 +81,10 @@ export default async function MemoryPage() {
   const trend = scoreTimeline.length >= 2 ? scoreTimeline[scoreTimeline.length - 1].score - scoreTimeline[0].score : 0;
 
   return (
-    <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-12">
+    <div className="w-full px-6 md:px-12 lg:px-20 pt-28 pb-20">
       <div className="mb-10">
-        <div className="section-label mb-3">Build Memory</div>
-        <h1 className="page-title">Submission Intelligence</h1>
+        <div className="text-[11px] font-medium tracking-[5px] uppercase mb-2" style={{ color: 'var(--pink)' }}>Build Memory</div>
+        <h1 className="text-[11px] font-medium tracking-[5px] uppercase" style={{ color: 'var(--white)' }}>Submission Intelligence</h1>
         <p className="text-[14px] mt-2" style={{ color: 'var(--gray)' }}>
           Patterns and trends across all your scans.
         </p>
@@ -128,7 +128,7 @@ export default async function MemoryPage() {
           {scoreTimeline.length > 1 && (
             <div className="glass-card p-6 relative overflow-hidden">
               <div className="glow-line" />
-              <div className="section-label mb-5" style={{ letterSpacing: '3px' }}>Score Over Time</div>
+              <div className="text-[10px] tracking-[3px] uppercase font-medium mb-5" style={{ color: 'var(--pink)' }}>Score Over Time</div>
               <div className="flex items-end gap-2 h-[120px]">
                 {scoreTimeline.map((point) => (
                   <div key={point.scanId} className="flex-1 flex flex-col items-center gap-1">
@@ -190,7 +190,7 @@ export default async function MemoryPage() {
           {topGuidelines.length > 0 && (
             <div className="glass-card p-6 relative overflow-hidden">
               <div className="glow-line" />
-              <div className="section-label mb-5" style={{ letterSpacing: '3px' }}>Most Cited Guidelines</div>
+              <div className="text-[10px] tracking-[3px] uppercase font-medium mb-5" style={{ color: 'var(--pink)' }}>Most Cited Guidelines</div>
               <div className="flex flex-col gap-2">
                 {topGuidelines.map(([section, data]) => (
                   <div key={section} className="flex items-center gap-4 py-2.5 border-b" style={{ borderColor: 'var(--border)' }}>

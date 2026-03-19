@@ -1,13 +1,17 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import Footer from '@/components/Footer';
 
 const tiers = [
   {
+    id: 'starter',
     name: 'Starter',
-    price: '$15',
-    period: '1 scan',
+    price: '15',
+    scans: '1 scan',
     features: [
-      'Dual-model AI analysis (Gemini + Claude)',
+      'Dual-model AI analysis',
       'Pre-flight submission checklist',
       'Review packet generator',
       'Action plan with priorities',
@@ -15,22 +19,24 @@ const tiers = [
     ],
   },
   {
+    id: 'pro',
     name: 'Pro',
-    price: '$40',
-    period: '3 scans',
+    price: '40',
+    scans: '3 scans',
     featured: true,
     features: [
       'Everything in Starter',
       'Maestro & Detox test generation',
       'Build Memory intelligence',
-      'Score trend tracking across builds',
+      'Score trend tracking',
       'Priority issue detection',
     ],
   },
   {
+    id: 'agency',
     name: 'Agency',
-    price: '$119',
-    period: '10 scans',
+    price: '119',
+    scans: '10 scans',
     features: [
       'Everything in Pro',
       'Multi-app support',
@@ -42,6 +48,42 @@ const tiers = [
 ];
 
 export default function PricingPage() {
+  const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState('');
+
+  async function handleBuy(packId: string) {
+    setLoading(packId);
+    setError('');
+
+    try {
+      const res = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packId }),
+      });
+
+      if (res.status === 401) {
+        // Not logged in — redirect to signup
+        window.location.href = '/signup';
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Checkout failed.');
+        setLoading(null);
+        return;
+      }
+
+      // Redirect to Square checkout
+      window.location.href = data.url;
+    } catch {
+      setError('Something went wrong. Please try again.');
+      setLoading(null);
+    }
+  }
+
   return (
     <div style={{ background: 'var(--black)' }}>
       <div className="grid-bg" />
@@ -56,93 +98,124 @@ export default function PricingPage() {
         </div>
       </header>
 
-      <main className="min-h-screen px-6 md:px-12 lg:px-20 pt-[160px] pb-[140px]">
-        <div className="text-[11px] font-medium tracking-[5px] uppercase mb-8" style={{ color: 'var(--pink)' }}>
-          Pricing
+      <main className="min-h-screen flex flex-col items-center justify-center px-6 md:px-16 lg:px-24 pt-[120px] pb-[120px]">
+        {/* Header area */}
+        <div className="mb-[40px] text-center">
+          <div
+            className="text-[14px] font-medium tracking-[6px] uppercase mb-10"
+            style={{ color: 'var(--pink)' }}
+          >
+            Pricing
+          </div>
+          <h1
+            className="text-[14px] font-medium tracking-[6px] uppercase"
+            style={{ color: 'var(--white)' }}
+          >
+            Pay per scan &mdash; No subscription
+          </h1>
         </div>
-        <h1 className="text-[32px] font-bold mb-5 tracking-tight" style={{ letterSpacing: '-0.5px' }}>
-          Pay per scan. No subscription.
-        </h1>
-        <p className="text-[14px] mb-24" style={{ color: 'var(--gray)' }}>
-          One-time purchase. Credits never expire.
-        </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+        {/* Error */}
+        {error && (
+          <div className="mb-6 p-4 text-[12px] text-center" style={{ color: 'var(--red)', background: 'rgba(248,113,113,0.05)', border: '1px solid rgba(248,113,113,0.12)' }}>
+            {error}
+          </div>
+        )}
+
+        {/* Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-[1px] w-full" style={{ background: 'var(--border)' }}>
           {tiers.map((tier) => (
             <div
               key={tier.name}
               className="relative flex flex-col"
               style={{
                 background: tier.featured
-                  ? 'rgba(255, 45, 120, 0.04)'
-                  : 'rgba(255, 255, 255, 0.02)',
-                border: tier.featured
-                  ? '1px solid rgba(255, 45, 120, 0.25)'
-                  : '1px solid rgba(255, 255, 255, 0.04)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                boxShadow: tier.featured
-                  ? '0 0 40px rgba(255, 45, 120, 0.1), 0 0 80px rgba(255, 45, 120, 0.05)'
-                  : '0 0 20px rgba(255, 45, 120, 0.03)',
-                padding: '48px 40px',
+                  ? 'rgba(255, 45, 120, 0.03)'
+                  : 'var(--black)',
+                padding: '56px 48px',
               }}
             >
-              {/* Top glow line */}
-              <div
-                className="absolute top-0 left-0 right-0 h-px"
-                style={{
-                  background: tier.featured
-                    ? 'linear-gradient(90deg, transparent, rgba(255, 45, 120, 0.5), transparent)'
-                    : 'linear-gradient(90deg, transparent, rgba(255, 45, 120, 0.15), transparent)',
-                }}
-              />
-
+              {/* Top glow for featured */}
               {tier.featured && (
                 <div
-                  className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 px-5 py-1.5 text-[9px] tracking-[2px] font-semibold text-white uppercase"
-                  style={{ background: 'var(--pink)' }}
-                >
-                  Popular
-                </div>
+                  className="absolute top-0 left-0 right-0 h-px"
+                  style={{ background: 'linear-gradient(90deg, transparent, rgba(255, 45, 120, 0.5), transparent)' }}
+                />
               )}
 
-              <div className="text-[11px] tracking-[3px] uppercase mb-8" style={{ color: 'var(--gray)' }}>
+              {/* Tier name */}
+              <div
+                className="text-[11px] font-bold tracking-[4px] uppercase mb-12"
+                style={{ color: tier.featured ? 'var(--pink)' : 'var(--white)' }}
+              >
                 {tier.name}
               </div>
 
-              <div className="mb-12">
-                <span className="text-[48px] font-bold tracking-tight">{tier.price}</span>
-                <span className="text-[14px] ml-3" style={{ color: 'var(--gray)' }}>
-                  / {tier.period}
+              {/* Price */}
+              <div className="mb-4">
+                <span className="text-[11px] tracking-[2px] align-top" style={{ color: 'var(--gray)' }}>$</span>
+                <span className="text-[56px] font-light tracking-tight leading-none" style={{ color: 'var(--white)' }}>
+                  {tier.price}
                 </span>
               </div>
 
-              <ul className="flex flex-col gap-5 mb-14 flex-1 list-none p-0">
+              {/* Scans */}
+              <div
+                className="text-[10px] tracking-[3px] uppercase mb-16"
+                style={{ color: 'var(--gray)' }}
+              >
+                {tier.scans}
+              </div>
+
+              {/* Features */}
+              <ul className="flex flex-col gap-6 mb-16 flex-1 list-none p-0 m-0">
                 {tier.features.map((feature) => (
-                  <li key={feature} className="flex items-start gap-4 text-[14px] leading-relaxed" style={{ color: 'var(--gray)' }}>
-                    <span className="shrink-0 mt-2 w-1 h-1" style={{ background: 'var(--pink)' }} />
+                  <li
+                    key={feature}
+                    className="flex items-start gap-5 text-[11px] tracking-[1px] leading-relaxed"
+                    style={{ color: 'var(--gray)' }}
+                  >
+                    <span
+                      className="shrink-0 mt-[6px] w-[3px] h-[3px]"
+                      style={{ background: tier.featured ? 'var(--pink)' : 'rgba(255,255,255,0.15)' }}
+                    />
                     {feature}
                   </li>
                 ))}
               </ul>
 
-              <Link
-                href="/signup"
-                className="block w-full text-center no-underline text-white text-[12px] tracking-[2px] uppercase font-medium"
+              {/* CTA — tries checkout first, falls back to signup */}
+              <button
+                onClick={() => handleBuy(tier.id)}
+                disabled={loading !== null}
+                className="block w-full text-center text-[10px] tracking-[3px] uppercase font-medium cursor-pointer"
                 style={{
-                  background: tier.featured ? 'var(--pink)' : 'transparent',
-                  border: '1px solid rgba(255, 45, 120, 0.4)',
-                  padding: '18px',
+                  color: loading === tier.id ? 'var(--gray)' : tier.featured ? 'var(--white)' : 'var(--gray)',
+                  background: 'transparent',
+                  border: tier.featured
+                    ? '1px solid rgba(255, 45, 120, 0.4)'
+                    : '1px solid rgba(255, 255, 255, 0.08)',
+                  padding: '20px',
                   boxShadow: tier.featured
-                    ? '0 0 20px rgba(255, 45, 120, 0.2)'
+                    ? '0 0 30px rgba(255, 45, 120, 0.1)'
                     : 'none',
+                  transition: 'all 0.3s ease',
+                  opacity: loading !== null && loading !== tier.id ? 0.4 : 1,
                 }}
               >
-                Get Started
-              </Link>
+                {loading === tier.id ? 'Processing...' : 'Get Started'}
+              </button>
             </div>
           ))}
         </div>
+
+        {/* Below cards */}
+        <p
+          className="text-[13px] font-bold tracking-[4px] uppercase mt-[40px] text-center"
+          style={{ color: 'var(--white)', textShadow: '0 0 20px rgba(255, 45, 120, 0.4), 0 0 40px rgba(255, 45, 120, 0.2)' }}
+        >
+          One-time purchase &middot; Credits never expire
+        </p>
       </main>
 
       <Footer />

@@ -7,13 +7,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await getAuthUser();
   if (!user) redirect('/login');
 
-  // Gate: no credits → force pricing page
-  try {
-    const dbUser = await getUser(user.userId);
-    const credits = dbUser?.scan_credits ?? 0;
-    if (credits <= 0) redirect('/pricing');
-  } catch {
-    // If DB check fails, let them through
+  // Gate: no credits → force pricing page (skip in dev)
+  if (process.env.NODE_ENV !== 'development') {
+    try {
+      const dbUser = await getUser(user.userId);
+      const credits = dbUser?.scan_credits ?? 0;
+      if (credits <= 0) redirect('/pricing');
+    } catch {
+      // If DB check fails, let them through
+    }
   }
 
   return (
