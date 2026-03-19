@@ -13,6 +13,10 @@ let tokenFetchedAt = 0;
 const TOKEN_TTL_MS = 30 * 60 * 1000; // Re-fetch from Secrets Manager every 30 minutes
 
 async function getSquareToken(): Promise<string> {
+  // Try env var first (works on Amplify without AWS credentials)
+  const envToken = process.env.SQUARE_ACCESS_TOKEN;
+  if (envToken) return envToken;
+
   const now = Date.now();
   if (cachedToken && now - tokenFetchedAt < TOKEN_TTL_MS) return cachedToken;
   const command = new GetSecretValueCommand({
