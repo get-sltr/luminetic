@@ -1,6 +1,17 @@
 import { getAuthUser } from '@/lib/auth';
 import { getUser, getScans } from '@/lib/db';
 import Link from 'next/link';
+import {
+  IconCredits,
+  IconStar,
+  IconChecklist,
+  IconPacket,
+  IconMemory,
+  IconAnalyze,
+  IconArrowRight,
+  IconWarning,
+  IconTarget,
+} from '@/components/icons';
 
 const PACK_CREDITS: Record<string, number> = {
   starter: 1,
@@ -48,33 +59,45 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
     console.error('[dashboard] Failed to load user data:', err);
   }
 
+  const scoreColor = avgScore === null
+    ? 'var(--gray)'
+    : avgScore >= 80
+      ? 'var(--green)'
+      : avgScore >= 60
+        ? 'var(--amber)'
+        : 'var(--red)';
+
+  const scoreGlow = avgScore === null
+    ? 'none'
+    : avgScore >= 80
+      ? '0 0 30px rgba(52, 211, 153, 0.3)'
+      : avgScore >= 60
+        ? '0 0 30px rgba(251, 191, 36, 0.3)'
+        : '0 0 30px rgba(248, 113, 113, 0.3)';
+
   return (
-    <div className="min-h-screen pt-24 pb-20" style={{ background: 'var(--black)' }}>
-      <div className="max-w-[1100px] mx-auto px-6 md:px-10">
+    <div className="min-h-screen pt-28 pb-20" style={{ background: 'var(--black)' }}>
+      <div className="max-w-[1200px] mx-auto px-6 md:px-12 lg:px-20">
 
         {/* Purchase confirmation */}
         {purchasedCredits && (
           <div
-            className="rounded-xl p-6 mb-8 relative overflow-hidden"
+            className="p-6 mb-10 relative overflow-hidden"
             style={{
-              background: 'rgba(74, 222, 128, 0.06)',
+              background: 'rgba(74, 222, 128, 0.04)',
               border: '1px solid rgba(74, 222, 128, 0.15)',
-              backdropFilter: 'blur(20px)',
             }}
           >
-            <div
-              className="absolute top-0 left-0 w-full h-[1px]"
-              style={{ background: 'linear-gradient(90deg, transparent, rgba(74,222,128,0.6), transparent)' }}
-            />
+            <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(74,222,128,0.5), transparent)' }} />
             <div className="flex items-center gap-3 mb-2">
               <div className="w-2 h-2 rounded-full" style={{ background: '#4ade80', boxShadow: '0 0 8px rgba(74,222,128,0.5)' }} />
-              <h2 className="text-base font-semibold" style={{ fontFamily: "'Sora', sans-serif", color: '#4ade80' }}>
+              <span className="text-[11px] tracking-[3px] uppercase font-bold" style={{ color: '#4ade80' }}>
                 Payment received
-              </h2>
+              </span>
             </div>
-            <p className="text-sm ml-5" style={{ color: 'var(--gray)' }}>
-              {purchasedCredits} scan credit{purchasedCredits > 1 ? 's' : ''} added to your account.{' '}
-              <Link href="/analyze" className="no-underline font-medium transition-colors" style={{ color: 'var(--pink)' }}>
+            <p className="text-[12px] ml-5" style={{ color: 'var(--gray)' }}>
+              {purchasedCredits} scan credit{purchasedCredits > 1 ? 's' : ''} added.{' '}
+              <Link href="/analyze" className="no-underline font-medium" style={{ color: 'var(--pink)' }}>
                 Run an analysis now &rarr;
               </Link>
             </p>
@@ -82,269 +105,282 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
         )}
 
         {/* Header */}
-        <div className="mb-10">
-          <div
-            className="text-[10px] tracking-[4px] uppercase mb-3 font-medium"
-            style={{ color: 'var(--pink)' }}
-          >
+        <div className="mb-12">
+          <div className="text-[11px] font-medium tracking-[5px] uppercase mb-4" style={{ color: 'var(--pink)' }}>
             Overview
           </div>
-          <h1
-            className="text-4xl font-semibold tracking-tight"
-            style={{ fontFamily: "'Sora', sans-serif", color: 'var(--white)' }}
-          >
+          <h1 className="text-[11px] font-medium tracking-[5px] uppercase" style={{ color: 'var(--white)' }}>
             Dashboard
           </h1>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-          {[
-            { label: 'Total Scans', value: scanCount.toString(), icon: '◎' },
-            { label: 'Avg Score', value: avgScore !== null ? `${avgScore}` : '—', suffix: avgScore !== null ? '/100' : '', icon: '◆' },
-            {
-              label: 'Credits Left',
-              value: isFounder ? '∞' : credits.toString(),
-              color: isFounder ? '#a78bfa' : credits > 0 ? '#34d399' : '#ff6b6b',
-              icon: '⬡',
-            },
-            { label: 'Plan', value: plan.toUpperCase(), icon: '△' },
-          ].map((stat) => (
-            <div
-              key={stat.label}
-              className="group rounded-xl p-6 relative overflow-hidden transition-all duration-300"
-              style={{
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-                backdropFilter: 'blur(10px)',
-              }}
-            >
-              {/* Top glow line */}
-              <div
-                className="absolute top-0 left-0 w-full h-[1px] opacity-40"
-                style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }}
-              />
-              {/* Corner accent */}
-              <div
-                className="absolute top-0 right-0 w-16 h-16 opacity-[0.03]"
-                style={{
-                  background: 'radial-gradient(circle at top right, var(--pink), transparent)',
-                }}
-              />
-              <div className="flex items-center justify-between mb-4">
-                <div
-                  className="text-[10px] tracking-[3px] uppercase font-medium"
-                  style={{ color: 'var(--gray)' }}
-                >
-                  {stat.label}
+        {/* Main split layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-12">
+
+          {/* LEFT COLUMN — Stacked cards */}
+          <div className="flex flex-col gap-6">
+
+            {/* Credits + Plan */}
+            <div className="grid grid-cols-2 gap-[1px]" style={{ background: 'var(--border)' }}>
+              <div className="p-8" style={{ background: 'var(--black)' }}>
+                <div className="text-[10px] tracking-[4px] uppercase mb-6" style={{ color: 'var(--gray)' }}>
+                  Credits Left
                 </div>
-                <span className="text-[14px] opacity-20" style={{ color: 'var(--pink)' }}>
-                  {stat.icon}
-                </span>
-              </div>
-              <div className="flex items-baseline gap-1">
-                <span
-                  className="text-3xl font-bold tracking-tight"
-                  style={{
-                    fontFamily: "'Sora', sans-serif",
-                    color: ('color' in stat && stat.color) ? stat.color as string : 'var(--white)',
-                  }}
-                >
-                  {stat.value}
-                </span>
-                {'suffix' in stat && stat.suffix && (
-                  <span className="text-sm font-normal" style={{ color: 'var(--gray)' }}>
-                    {stat.suffix}
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* CTA — Run Analysis */}
-        <div
-          className="rounded-xl p-8 mb-6 flex flex-col md:flex-row items-start md:items-center justify-between relative overflow-hidden transition-all duration-300 group"
-          style={{
-            background: 'linear-gradient(135deg, rgba(255, 45, 120, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%)',
-            border: '1px solid rgba(255, 45, 120, 0.12)',
-            backdropFilter: 'blur(10px)',
-          }}
-        >
-          {/* Top glow */}
-          <div
-            className="absolute top-0 left-0 w-full h-[1px]"
-            style={{ background: 'linear-gradient(90deg, transparent, var(--pink), transparent)' }}
-          />
-          {/* Background glow orb */}
-          <div
-            className="absolute -right-20 -top-20 w-60 h-60 opacity-[0.06] rounded-full"
-            style={{ background: 'radial-gradient(circle, var(--pink), transparent)' }}
-          />
-          <div className="relative z-10 mb-4 md:mb-0">
-            <h2
-              className="text-xl font-semibold mb-2 tracking-tight"
-              style={{ fontFamily: "'Sora', sans-serif", color: 'var(--white)' }}
-            >
-              Run a new analysis
-            </h2>
-            <p className="text-sm leading-relaxed" style={{ color: 'var(--gray)' }}>
-              Paste your App Store review feedback and get a dual-model action plan in seconds.
-            </p>
-          </div>
-          <Link
-            href="/analyze"
-            className="relative z-10 shrink-0 md:ml-8 px-7 py-3.5 rounded-lg text-[11px] tracking-[2px] uppercase text-white no-underline font-semibold transition-all duration-300"
-            style={{
-              background: 'var(--pink)',
-              boxShadow: '0 0 20px rgba(255, 45, 120, 0.2), 0 4px 12px rgba(0, 0, 0, 0.3)',
-            }}
-          >
-            Analyze Now &rarr;
-          </Link>
-        </div>
-
-        {/* Buy Credits (low/no credits) */}
-        {!isFounder && credits <= 0 && (
-          <div
-            className="rounded-xl p-8 mb-6 relative overflow-hidden"
-            style={{
-              background: 'rgba(255, 107, 107, 0.03)',
-              border: '1px solid rgba(255, 107, 107, 0.12)',
-              backdropFilter: 'blur(10px)',
-            }}
-          >
-            <div
-              className="absolute top-0 left-0 w-full h-[1px]"
-              style={{ background: 'linear-gradient(90deg, transparent, rgba(255,107,107,0.4), transparent)' }}
-            />
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <h2
-                  className="text-lg font-semibold mb-1.5 tracking-tight"
-                  style={{ fontFamily: "'Sora', sans-serif", color: 'var(--white)' }}
-                >
-                  No scan credits remaining
-                </h2>
-                <p className="text-sm" style={{ color: 'var(--gray)' }}>
-                  Purchase a scan pack to run AI-powered analyses.
-                </p>
-              </div>
-              <Link
-                href="/pricing"
-                className="shrink-0 px-6 py-3 rounded-lg text-[11px] tracking-[2px] uppercase text-white no-underline font-semibold transition-all duration-300"
-                style={{
-                  background: 'rgba(255, 107, 107, 0.15)',
-                  border: '1px solid rgba(255, 107, 107, 0.3)',
-                }}
-              >
-                Buy Credits &rarr;
-              </Link>
-            </div>
-          </div>
-        )}
-
-        {/* Recent Scans */}
-        <div className="mt-10">
-          <div className="flex items-center justify-between mb-5">
-            <h2
-              className="text-lg font-semibold tracking-tight"
-              style={{ fontFamily: "'Sora', sans-serif", color: 'var(--white)' }}
-            >
-              Recent scans
-            </h2>
-            {recentScans.length > 0 && (
-              <Link
-                href="/history"
-                className="text-[11px] tracking-[1px] uppercase no-underline font-medium transition-colors duration-200"
-                style={{ color: 'var(--gray)' }}
-              >
-                View all &rarr;
-              </Link>
-            )}
-          </div>
-
-          {recentScans.length === 0 ? (
-            <div
-              className="rounded-xl p-16 text-center relative overflow-hidden"
-              style={{
-                background: 'rgba(255, 255, 255, 0.02)',
-                border: '1px solid rgba(255, 255, 255, 0.06)',
-              }}
-            >
-              <div
-                className="absolute top-0 left-0 w-full h-[1px] opacity-30"
-                style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }}
-              />
-              <div className="text-3xl mb-4 opacity-20">◎</div>
-              <p className="text-sm mb-1" style={{ color: 'var(--gray)' }}>
-                No scans yet
-              </p>
-              <p className="text-xs" style={{ color: 'rgba(136, 136, 136, 0.6)' }}>
-                Run your first analysis to get started.
-              </p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {recentScans.map((scan, i) => {
-                const scoreColor =
-                  scan.score >= 80 ? '#4ade80' : scan.score >= 60 ? '#facc15' : '#f87171';
-                const scoreBg =
-                  scan.score >= 80
-                    ? 'rgba(74,222,128,0.06)'
-                    : scan.score >= 60
-                      ? 'rgba(250,204,21,0.06)'
-                      : 'rgba(248,113,113,0.06)';
-                const scoreBorder =
-                  scan.score >= 80
-                    ? 'rgba(74,222,128,0.15)'
-                    : scan.score >= 60
-                      ? 'rgba(250,204,21,0.15)'
-                      : 'rgba(248,113,113,0.15)';
-
-                return (
-                  <Link
-                    key={scan.scanId}
-                    href={`/history/${scan.scanId}`}
-                    className="rounded-lg flex items-center justify-between px-6 py-4 no-underline transition-all duration-200 group/scan"
+                <div className="flex items-center gap-3">
+                  <IconCredits width={16} height={16} style={{ color: 'var(--pink)', opacity: 0.6 }} />
+                  <span
+                    className="text-[36px] font-light tracking-tight leading-none"
                     style={{
-                      background: 'rgba(255, 255, 255, 0.02)',
-                      border: '1px solid rgba(255, 255, 255, 0.06)',
+                      color: isFounder ? '#a78bfa' : credits > 0 ? 'var(--green)' : 'var(--red)',
                     }}
                   >
-                    <div className="flex items-center gap-4">
-                      <span
-                        className="text-[11px] font-medium tabular-nums"
-                        style={{ color: 'var(--gray)', fontFamily: "'Sora', sans-serif" }}
-                      >
-                        #{String(i + 1).padStart(2, '0')}
-                      </span>
-                      <span className="text-sm" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                        {new Date(scan.createdAt).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </span>
-                    </div>
-                    <span
-                      className="text-[12px] font-semibold px-3 py-1.5 rounded-md tabular-nums"
-                      style={{
-                        fontFamily: "'Sora', sans-serif",
-                        color: scoreColor,
-                        background: scoreBg,
-                        border: `1px solid ${scoreBorder}`,
-                      }}
-                    >
-                      {scan.score}/100
-                    </span>
-                  </Link>
-                );
-              })}
+                    {isFounder ? '\u221E' : credits}
+                  </span>
+                </div>
+              </div>
+              <div className="p-8" style={{ background: 'var(--black)' }}>
+                <div className="text-[10px] tracking-[4px] uppercase mb-6" style={{ color: 'var(--gray)' }}>
+                  Plan
+                </div>
+                <div className="flex items-center gap-3">
+                  <IconStar width={16} height={16} style={{ color: 'var(--pink)', opacity: 0.6 }} />
+                  <span className="text-[11px] tracking-[3px] uppercase font-bold" style={{ color: 'var(--white)' }}>
+                    {plan}
+                  </span>
+                </div>
+              </div>
             </div>
-          )}
+
+            {/* Analyze Now CTA */}
+            <Link
+              href="/analyze"
+              className="block no-underline text-center text-[11px] tracking-[3px] uppercase font-medium"
+              style={{
+                color: 'var(--white)',
+                background: 'transparent',
+                border: '1px solid rgba(255, 45, 120, 0.4)',
+                padding: '24px',
+                boxShadow: '0 0 40px rgba(255, 45, 120, 0.15), 0 0 80px rgba(255, 45, 120, 0.08)',
+                transition: 'all 0.4s ease',
+              }}
+            >
+              <span className="flex items-center justify-center gap-3">
+                <IconAnalyze width={16} height={16} />
+                Analyze Now
+                <IconArrowRight width={14} height={14} />
+              </span>
+            </Link>
+
+            {/* No Credits Warning */}
+            {!isFounder && credits <= 0 && (
+              <div
+                className="p-8 flex items-center justify-between"
+                style={{
+                  background: 'rgba(248, 113, 113, 0.03)',
+                  border: '1px solid rgba(248, 113, 113, 0.15)',
+                }}
+              >
+                <div className="flex items-center gap-4">
+                  <IconWarning width={16} height={16} style={{ color: 'var(--red)' }} />
+                  <div>
+                    <div className="text-[11px] tracking-[2px] uppercase font-bold mb-1" style={{ color: 'var(--white)' }}>
+                      No scan credits
+                    </div>
+                    <div className="text-[11px]" style={{ color: 'var(--gray)' }}>
+                      Purchase credits to run analyses.
+                    </div>
+                  </div>
+                </div>
+                <Link
+                  href="/pricing"
+                  className="no-underline text-[10px] tracking-[3px] uppercase font-medium"
+                  style={{
+                    color: 'var(--red)',
+                    border: '1px solid rgba(248, 113, 113, 0.3)',
+                    padding: '12px 20px',
+                  }}
+                >
+                  Buy Credits &rarr;
+                </Link>
+              </div>
+            )}
+
+            {/* Quick Actions */}
+            <div className="flex flex-col gap-[1px]" style={{ background: 'var(--border)' }}>
+              {[
+                { href: '/completeness', label: 'Pre-Flight Checklist', Icon: IconChecklist },
+                { href: '/review-packet', label: 'Review Packet', Icon: IconPacket },
+                { href: '/memory', label: 'Build Memory', Icon: IconMemory },
+              ].map(({ href, label, Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="flex items-center gap-5 no-underline p-6"
+                  style={{ background: 'var(--black)', transition: 'background 0.2s ease' }}
+                >
+                  <Icon width={16} height={16} style={{ color: 'var(--pink)', opacity: 0.5 }} />
+                  <span className="text-[11px] tracking-[2px] uppercase font-medium" style={{ color: 'var(--gray)' }}>
+                    {label}
+                  </span>
+                  <IconArrowRight width={12} height={12} style={{ color: 'var(--gray)', opacity: 0.3, marginLeft: 'auto' }} />
+                </Link>
+              ))}
+            </div>
+
+            {/* Recent Scans */}
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <div className="text-[11px] tracking-[4px] uppercase font-bold" style={{ color: 'var(--white)' }}>
+                  Recent Scans
+                </div>
+                {recentScans.length > 0 && (
+                  <Link
+                    href="/history"
+                    className="text-[10px] tracking-[2px] uppercase no-underline font-medium"
+                    style={{ color: 'var(--gray)' }}
+                  >
+                    View all &rarr;
+                  </Link>
+                )}
+              </div>
+
+              {recentScans.length === 0 ? (
+                <div
+                  className="p-16 text-center"
+                  style={{ border: '1px solid var(--border)', background: 'rgba(255,255,255,0.01)' }}
+                >
+                  <IconTarget width={20} height={20} style={{ color: 'var(--pink)', opacity: 0.3, margin: '0 auto 12px' }} />
+                  <p className="text-[11px] tracking-[2px] uppercase mb-1" style={{ color: 'var(--gray)' }}>
+                    No scans yet
+                  </p>
+                  <p className="text-[11px]" style={{ color: 'var(--text-dim)' }}>
+                    Run your first analysis to get started.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-[1px]" style={{ background: 'var(--border)' }}>
+                  {recentScans.map((scan, i) => {
+                    const sColor =
+                      scan.score >= 80 ? 'var(--green)' : scan.score >= 60 ? 'var(--amber)' : 'var(--red)';
+
+                    return (
+                      <Link
+                        key={scan.scanId}
+                        href={`/history/${scan.scanId}`}
+                        className="flex items-center justify-between px-6 py-5 no-underline"
+                        style={{ background: 'var(--black)', transition: 'background 0.2s ease' }}
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-[5px] h-[5px]" style={{ background: sColor }} />
+                          <span className="text-[10px] tracking-[2px] uppercase tabular-nums" style={{ color: 'var(--gray)' }}>
+                            #{String(i + 1).padStart(2, '0')}
+                          </span>
+                          <span className="text-[11px]" style={{ color: 'rgba(255,255,255,0.6)' }}>
+                            {new Date(scan.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
+                          </span>
+                        </div>
+                        <span
+                          className="text-[10px] tracking-[2px] uppercase tabular-nums font-bold"
+                          style={{ color: sColor }}
+                        >
+                          {scan.score}/100
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* RIGHT COLUMN — Phone mockup */}
+          <div className="hidden lg:flex flex-col items-center sticky top-28 self-start">
+            {/* Phone frame */}
+            <div className="relative" style={{ width: '200px', height: '410px' }}>
+              {/* Phone body */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: '#0a0a0a',
+                  borderRadius: '32px',
+                  border: '2px solid rgba(255, 255, 255, 0.08)',
+                  boxShadow: '0 0 40px rgba(255, 45, 120, 0.08), 0 0 80px rgba(255, 45, 120, 0.04)',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* Notch */}
+                <div
+                  className="absolute top-0 left-1/2 -translate-x-1/2"
+                  style={{
+                    width: '80px',
+                    height: '22px',
+                    background: '#000',
+                    borderRadius: '0 0 16px 16px',
+                  }}
+                />
+
+                {/* Screen content */}
+                <div className="absolute inset-[8px] flex flex-col items-center justify-center" style={{ borderRadius: '24px' }}>
+                  {/* Breathing glow */}
+                  <div
+                    className="absolute"
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      background: 'radial-gradient(circle, rgba(255, 45, 120, 0.15), transparent)',
+                      borderRadius: '50%',
+                      animation: 'breathe 4s ease-in-out infinite',
+                    }}
+                  />
+
+                  {/* Score label */}
+                  <div className="text-[8px] tracking-[3px] uppercase mb-3 relative z-10" style={{ color: 'var(--gray)' }}>
+                    Avg Score
+                  </div>
+
+                  {/* Score number */}
+                  <div
+                    className="text-[48px] font-light tracking-tight leading-none mb-6 relative z-10"
+                    style={{
+                      color: scoreColor,
+                      textShadow: scoreGlow,
+                    }}
+                  >
+                    {avgScore !== null ? avgScore : '\u2014'}
+                  </div>
+
+                  {/* Divider */}
+                  <div className="w-8 h-px mb-6 relative z-10" style={{ background: 'rgba(255,255,255,0.08)' }} />
+
+                  {/* Total scans */}
+                  <div className="text-[8px] tracking-[3px] uppercase mb-2 relative z-10" style={{ color: 'var(--gray)' }}>
+                    Total Scans
+                  </div>
+                  <div className="text-[24px] font-light tracking-tight leading-none relative z-10" style={{ color: 'var(--white)' }}>
+                    {scanCount}
+                  </div>
+                </div>
+              </div>
+
+              {/* Side buttons */}
+              <div
+                className="absolute"
+                style={{ left: '-2px', top: '80px', width: '2px', height: '24px', background: 'rgba(255,255,255,0.1)', borderRadius: '0 0 0 2px' }}
+              />
+              <div
+                className="absolute"
+                style={{ left: '-2px', top: '120px', width: '2px', height: '40px', background: 'rgba(255,255,255,0.1)', borderRadius: '0 0 0 2px' }}
+              />
+              <div
+                className="absolute"
+                style={{ right: '-2px', top: '100px', width: '2px', height: '32px', background: 'rgba(255,255,255,0.1)', borderRadius: '0 2px 2px 0' }}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>

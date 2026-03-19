@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
-import { Sora } from "next/font/google";
+import { Space_Grotesk, Sora } from "next/font/google";
 import "./globals.css";
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-heading",
+});
 
 const sora = Sora({
   subsets: ["latin"],
@@ -38,7 +44,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${sora.variable} antialiased`}>
+      <body className={`${spaceGrotesk.variable} ${sora.variable} antialiased`}>
         {children}
       </body>
     </html>

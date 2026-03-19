@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { IconCheck, IconChecklist } from '@/components/icons';
 
 interface CheckItem {
   id: string;
@@ -46,26 +47,31 @@ const CHECKLIST_ITEMS: Omit<CheckItem, 'checked'>[] = [
 ];
 
 function ScoreGauge({ score }: { score: number }) {
-  const color = score >= 80 ? '#34d399' : score >= 50 ? '#fbbf24' : '#ff6b6b';
-  const circumference = 2 * Math.PI * 54;
+  const color = score >= 80 ? 'var(--green)' : score >= 50 ? 'var(--amber)' : 'var(--red)';
+  const rawColor = score >= 80 ? '#34d399' : score >= 50 ? '#fbbf24' : '#f87171';
+  const radius = 58;
+  const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
 
   return (
-    <div className="relative w-[140px] h-[140px] flex items-center justify-center">
-      <svg width="140" height="140" className="absolute -rotate-90">
-        <circle cx="70" cy="70" r="54" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+    <div className="relative w-[148px] h-[148px] flex items-center justify-center">
+      <svg width="148" height="148" className="absolute -rotate-90">
+        <circle cx="74" cy="74" r={radius} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
         <circle
-          cx="70" cy="70" r="54" fill="none"
-          stroke={color}
+          cx="74" cy="74" r={radius} fill="none"
+          stroke={rawColor}
           strokeWidth="8"
           strokeLinecap="round"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
+          style={{
+            transition: 'stroke-dashoffset 0.8s cubic-bezier(0.16, 1, 0.3, 1)',
+            filter: `drop-shadow(0 0 8px ${rawColor}66)`,
+          }}
         />
       </svg>
-      <div className="text-center">
-        <div className="text-3xl font-bold" style={{ fontFamily: "'Sora', sans-serif", color }}>{score}</div>
+      <div className="text-center z-10">
+        <div className="text-3xl font-bold" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif", color }}>{score}</div>
         <div className="text-[10px] tracking-[2px] uppercase" style={{ color: 'var(--gray)' }}>/ 100</div>
       </div>
     </div>
@@ -86,42 +92,37 @@ export default function CompletenessPage() {
   }
 
   function getReadiness(): { label: string; color: string } {
-    if (score >= 90) return { label: 'Ready to submit', color: '#34d399' };
-    if (score >= 70) return { label: 'Almost ready', color: '#fbbf24' };
+    if (score >= 90) return { label: 'Ready to submit', color: 'var(--green)' };
+    if (score >= 70) return { label: 'Almost ready', color: 'var(--amber)' };
     if (score >= 40) return { label: 'Needs work', color: '#fb923c' };
-    return { label: 'Not ready', color: '#ff6b6b' };
+    return { label: 'Not ready', color: 'var(--red)' };
   }
 
   const readiness = getReadiness();
 
   return (
-    <div className="max-w-[1100px] mx-auto px-10 py-12">
+    <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-12">
       <div className="mb-10">
-        <div className="text-[11px] tracking-[4px] uppercase mb-2" style={{ color: 'var(--pink)' }}>
-          Pre-Flight Check
-        </div>
-        <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Sora', sans-serif" }}>
+        <div className="section-label mb-3">Pre-Flight Check</div>
+        <h1 className="page-title" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
           Submission Readiness
         </h1>
       </div>
 
       {/* Score header */}
-      <div
-        className="p-8 mb-10 flex items-center gap-10 relative overflow-hidden"
-        style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
-      >
-        <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }} />
+      <div className="glass-card rounded-2xl p-8 mb-10 flex flex-col sm:flex-row items-center gap-8 relative overflow-hidden">
+        <div className="glow-line" />
         <ScoreGauge score={score} />
-        <div>
-          <div className="text-[22px] font-semibold mb-1" style={{ fontFamily: "'Sora', sans-serif" }}>
+        <div className="text-center sm:text-left">
+          <div className="text-[22px] font-semibold mb-1" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
             {checkedCount} / {items.length} checks passed
           </div>
           <div className="text-[14px] mb-3" style={{ color: 'var(--gray)' }}>
             Check off each item as you verify it in your app.
           </div>
           <span
-            className="inline-block text-[11px] tracking-[2px] uppercase px-3 py-1.5 font-medium"
-            style={{ color: readiness.color, border: `1px solid ${readiness.color}44` }}
+            className="badge"
+            style={{ color: readiness.color, borderColor: readiness.color }}
           >
             {readiness.label}
           </span>
@@ -133,16 +134,28 @@ export default function CompletenessPage() {
         {categories.map((category) => {
           const catItems = items.filter((i) => i.category === category);
           const catDone = catItems.filter((i) => i.checked).length;
+          const catProgress = Math.round((catDone / catItems.length) * 100);
 
           return (
             <div key={category}>
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-[11px] tracking-[3px] uppercase font-medium" style={{ color: 'var(--pink)' }}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="section-label" style={{ letterSpacing: '3px' }}>
                   {category}
                 </div>
-                <div className="text-[11px] tracking-[1px]" style={{ color: 'var(--gray)' }}>
+                <div className="text-[11px] tracking-[1px] tabular-nums" style={{ color: 'var(--gray)' }}>
                   {catDone} / {catItems.length}
                 </div>
+              </div>
+
+              {/* Category progress bar */}
+              <div className="h-1 rounded-full mb-4 overflow-hidden" style={{ background: 'var(--surface-2)' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${catProgress}%`,
+                    background: catProgress === 100 ? 'var(--green)' : 'var(--gradient-accent)',
+                  }}
+                />
               </div>
 
               <div className="flex flex-col gap-2">
@@ -150,21 +163,21 @@ export default function CompletenessPage() {
                   <button
                     key={item.id}
                     onClick={() => toggle(item.id)}
-                    className="w-full flex items-start gap-4 p-5 text-left bg-transparent cursor-pointer transition-all duration-200"
+                    className={`glass-card rounded-xl w-full flex items-start gap-4 p-5 text-left cursor-pointer transition-all duration-200 ${item.checked ? '' : 'hover-bg'}`}
                     style={{
-                      background: item.checked ? 'rgba(52,211,153,0.03)' : 'var(--panel-bg)',
-                      border: item.checked ? '1px solid rgba(52,211,153,0.15)' : '1px solid var(--panel-border)',
+                      background: item.checked ? 'rgba(52,211,153,0.03)' : undefined,
+                      borderColor: item.checked ? 'rgba(52,211,153,0.15)' : undefined,
                     }}
                   >
                     <div
-                      className="w-5 h-5 rounded-sm shrink-0 flex items-center justify-center text-[11px] mt-0.5 transition-all duration-200"
+                      className="w-5 h-5 rounded-md shrink-0 flex items-center justify-center mt-0.5 transition-all duration-200"
                       style={{
-                        background: item.checked ? '#34d399' : 'transparent',
-                        border: item.checked ? '1px solid #34d399' : '1px solid var(--panel-border)',
-                        color: item.checked ? '#000' : 'transparent',
+                        background: item.checked ? 'var(--green)' : 'transparent',
+                        border: item.checked ? '1px solid var(--green)' : '1px solid var(--border)',
+                        boxShadow: item.checked ? '0 0 8px rgba(52,211,153,0.3)' : 'none',
                       }}
                     >
-                      {item.checked && '✓'}
+                      {item.checked && <IconCheck width={12} height={12} style={{ color: '#000' }} />}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-1">
@@ -177,7 +190,7 @@ export default function CompletenessPage() {
                         >
                           {item.label}
                         </span>
-                        <span className="text-[9px] tracking-[1px] uppercase px-1.5 py-0.5 shrink-0" style={{ color: 'var(--gray)', border: '1px solid var(--panel-border)' }}>
+                        <span className="badge rounded-md shrink-0" style={{ color: 'var(--gray)', borderColor: 'var(--border)', padding: '2px 6px', fontSize: '9px' }}>
                           {item.guidelineRef}
                         </span>
                       </div>

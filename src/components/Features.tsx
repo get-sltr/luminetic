@@ -1,27 +1,42 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { IconZap, IconPacket, IconBrain, IconChecklist } from '@/components/icons';
 
 const features = [
   {
     name: 'Smart Analysis Engine',
     desc: 'Paste your review feedback. AI identifies the exact guideline, explains the issue, and maps it to clear next steps.',
+    icon: IconZap,
   },
   {
     name: 'Review Packet Generator',
     desc: 'Auto-generate demo credentials, testing steps, and reviewer notes ready to paste into App Store Connect.',
+    icon: IconPacket,
   },
   {
     name: 'Build Memory',
     desc: 'Tracks your submission history. Recurring issues are flagged and cross-referenced across builds automatically.',
+    icon: IconBrain,
   },
   {
     name: 'Completeness Dashboard',
     desc: 'Pre-flight checklist scored 0 to 100. Privacy policy, account deletion, screenshots, IAP, age rating, export compliance.',
+    icon: IconChecklist,
   },
 ];
 
-function FeatureCard({ name, desc, index }: { name: string; desc: string; index: number }) {
+function FeatureCard({
+  name,
+  desc,
+  icon: Icon,
+  index,
+}: {
+  name: string;
+  desc: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  index: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,7 +49,6 @@ function FeatureCard({ name, desc, index }: { name: string; desc: string; index:
           setTimeout(() => {
             el.style.opacity = '1';
             el.style.transform = 'translateY(0) scale(1)';
-            el.classList.add('card-visible');
           }, index * 150);
           observer.unobserve(el);
         }
@@ -49,60 +63,33 @@ function FeatureCard({ name, desc, index }: { name: string; desc: string; index:
   return (
     <div
       ref={ref}
-      className="relative overflow-hidden p-8 md:p-10 lg:p-12 transition-all duration-[600ms]"
+      className="glass-card hover-lift rounded-2xl relative overflow-hidden p-8 md:p-10 lg:p-12 transition-all duration-[600ms]"
       style={{
-        background: 'var(--panel-bg)',
-        border: '1px solid var(--panel-border)',
         opacity: 0,
         transform: 'translateY(20px) scale(0.97)',
         transitionTimingFunction: 'cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
       {/* Top accent line */}
-      <div
-        className="absolute top-0 left-0 w-full h-px origin-left"
-        style={{
-          background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)',
-          transform: 'scaleX(0)',
-          transition: 'transform 0.6s 0.3s',
-        }}
-        data-line="top"
-      />
-      {/* Left accent line */}
-      <div
-        className="absolute top-0 left-0 h-full w-px origin-top"
-        style={{
-          background: 'linear-gradient(180deg, var(--pink-dim), transparent)',
-          transform: 'scaleY(0)',
-          transition: 'transform 0.6s 0.5s',
-        }}
-        data-line="left"
-      />
+      <div className="glow-line absolute top-0 left-0 w-full" />
 
-      <div className="flex items-center gap-2.5 mb-4">
+      <div className="flex items-center gap-3 mb-5">
         <div
-          className="w-6 h-px"
-          style={{ background: 'var(--pink)', boxShadow: '0 0 8px var(--pink-dim)' }}
-        />
+          className="flex items-center justify-center w-10 h-10 rounded-xl"
+          style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
+        >
+          <Icon width={18} height={18} style={{ color: 'var(--pink)' }} />
+        </div>
       </div>
       <h3
         className="text-lg font-medium mb-2.5 text-white"
-        style={{ fontFamily: "'Sora', sans-serif" }}
+        style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}
       >
         {name}
       </h3>
       <p className="text-[14px] leading-[1.8]" style={{ color: 'var(--gray)' }}>
         {desc}
       </p>
-
-      <style jsx>{`
-        .card-visible [data-line="top"] {
-          transform: scaleX(1) !important;
-        }
-        .card-visible [data-line="left"] {
-          transform: scaleY(1) !important;
-        }
-      `}</style>
     </div>
   );
 }
@@ -133,8 +120,8 @@ export default function Features() {
     <section id="features" className="relative z-[1] px-6 md:px-16 lg:px-24 pt-[120px] pb-[180px] max-w-[1200px] mx-auto">
       <div
         ref={labelRef}
-        className="text-[11px] tracking-[4px] uppercase font-normal mb-4 animate-jarvis-text-in"
-        style={{ color: 'var(--pink)', animationPlayState: 'paused' }}
+        className="section-label mb-4 animate-jarvis-text-in"
+        style={{ animationPlayState: 'paused' }}
       >
         Capabilities
       </div>
@@ -142,7 +129,7 @@ export default function Features() {
         ref={titleRef}
         className="text-4xl font-semibold tracking-tight mb-16 animate-jarvis-text-in"
         style={{
-          fontFamily: "'Sora', sans-serif",
+          fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif",
           animationPlayState: 'paused',
           animationDelay: '0.2s',
         }}

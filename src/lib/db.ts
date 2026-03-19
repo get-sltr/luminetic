@@ -67,7 +67,10 @@ export async function putScan(userId: string, data: {
   mergedResult: unknown;
   geminiResult: unknown;
   claudeResult: unknown;
+  sonnetResult?: unknown;
   score: number;
+  s3Key?: string;
+  bundleId?: string;
 }) {
   const scanId = randomUUID();
   const timestamp = new Date().toISOString();
@@ -85,7 +88,10 @@ export async function putScan(userId: string, data: {
       mergedResult: data.mergedResult,
       geminiResult: data.geminiResult,
       claudeResult: data.claudeResult,
+      ...(data.sonnetResult ? { sonnetResult: data.sonnetResult } : {}),
       score: data.score,
+      ...(data.s3Key ? { s3Key: data.s3Key } : {}),
+      ...(data.bundleId ? { bundleId: data.bundleId } : {}),
       status: "complete",
       createdAt: timestamp,
     },

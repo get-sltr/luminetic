@@ -25,6 +25,7 @@ const PUBLIC_PATHS = [
   "/login",
   "/signup",
   "/verify",
+  "/pricing",
   "/api/auth/login",
   "/api/auth/signup",
   "/api/auth/verify",

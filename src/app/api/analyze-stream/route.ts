@@ -1,5 +1,7 @@
-// SSE streaming wrapper for the dual-model analysis engine
-// Sends real-time progress events as each model completes
+// SSE streaming for IPA analysis — 3 AI models + test generation
+// Phase 1: Extract .ipa metadata
+// Phase 2: Gemini 2.5 Pro → Claude Sonnet → Claude Opus
+// Phase 3: Generate Maestro + Detox tests
 
 import { NextRequest } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -15,8 +17,8 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
+import { parseIpa, type IpaMetadata } from "@/lib/ipa-parser";
 
-// Re-use secrets + clients from analyze route (duplicated to keep routes independent)
 const secretsClient = new SecretsManagerClient({
   region: process.env.AWS_REGION || "us-east-1",
 });
@@ -37,38 +39,145 @@ const bedrock = new BedrockRuntimeClient({
   region: process.env.AWS_REGION || "us-east-1",
 });
 
-const GEMINI_SYSTEM_PROMPT = `You are an expert App Store Review Guidelines analyst. Your role is to analyze App Store review feedback or rejection notices from Apple and provide a structured analysis.
+function buildMetadataContext(metadata: IpaMetadata, synopsis: string, credentials?: { email: string; password: string }): string {
+  const parts: string[] = [];
+
+  parts.push(`## App Synopsis\n${synopsis}`);
+
+  parts.push(`\n## App Identity`);
+  parts.push(`- App Name: ${metadata.appName || 'Unknown'}`);
+  parts.push(`- Bundle ID: ${metadata.bundleId || 'Unknown'}`);
+  parts.push(`- Version: ${metadata.version || 'Unknown'} (Build ${metadata.buildNumber || 'Unknown'})`);
+  parts.push(`- Minimum OS: ${metadata.minimumOSVersion || 'Unknown'}`);
+
+  if (credentials?.email) {
+    parts.push(`\n## Test Credentials`);
+    parts.push(`- Email: ${credentials.email}`);
+    parts.push(`- Password: ${credentials.password}`);
+  }
+
+  const privacyEntries = Object.entries(metadata.privacyUsageDescriptions || {});
+  if (privacyEntries.length > 0) {
+    parts.push(`\n## Privacy Usage Descriptions`);
+    privacyEntries.forEach(([key, value]) => {
+      parts.push(`- ${key}: "${value}"`);
+    });
+  } else {
+    parts.push(`\n## Privacy Usage Descriptions\n⚠️ NONE FOUND — This is likely a critical issue.`);
+  }
+
+  if (metadata.backgroundModes.length > 0) {
+    parts.push(`\n## Background Modes\n${metadata.backgroundModes.map(m => `- ${m}`).join('\n')}`);
+  }
+
+  if (metadata.requiredDeviceCapabilities.length > 0) {
+    parts.push(`\n## Required Device Capabilities\n${metadata.requiredDeviceCapabilities.map(c => `- ${c}`).join('\n')}`);
+  }
+
+  if (metadata.urlSchemes.length > 0) {
+    parts.push(`\n## URL Schemes\n${metadata.urlSchemes.map(s => `- ${s}`).join('\n')}`);
+  }
+
+  parts.push(`\n## Export Compliance\n- Uses Non-Exempt Encryption: ${metadata.exportCompliance ? 'Yes' : 'No'}`);
+
+  if (metadata.frameworks.length > 0) {
+    parts.push(`\n## Embedded Frameworks (SDKs Detected)\n${metadata.frameworks.map(f => `- ${f}`).join('\n')}`);
+  }
+
+  if (metadata.entitlements && Object.keys(metadata.entitlements).length > 0) {
+    parts.push(`\n## Entitlements`);
+    Object.entries(metadata.entitlements).forEach(([key, value]) => {
+      parts.push(`- ${key}: ${JSON.stringify(value)}`);
+    });
+  }
+
+  return parts.join('\n');
+}
+
+const GEMINI_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst. You analyze .ipa app metadata to identify potential App Store Review Guideline violations, missing configurations, and submission risks BEFORE the developer submits to Apple.
 
 You have deep knowledge of:
 - Apple's App Store Review Guidelines (all sections 1-5)
-- Apple's Human Interface Guidelines
-- Common rejection patterns and resolution strategies
-- App Store Connect submission requirements
-- Privacy, data collection, and App Tracking Transparency requirements
-- In-App Purchase and subscription rules
-- Content and age rating policies
+- Info.plist configuration requirements
+- Privacy and data collection requirements (NSUsageDescriptions, ATT)
+- In-App Purchase and StoreKit requirements
+- Entitlements and capabilities
+- Framework/SDK compliance issues
+- Common rejection patterns
 
-When given review feedback or a rejection notice, respond ONLY with valid JSON (no markdown, no backticks, no preamble) in this exact structure:
+You will receive extracted .ipa metadata including Info.plist data, entitlements, frameworks, and a developer-provided app synopsis.
+
+Analyze the metadata for issues and respond ONLY with valid JSON (no markdown, no backticks) in this structure:
 
 {
   "guidelines_referenced": [{ "section": "e.g. 2.1", "name": "e.g. App Completeness", "description": "Brief description" }],
-  "issues_identified": [{ "severity": "critical" | "major" | "minor", "issue": "Clear description", "evidence": "What indicates this", "guideline_section": "e.g. 2.1" }],
+  "issues_identified": [{ "severity": "critical" | "major" | "minor", "issue": "Clear description", "evidence": "What metadata indicates this", "guideline_section": "e.g. 2.1" }],
   "action_plan": [{ "priority": 1, "action": "Specific action", "details": "Step-by-step guidance", "estimated_effort": "e.g. 1-2 hours" }],
-  "readiness_assessment": { "score": 0-100, "summary": "Assessment paragraph", "risk_factors": ["List of risks"] }
+  "readiness_assessment": { "score": 0-100, "summary": "Assessment paragraph", "risk_factors": ["List of risks"] },
+  "preflight_checks": {
+    "privacy_policy": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
+    "account_deletion": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
+    "export_compliance": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
+    "iap_configuration": { "status": "pass" | "fail" | "warning" | "unknown" | "not_applicable", "detail": "..." },
+    "age_rating": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
+    "permissions_usage": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
+    "minimum_os": { "status": "pass" | "fail" | "warning", "detail": "..." },
+    "att_compliance": { "status": "pass" | "fail" | "warning" | "not_applicable", "detail": "..." },
+    "sign_in_with_apple": { "status": "pass" | "fail" | "warning" | "not_applicable", "detail": "..." },
+    "push_notifications": { "status": "pass" | "fail" | "warning" | "not_applicable", "detail": "..." }
+  }
 }`;
 
-const CLAUDE_SYSTEM_PROMPT = `You are a senior App Store Review Guidelines expert performing a confirmation review. You will receive:
-1. The original App Store review feedback from Apple
-2. An initial analysis from another AI model (Gemini)
+const CLAUDE_SONNET_PROMPT = `You are a meticulous iOS App Store review compliance analyst. You will receive:
+1. Extracted .ipa metadata (Info.plist, entitlements, frameworks)
+2. An app synopsis from the developer
+3. An initial analysis from Gemini
 
-Your job is to: VALIDATE, IDENTIFY missed issues, CORRECT errors, ADD context, RECONCILE disagreements.
+Your job is to:
+- VALIDATE Gemini's findings against the actual metadata
+- IDENTIFY issues Gemini missed (especially subtle privacy, SDK, and entitlement issues)
+- CHECK for framework-specific requirements (e.g., if AdSupport.framework is present but no ATT prompt)
+- FLAG any SDK compatibility or deprecated API concerns
+- VERIFY all preflight checks against the metadata
 
-Respond ONLY with valid JSON (no markdown, no backticks, no preamble) in this structure:
+Respond ONLY with valid JSON (no markdown, no backticks):
 
 {
-  "validation": { "confirmed_issues": ["..."], "disputed_issues": [{ "original_issue": "...", "dispute_reason": "...", "correction": "..." }], "missed_issues": [{ "severity": "critical"|"major"|"minor", "issue": "...", "guideline_section": "...", "action": "..." }] },
-  "refined_action_plan": [{ "priority": 1, "action": "...", "details": "...", "estimated_effort": "...", "confidence": "high"|"medium"|"low", "source": "gemini_confirmed"|"claude_added"|"claude_corrected" }],
-  "final_assessment": { "score": 0-100, "confidence": "high"|"medium"|"low", "summary": "...", "agreement_level": "full"|"partial"|"significant_disagreement", "risk_factors": ["..."] }
+  "validation": {
+    "confirmed_issues": ["..."],
+    "disputed_issues": [{ "original_issue": "...", "dispute_reason": "...", "correction": "..." }],
+    "missed_issues": [{ "severity": "critical"|"major"|"minor", "issue": "...", "guideline_section": "...", "evidence": "...", "action": "..." }]
+  },
+  "refined_preflight": {
+    "privacy_policy": { "status": "pass"|"fail"|"warning"|"unknown", "detail": "..." },
+    "account_deletion": { "status": "pass"|"fail"|"warning"|"unknown", "detail": "..." },
+    "export_compliance": { "status": "pass"|"fail"|"warning"|"unknown", "detail": "..." },
+    "iap_configuration": { "status": "pass"|"fail"|"warning"|"unknown"|"not_applicable", "detail": "..." },
+    "age_rating": { "status": "pass"|"fail"|"warning"|"unknown", "detail": "..." },
+    "permissions_usage": { "status": "pass"|"fail"|"warning"|"unknown", "detail": "..." },
+    "att_compliance": { "status": "pass"|"fail"|"warning"|"not_applicable", "detail": "..." },
+    "sign_in_with_apple": { "status": "pass"|"fail"|"warning"|"not_applicable", "detail": "..." }
+  }
+}`;
+
+const CLAUDE_OPUS_PROMPT = `You are the final-stage senior App Store review analyst. You perform deep reconciliation across findings from Gemini and Claude Sonnet. You will receive:
+1. Extracted .ipa metadata
+2. App synopsis
+3. Gemini's analysis
+4. Claude Sonnet's validation
+
+Your job: RECONCILE all findings, produce the final authoritative assessment, refine the action plan, and assign final confidence scores.
+
+Respond ONLY with valid JSON (no markdown, no backticks):
+
+{
+  "refined_action_plan": [{ "priority": 1, "action": "...", "details": "...", "estimated_effort": "...", "confidence": "high"|"medium"|"low", "source": "gemini_confirmed"|"sonnet_added"|"opus_refined" }],
+  "final_assessment": { "score": 0-100, "confidence": "high"|"medium"|"low", "summary": "...", "agreement_level": "full"|"partial"|"significant_disagreement", "risk_factors": ["..."] },
+  "review_packet_notes": {
+    "testing_steps": ["Step-by-step testing instructions for Apple reviewer"],
+    "reviewer_notes": "Notes to include in the App Store Connect reviewer notes field",
+    "known_limitations": ["Any known limitations to disclose"]
+  }
 }`;
 
 function sendEvent(controller: ReadableStreamDefaultController, event: string, data: unknown) {
@@ -78,11 +187,20 @@ function sendEvent(controller: ReadableStreamDefaultController, event: string, d
 
 export async function POST(request: NextRequest) {
   const schema = z.object({
+    // New IPA-based flow
+    s3Key: z.string().min(1).optional(),
+    synopsis: z.string().min(10).max(10000).optional(),
+    bundleId: z.string().optional(),
+    credentials: z.object({
+      email: z.string(),
+      password: z.string(),
+    }).optional(),
+    // Legacy text-based flow (keep for backward compatibility)
     feedback: z.string().min(10).max(10000).optional(),
     email: z.string().min(10).max(10000).optional(),
     text: z.string().min(10).max(10000).optional(),
-  }).refine((d) => d.feedback || d.email || d.text, {
-    message: "Please paste valid App Store review feedback (minimum 10 characters).",
+  }).refine((d) => d.s3Key || d.feedback || d.email || d.text, {
+    message: "Please provide an .ipa file or review feedback.",
   });
 
   let parsed;
@@ -102,9 +220,9 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const trimmedFeedback = (parsed.feedback || parsed.email || parsed.text)!.trim().slice(0, 10000);
+  const isIpaFlow = !!parsed.s3Key;
 
-  // Require authentication
+  // Auth
   const accessToken = request.cookies.get("access_token")?.value;
   const authUser = accessToken ? await verifyToken(accessToken) : null;
   if (!authUser) {
@@ -114,16 +232,16 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Rate limit by userId
+  // Rate limit
   const rl = analyzeLimiter.check(authUser.userId);
   if (!rl.allowed) {
     return new Response(
-      JSON.stringify({ error: "Too many requests. Please wait before running another analysis." }),
+      JSON.stringify({ error: "Too many requests. Please wait." }),
       { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
     );
   }
 
-  // Credit check (founders get unlimited access)
+  // Credit check
   {
     try {
       const userRecord = await getUser(authUser.userId);
@@ -139,7 +257,7 @@ export async function POST(request: NextRequest) {
         const used = await deductScanCredit(authUser.userId);
         if (!used) {
           return new Response(
-            JSON.stringify({ error: "No scan credits remaining. Purchase a scan pack to continue." }),
+            JSON.stringify({ error: "No scan credits remaining." }),
             { status: 429, headers: { "Content-Type": "application/json" } }
           );
         }
@@ -147,7 +265,7 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error("Credit check error:", err);
       return new Response(
-        JSON.stringify({ error: "Unable to verify credits. Please try again." }),
+        JSON.stringify({ error: "Unable to verify credits." }),
         { status: 503, headers: { "Content-Type": "application/json" } }
       );
     }
@@ -158,7 +276,31 @@ export async function POST(request: NextRequest) {
       const totalStart = Date.now();
 
       try {
-        // LAYER 1: Gemini
+        let contextForAI: string;
+        let ipaMetadata: IpaMetadata | null = null;
+
+        if (isIpaFlow) {
+          // PHASE 1: Extract .ipa metadata
+          sendEvent(controller, "status", { step: "extracting", message: "Extracting app metadata from .ipa..." });
+
+          try {
+            ipaMetadata = await parseIpa(parsed.s3Key!);
+            contextForAI = buildMetadataContext(ipaMetadata, parsed.synopsis || "No synopsis provided.", parsed.credentials);
+            sendEvent(controller, "status", { step: "extracted", metadata: { appName: ipaMetadata.appName, bundleId: ipaMetadata.bundleId, version: ipaMetadata.version } });
+          } catch (err) {
+            console.error("[IPA parse error]", err);
+            sendEvent(controller, "error", { error: "Failed to parse .ipa file. Please ensure it's a valid iOS app." });
+            controller.close();
+            return;
+          }
+        } else {
+          // Legacy text flow
+          contextForAI = (parsed.feedback || parsed.email || parsed.text)!.trim().slice(0, 10000);
+        }
+
+        // PHASE 2: AI Analysis
+
+        // Model 1: Gemini 2.5 Pro
         sendEvent(controller, "status", { step: "gemini", message: "Scanning with Gemini 2.5 Pro..." });
 
         let geminiData: Record<string, unknown> | null = null;
@@ -169,10 +311,13 @@ export async function POST(request: NextRequest) {
         try {
           const apiKey = await getGeminiKey();
           const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro", generationConfig: { temperature: 0.2, maxOutputTokens: 4096 } });
+          const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro", generationConfig: { temperature: 0.2, maxOutputTokens: 8192 } });
+          const prompt = isIpaFlow
+            ? `Analyze this iOS app's metadata for App Store Review compliance:\n\n${contextForAI}`
+            : `Analyze this App Store review feedback:\n\n${contextForAI}`;
           const result = await model.generateContent([
             { text: GEMINI_SYSTEM_PROMPT },
-            { text: `Analyze this App Store review feedback:\n\n${trimmedFeedback}` },
+            { text: prompt },
           ]);
           const raw = result.response.text();
           const cleaned = raw.replace(/```json\s*|```/g, "").trim();
@@ -185,24 +330,64 @@ export async function POST(request: NextRequest) {
 
         sendEvent(controller, "status", { step: "gemini_done", success: geminiSuccess, latency: geminiLatency });
 
-        // LAYER 2: Claude Opus
-        sendEvent(controller, "status", { step: "claude", message: "Verifying with Claude Opus..." });
+        // Model 2: Claude Sonnet (validation layer)
+        sendEvent(controller, "status", { step: "claude-sonnet", message: "Validating with Claude Sonnet..." });
 
-        let claudeData: Record<string, unknown> | null = null;
-        let claudeLatency = 0;
-        let claudeSuccess = false;
-        const cStart = Date.now();
+        let sonnetData: Record<string, unknown> | null = null;
+        let sonnetLatency = 0;
+        let sonnetSuccess = false;
+        const sStart = Date.now();
 
         try {
-          const userMessage = geminiData
-            ? `ORIGINAL REVIEW FEEDBACK FROM APPLE:\n${trimmedFeedback}\n\nINITIAL ANALYSIS FROM GEMINI:\n${JSON.stringify(geminiData, null, 2)}\n\nPlease validate, correct, and enhance the above analysis.`
-            : `ORIGINAL REVIEW FEEDBACK FROM APPLE:\n${trimmedFeedback}\n\nNOTE: The initial Gemini analysis failed. Please provide a complete standalone analysis in the confirmation format. Treat all issues as claude_added.`;
+          const userMessage = isIpaFlow
+            ? `APP METADATA:\n${contextForAI}\n\nGEMINI ANALYSIS:\n${JSON.stringify(geminiData, null, 2)}\n\nValidate and enhance the analysis.`
+            : `FEEDBACK:\n${contextForAI}\n\nGEMINI ANALYSIS:\n${JSON.stringify(geminiData, null, 2)}\n\nValidate and enhance.`;
 
           const payload = {
             anthropic_version: "bedrock-2023-05-31",
             max_tokens: 4096,
             temperature: 0.2,
-            system: CLAUDE_SYSTEM_PROMPT,
+            system: CLAUDE_SONNET_PROMPT,
+            messages: [{ role: "user", content: userMessage }],
+          };
+
+          const command = new InvokeModelCommand({
+            modelId: "us.anthropic.claude-sonnet-4-20250514-v1:0",
+            contentType: "application/json",
+            accept: "application/json",
+            body: JSON.stringify(payload),
+          });
+
+          const response = await bedrock.send(command);
+          const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+          const raw = responseBody?.content?.[0]?.text;
+          if (!raw) throw new Error("Empty response from Sonnet");
+          const cleaned = raw.replace(/```json\s*|```/g, "").trim();
+          sonnetData = JSON.parse(cleaned);
+          sonnetSuccess = true;
+        } catch (err) {
+          console.error("[Sonnet error]", err);
+        }
+        sonnetLatency = Date.now() - sStart;
+
+        sendEvent(controller, "status", { step: "sonnet_done", success: sonnetSuccess, latency: sonnetLatency });
+
+        // Model 3: Claude Opus (deep reconciliation)
+        sendEvent(controller, "status", { step: "claude-opus", message: "Deep analysis with Claude Opus..." });
+
+        let opusData: Record<string, unknown> | null = null;
+        let opusLatency = 0;
+        let opusSuccess = false;
+        const oStart = Date.now();
+
+        try {
+          const userMessage = `APP METADATA:\n${contextForAI}\n\nGEMINI ANALYSIS:\n${JSON.stringify(geminiData, null, 2)}\n\nCLAUDE SONNET VALIDATION:\n${JSON.stringify(sonnetData, null, 2)}\n\nReconcile all findings and produce the final assessment.`;
+
+          const payload = {
+            anthropic_version: "bedrock-2023-05-31",
+            max_tokens: 4096,
+            temperature: 0.2,
+            system: CLAUDE_OPUS_PROMPT,
             messages: [{ role: "user", content: userMessage }],
           };
 
@@ -216,88 +401,111 @@ export async function POST(request: NextRequest) {
           const response = await bedrock.send(command);
           const responseBody = JSON.parse(new TextDecoder().decode(response.body));
           const raw = responseBody?.content?.[0]?.text;
-          if (!raw) throw new Error("Empty response from Bedrock");
+          if (!raw) throw new Error("Empty response from Opus");
           const cleaned = raw.replace(/```json\s*|```/g, "").trim();
-          claudeData = JSON.parse(cleaned);
-          claudeSuccess = true;
+          opusData = JSON.parse(cleaned);
+          opusSuccess = true;
         } catch (err) {
-          console.error("[Claude error]", err);
+          console.error("[Opus error]", err);
         }
-        claudeLatency = Date.now() - cStart;
+        opusLatency = Date.now() - oStart;
 
-        sendEvent(controller, "status", { step: "claude_done", success: claudeSuccess, latency: claudeLatency });
+        sendEvent(controller, "status", { step: "opus_done", success: opusSuccess, latency: opusLatency });
 
-        // MERGE
+        // MERGE ALL THREE MODELS
         sendEvent(controller, "status", { step: "merging", message: "Preparing your results..." });
 
-        // Import merge logic inline to keep streaming route self-contained
-        const gemini = geminiData;
-        const claude = claudeData;
-        let merged;
+        const confirmedIssues = geminiData
+          ? (geminiData.issues_identified as unknown[]) || []
+          : [];
 
-        if (!gemini && !claude) {
-          merged = {
-            guidelines: [], issues: [], action_plan: [],
-            assessment: { score: 0, confidence: "low", summary: "Analysis could not be completed.", agreement_level: "none", risk_factors: [] },
-            meta: { models_used: [], gemini_latency_ms: geminiLatency, claude_latency_ms: claudeLatency, total_latency_ms: Date.now() - totalStart, gemini_success: false, claude_success: false },
-          };
-        } else if (gemini && !claude) {
-          const ra = (gemini.readiness_assessment as Record<string, unknown>) || {};
-          merged = {
-            guidelines: (gemini.guidelines_referenced as unknown[]) || [],
-            issues: (gemini.issues_identified as unknown[]) || [],
-            action_plan: ((gemini.action_plan as unknown[]) || []).map((i: unknown) => ({ ...(i as Record<string, unknown>), confidence: "medium", source: "gemini_only" })),
-            assessment: { score: (ra.score as number) || 0, confidence: "medium", summary: (ra.summary as string) || "Single model.", agreement_level: "single_model", risk_factors: (ra.risk_factors as string[]) || [] },
-            meta: { models_used: ["gemini-2.5-pro"], gemini_latency_ms: geminiLatency, claude_latency_ms: claudeLatency, total_latency_ms: Date.now() - totalStart, gemini_success: true, claude_success: false },
-          };
-        } else if (!gemini && claude) {
-          const fa = (claude.final_assessment as Record<string, unknown>) || {};
-          merged = {
-            guidelines: [],
-            issues: ((claude.validation as Record<string, unknown>)?.missed_issues as unknown[]) || [],
-            action_plan: (claude.refined_action_plan as unknown[]) || [],
-            assessment: { score: (fa.score as number) || 0, confidence: (fa.confidence as string) || "medium", summary: (fa.summary as string) || "Single model.", agreement_level: "single_model", risk_factors: (fa.risk_factors as string[]) || [] },
-            meta: { models_used: ["claude-opus"], gemini_latency_ms: geminiLatency, claude_latency_ms: claudeLatency, total_latency_ms: Date.now() - totalStart, gemini_success: false, claude_success: true },
-          };
-        } else {
-          const validation = (claude!.validation as Record<string, unknown>) || {};
-          const fa = (claude!.final_assessment as Record<string, unknown>) || {};
-          const gr = (gemini!.readiness_assessment as Record<string, unknown>) || {};
-          const confirmedIssues = (gemini!.issues_identified as unknown[]) || [];
-          const missedIssues = (validation.missed_issues as unknown[]) || [];
-          const disputedIssues = (validation.disputed_issues as unknown[]) || [];
-          const disputedOriginals = new Set(disputedIssues.map((d: unknown) => (d as Record<string, unknown>).original_issue as string));
-          const reconciledIssues = [
-            ...confirmedIssues.filter((i: unknown) => !disputedOriginals.has((i as Record<string, unknown>).issue as string)),
-            ...disputedIssues.map((d: unknown) => ({ severity: "major", issue: (d as Record<string, unknown>).correction, evidence: (d as Record<string, unknown>).dispute_reason, source: "claude_corrected" })),
-            ...missedIssues.map((i: unknown) => ({ ...(i as Record<string, unknown>), source: "claude_added" })),
-          ];
-          const gs = (gr.score as number) || 0;
-          const cs = (fa.score as number) || 0;
-          merged = {
-            guidelines: (gemini!.guidelines_referenced as unknown[]) || [],
-            issues: reconciledIssues,
-            action_plan: (claude!.refined_action_plan as unknown[]) || [],
-            assessment: { score: Math.round(gs * 0.4 + cs * 0.6), confidence: (fa.confidence as string) || "high", summary: (fa.summary as string) || "", agreement_level: (fa.agreement_level as string) || "partial", risk_factors: (fa.risk_factors as string[]) || [] },
-            meta: { models_used: ["gemini-2.5-pro", "claude-opus"], gemini_latency_ms: geminiLatency, claude_latency_ms: claudeLatency, total_latency_ms: Date.now() - totalStart, gemini_success: true, claude_success: true },
-          };
-        }
+        const sonnetMissed = sonnetData
+          ? ((sonnetData.validation as Record<string, unknown>)?.missed_issues as unknown[]) || []
+          : [];
+
+        const sonnetDisputed = sonnetData
+          ? ((sonnetData.validation as Record<string, unknown>)?.disputed_issues as unknown[]) || []
+          : [];
+
+        const disputedOriginals = new Set(sonnetDisputed.map((d: unknown) => (d as Record<string, unknown>).original_issue as string));
+
+        const allIssues = [
+          ...confirmedIssues.filter((i: unknown) => !disputedOriginals.has((i as Record<string, unknown>).issue as string)),
+          ...sonnetDisputed.map((d: unknown) => ({ severity: "major", issue: (d as Record<string, unknown>).correction, evidence: (d as Record<string, unknown>).dispute_reason, source: "sonnet_corrected" })),
+          ...sonnetMissed.map((i: unknown) => ({ ...(i as Record<string, unknown>), source: "sonnet_added" })),
+        ];
+
+        // Use Opus final assessment if available, fall back to Gemini
+        const opusFinal = opusData ? (opusData.final_assessment as Record<string, unknown>) : null;
+        const geminiAssessment = geminiData ? (geminiData.readiness_assessment as Record<string, unknown>) : null;
+
+        const gs = geminiAssessment ? (geminiAssessment.score as number) || 0 : 0;
+        const os = opusFinal ? (opusFinal.score as number) || 0 : 0;
+        const finalScore = opusFinal && geminiAssessment
+          ? Math.round(gs * 0.3 + os * 0.7)
+          : opusFinal ? os : gs;
+
+        // Merge preflight checks from Gemini + Sonnet
+        const geminiPreflight = geminiData ? (geminiData.preflight_checks as Record<string, unknown>) || {} : {};
+        const sonnetPreflight = sonnetData ? (sonnetData.refined_preflight as Record<string, unknown>) || {} : {};
+        const mergedPreflight = { ...geminiPreflight, ...sonnetPreflight };
+
+        // Review packet notes from Opus
+        const reviewPacketNotes = opusData ? (opusData.review_packet_notes as Record<string, unknown>) || {} : {};
+
+        const merged = {
+          guidelines: geminiData ? (geminiData.guidelines_referenced as unknown[]) || [] : [],
+          issues: allIssues,
+          action_plan: opusData ? (opusData.refined_action_plan as unknown[]) || [] : geminiData ? (geminiData.action_plan as unknown[]) || [] : [],
+          assessment: {
+            score: finalScore,
+            confidence: opusFinal ? (opusFinal.confidence as string) : "medium",
+            summary: opusFinal ? (opusFinal.summary as string) : geminiAssessment ? (geminiAssessment.summary as string) : "Analysis completed.",
+            agreement_level: opusFinal ? (opusFinal.agreement_level as string) : "partial",
+            risk_factors: opusFinal ? (opusFinal.risk_factors as string[]) || [] : geminiAssessment ? (geminiAssessment.risk_factors as string[]) || [] : [],
+          },
+          preflight: mergedPreflight,
+          review_packet: reviewPacketNotes,
+          ipa_metadata: ipaMetadata ? {
+            appName: ipaMetadata.appName,
+            bundleId: ipaMetadata.bundleId,
+            version: ipaMetadata.version,
+            buildNumber: ipaMetadata.buildNumber,
+            frameworks: ipaMetadata.frameworks,
+            privacyDescriptions: ipaMetadata.privacyUsageDescriptions,
+          } : null,
+          meta: {
+            models_used: [
+              geminiSuccess ? "gemini-2.5-pro" : null,
+              sonnetSuccess ? "claude-sonnet" : null,
+              opusSuccess ? "claude-opus" : null,
+            ].filter(Boolean),
+            gemini_latency_ms: geminiLatency,
+            sonnet_latency_ms: sonnetLatency,
+            opus_latency_ms: opusLatency,
+            total_latency_ms: Date.now() - totalStart,
+            gemini_success: geminiSuccess,
+            sonnet_success: sonnetSuccess,
+            opus_success: opusSuccess,
+          },
+        };
 
         // Save scan
         let scanId: string | undefined;
-        if (authUser && merged.assessment.score > 0) {
-          try {
-            const saved = await putScan(authUser.userId, {
-              inputText: trimmedFeedback,
-              mergedResult: merged,
-              geminiResult: geminiData,
-              claudeResult: claudeData,
-              score: merged.assessment.score,
-            });
-            scanId = saved.scanId;
-          } catch (err) {
-            console.error("Failed to save scan:", err);
-          }
+        try {
+          const saved = await putScan(authUser.userId, {
+            inputText: isIpaFlow ? `IPA: ${parsed.s3Key} | Synopsis: ${parsed.synopsis?.slice(0, 500)}` : contextForAI,
+            mergedResult: merged,
+            geminiResult: geminiData,
+            claudeResult: opusData, // Store Opus as the "claude" result
+            sonnetResult: sonnetData,
+            score: merged.assessment.score,
+            s3Key: parsed.s3Key,
+            bundleId: ipaMetadata?.bundleId || parsed.bundleId,
+          });
+          scanId = saved.scanId;
+        } catch (err) {
+          console.error("Failed to save scan:", err);
         }
 
         sendEvent(controller, "result", { result: merged, scanId, timestamp: new Date().toISOString() });

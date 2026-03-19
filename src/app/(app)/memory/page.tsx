@@ -1,6 +1,7 @@
 import { getAuthUser } from '@/lib/auth';
 import { getAllScansWithIssues } from '@/lib/db';
 import Link from 'next/link';
+import { IconTrendUp, IconTarget, IconWarning, IconAnalyze } from '@/components/icons';
 
 interface Issue {
   severity?: string;
@@ -37,7 +38,6 @@ function extractPatterns(scans: ScanRecord[]) {
       scanId: scan.scanId,
     });
 
-    // Track guidelines
     for (const g of merged.guidelines || []) {
       if (!g.section) continue;
       if (!guidelineCount[g.section]) {
@@ -47,7 +47,6 @@ function extractPatterns(scans: ScanRecord[]) {
       guidelineCount[g.section].scans.push(scan.scanId);
     }
 
-    // Track issues
     for (const issue of merged.issues || []) {
       const key = (issue.issue || '').slice(0, 80);
       if (!key) continue;
@@ -82,51 +81,43 @@ export default async function MemoryPage() {
   const trend = scoreTimeline.length >= 2 ? scoreTimeline[scoreTimeline.length - 1].score - scoreTimeline[0].score : 0;
 
   return (
-    <div className="max-w-[1100px] mx-auto px-10 py-12">
+    <div className="w-full px-6 md:px-12 lg:px-20 pt-28 pb-20">
       <div className="mb-10">
-        <div className="text-[11px] tracking-[4px] uppercase mb-2" style={{ color: 'var(--pink)' }}>
-          Build Memory
-        </div>
-        <h1 className="text-3xl font-semibold" style={{ fontFamily: "'Sora', sans-serif" }}>
-          Submission Intelligence
-        </h1>
+        <div className="text-[11px] font-medium tracking-[5px] uppercase mb-2" style={{ color: 'var(--pink)' }}>Build Memory</div>
+        <h1 className="text-[11px] font-medium tracking-[5px] uppercase" style={{ color: 'var(--white)' }}>Submission Intelligence</h1>
         <p className="text-[14px] mt-2" style={{ color: 'var(--gray)' }}>
           Patterns and trends across all your scans.
         </p>
       </div>
 
       {!hasData ? (
-        <div
-          className="p-12 text-center"
-          style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
-        >
-          <div className="text-[15px] mb-3" style={{ color: 'var(--gray)' }}>No scan data yet.</div>
-          <Link
-            href="/analyze"
-            className="text-[12px] tracking-[2px] uppercase no-underline transition-colors"
-            style={{ color: 'var(--pink)' }}
-          >
-            Run your first analysis →
+        <div className="glass-card p-12 text-center relative overflow-hidden">
+          <div className="glow-line" />
+          <div className="w-14 h-14 flex items-center justify-center mx-auto mb-5" style={{ background: 'var(--surface-2)' }}>
+            <IconAnalyze width={24} height={24} style={{ color: 'var(--pink)', opacity: 0.4 }} />
+          </div>
+          <div className="text-[15px] mb-2" style={{ color: 'var(--gray)' }}>No scan data yet.</div>
+          <Link href="/analyze" className="text-[12px] tracking-[2px] uppercase no-underline hover-text" style={{ color: 'var(--pink)' }}>
+            Run your first analysis &rarr;
           </Link>
         </div>
       ) : (
-        <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-6">
           {/* Overview Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: 'Total Scans', value: scans.length.toString() },
-              { label: 'Avg Score', value: avgScore.toString() },
-              { label: 'Score Trend', value: trend >= 0 ? `+${trend}` : `${trend}`, color: trend >= 0 ? '#34d399' : '#ff6b6b' },
-              { label: 'Recurring Issues', value: recurring.length.toString(), color: recurring.length > 0 ? '#fbbf24' : '#34d399' },
+              { label: 'Total Scans', value: scans.length.toString(), icon: <IconTarget width={18} height={18} /> },
+              { label: 'Avg Score', value: avgScore.toString(), icon: <IconTarget width={18} height={18} /> },
+              { label: 'Score Trend', value: trend >= 0 ? `+${trend}` : `${trend}`, color: trend >= 0 ? 'var(--green)' : 'var(--red)', icon: <IconTrendUp width={18} height={18} /> },
+              { label: 'Recurring Issues', value: recurring.length.toString(), color: recurring.length > 0 ? 'var(--amber)' : 'var(--green)', icon: <IconWarning width={18} height={18} /> },
             ].map((stat) => (
-              <div
-                key={stat.label}
-                className="p-5 relative overflow-hidden"
-                style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
-              >
-                <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }} />
-                <div className="text-[10px] tracking-[3px] uppercase mb-2" style={{ color: 'var(--gray)' }}>{stat.label}</div>
-                <div className="text-[28px] font-bold" style={{ fontFamily: "'Sora', sans-serif", color: stat.color || 'var(--white)' }}>
+              <div key={stat.label} className="glass-card p-5 relative overflow-hidden">
+                <div className="glow-line" />
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-[10px] tracking-[3px] uppercase" style={{ color: 'var(--gray)' }}>{stat.label}</div>
+                  <span style={{ color: stat.color || 'var(--pink)', opacity: 0.4 }}>{stat.icon}</span>
+                </div>
+                <div className="text-[28px] font-bold" style={{ color: stat.color || 'var(--white)' }}>
                   {stat.value}
                 </div>
               </div>
@@ -135,21 +126,18 @@ export default async function MemoryPage() {
 
           {/* Score Timeline */}
           {scoreTimeline.length > 1 && (
-            <div
-              className="p-6 relative overflow-hidden"
-              style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
-            >
-              <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }} />
-              <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--pink)' }}>Score Over Time</div>
+            <div className="glass-card p-6 relative overflow-hidden">
+              <div className="glow-line" />
+              <div className="text-[10px] tracking-[3px] uppercase font-medium mb-5" style={{ color: 'var(--pink)' }}>Score Over Time</div>
               <div className="flex items-end gap-2 h-[120px]">
                 {scoreTimeline.map((point) => (
                   <div key={point.scanId} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="text-[10px]" style={{ color: 'var(--gray)' }}>{point.score}</div>
+                    <div className="text-[10px] tabular-nums" style={{ color: 'var(--gray)' }}>{point.score}</div>
                     <div
-                      className="w-full rounded-sm transition-all duration-300"
+                      className="w-full transition-all duration-300"
                       style={{
                         height: `${Math.max(point.score, 4)}%`,
-                        background: point.score >= 70 ? '#34d399' : point.score >= 40 ? '#fbbf24' : '#ff6b6b',
+                        background: point.score >= 70 ? 'var(--green)' : point.score >= 40 ? 'var(--amber)' : 'var(--red)',
                         opacity: 0.8,
                       }}
                     />
@@ -164,37 +152,30 @@ export default async function MemoryPage() {
 
           {/* Recurring Issues */}
           {recurring.length > 0 && (
-            <div
-              className="p-6 relative overflow-hidden"
-              style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
-            >
-              <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }} />
-              <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: '#fbbf24' }}>
+            <div className="glass-card p-6 relative overflow-hidden" style={{ borderColor: 'rgba(251,191,36,0.12)' }}>
+              <div className="glow-line" style={{ background: 'linear-gradient(90deg, transparent, rgba(251,191,36,0.3), transparent)' }} />
+              <div className="text-[10px] tracking-[3px] uppercase font-medium mb-5" style={{ color: 'var(--amber)' }}>
                 Recurring Issues — Action Required
               </div>
               <div className="flex flex-col gap-3">
                 {recurring.map(([issue, data]) => (
-                  <div
-                    key={issue}
-                    className="flex items-start justify-between p-4"
-                    style={{ background: 'rgba(251,191,36,0.03)', border: '1px solid rgba(251,191,36,0.1)' }}
-                  >
+                  <div key={issue} className="glass-card flex items-start justify-between p-4" style={{ borderColor: 'rgba(251,191,36,0.08)' }}>
                     <div className="flex-1">
                       <div className="text-[13px] font-medium mb-1">{issue}</div>
                       <div className="flex items-center gap-3">
-                        <span className="text-[10px] tracking-[1px] uppercase px-1.5 py-0.5" style={{
-                          color: data.severity === 'critical' ? '#ff6b6b' : data.severity === 'major' ? '#fbbf24' : 'var(--gray)',
-                          border: `1px solid ${data.severity === 'critical' ? '#ff6b6b44' : data.severity === 'major' ? '#fbbf2444' : 'var(--panel-border)'}`,
+                        <span className="badge" style={{
+                          color: data.severity === 'critical' ? 'var(--red)' : data.severity === 'major' ? 'var(--amber)' : 'var(--gray)',
+                          borderColor: data.severity === 'critical' ? 'rgba(248,113,113,0.25)' : data.severity === 'major' ? 'rgba(251,191,36,0.25)' : 'var(--border)',
                         }}>
                           {data.severity}
                         </span>
                         {data.guideline && (
-                          <span className="text-[10px]" style={{ color: 'var(--gray)' }}>§{data.guideline}</span>
+                          <span className="text-[10px]" style={{ color: 'var(--gray)' }}>&sect;{data.guideline}</span>
                         )}
                       </div>
                     </div>
                     <div className="text-right shrink-0 ml-4">
-                      <div className="text-[20px] font-bold" style={{ fontFamily: "'Sora', sans-serif", color: '#fbbf24' }}>
+                      <div className="text-[20px] font-bold" style={{ color: 'var(--amber)' }}>
                         {data.count}x
                       </div>
                       <div className="text-[10px]" style={{ color: 'var(--gray)' }}>occurrences</div>
@@ -207,18 +188,15 @@ export default async function MemoryPage() {
 
           {/* Most Cited Guidelines */}
           {topGuidelines.length > 0 && (
-            <div
-              className="p-6 relative overflow-hidden"
-              style={{ background: 'var(--panel-bg)', border: '1px solid var(--panel-border)' }}
-            >
-              <div className="absolute top-0 left-0 w-full h-px" style={{ background: 'linear-gradient(90deg, transparent, var(--pink-dim), transparent)' }} />
-              <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--pink)' }}>Most Cited Guidelines</div>
+            <div className="glass-card p-6 relative overflow-hidden">
+              <div className="glow-line" />
+              <div className="text-[10px] tracking-[3px] uppercase font-medium mb-5" style={{ color: 'var(--pink)' }}>Most Cited Guidelines</div>
               <div className="flex flex-col gap-2">
                 {topGuidelines.map(([section, data]) => (
-                  <div key={section} className="flex items-center gap-4 py-2 border-b" style={{ borderColor: 'var(--panel-border)' }}>
-                    <span className="text-[12px] font-mono shrink-0 w-12" style={{ color: 'var(--pink)' }}>§{section}</span>
+                  <div key={section} className="flex items-center gap-4 py-2.5 border-b" style={{ borderColor: 'var(--border)' }}>
+                    <span className="text-[12px] font-mono shrink-0 w-12" style={{ color: 'var(--pink)' }}>&sect;{section}</span>
                     <span className="text-[13px] flex-1" style={{ color: 'var(--gray)' }}>{data.name}</span>
-                    <span className="text-[13px] font-medium shrink-0" style={{ fontFamily: "'Sora', sans-serif" }}>
+                    <span className="text-[13px] font-medium shrink-0 tabular-nums">
                       {data.count} {data.count === 1 ? 'scan' : 'scans'}
                     </span>
                   </div>
