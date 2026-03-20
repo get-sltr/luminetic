@@ -63,7 +63,6 @@ export default function PricingPage() {
         redirect: 'follow',
       });
 
-      // If redirected to login page (HTML response), send user to login
       const contentType = res.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
         window.location.href = '/login?redirect=/pricing';
@@ -99,134 +98,165 @@ export default function PricingPage() {
     <div style={{ background: 'var(--black)' }}>
       <div className="grid-bg" />
 
-      {/* Simple nav — just logo */}
-      <header className="fixed top-0 left-0 w-full z-50" style={{ background: 'rgba(9,9,11,0.8)', backdropFilter: 'blur(24px)', borderBottom: '1px solid var(--border)' }}>
+      {/* Nav */}
+      <header
+        className="fixed top-0 left-0 w-full z-50"
+        style={{
+          background: 'rgba(9,9,11,0.8)',
+          backdropFilter: 'blur(24px)',
+          borderBottom: '1px solid var(--border)',
+        }}
+      >
         <div className="flex items-center py-4 px-6 md:px-12 lg:px-20">
           <Link href="/" className="flex items-center gap-2.5 no-underline">
-            <div className="w-2 h-2 rounded-full" style={{ background: 'var(--pink)', boxShadow: '0 0 12px var(--pink-dim)' }} />
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{ background: 'var(--pink)', boxShadow: '0 0 12px var(--pink-dim)' }}
+            />
             <span className="text-xl font-bold tracking-tight text-white">Luminetic</span>
           </Link>
         </div>
       </header>
 
-      <main className="min-h-screen flex flex-col items-center justify-center px-6 md:px-16 lg:px-24 pt-[120px] pb-[120px]">
-        {/* Header area */}
-        <div className="mb-[40px] text-center">
+      <main className="min-h-screen flex flex-col items-center px-6 md:px-12 pt-[140px] pb-[120px]">
+        {/* Header */}
+        <div className="mb-16 text-center">
           <div
-            className="text-[14px] font-medium tracking-[6px] uppercase mb-10"
+            className="text-[13px] font-medium tracking-[5px] uppercase mb-4"
             style={{ color: 'var(--pink)' }}
           >
             Pricing
           </div>
           <h1
-            className="text-[14px] font-medium tracking-[6px] uppercase"
-            style={{ color: 'var(--white)' }}
+            className="text-2xl md:text-3xl font-semibold tracking-tight mb-3"
+            style={{ color: 'var(--white)', fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}
           >
-            Pay per scan &mdash; No subscription
+            Pay per scan — no subscription
           </h1>
+          <p className="text-sm" style={{ color: 'var(--gray)' }}>
+            One-time purchase. Credits never expire.
+          </p>
         </div>
 
         {/* Error */}
         {error && (
-          <div className="mb-6 p-4 text-[12px] text-center" style={{ color: 'var(--red)', background: 'rgba(248,113,113,0.05)', border: '1px solid rgba(248,113,113,0.12)' }}>
+          <div
+            className="mb-8 px-6 py-3 rounded-lg text-[13px] text-center max-w-md"
+            style={{
+              color: '#f87171',
+              background: 'rgba(248,113,113,0.06)',
+              border: '1px solid rgba(248,113,113,0.15)',
+            }}
+          >
             {error}
           </div>
         )}
 
         {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-[1px] w-full" style={{ background: 'var(--border)' }}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 w-full max-w-[960px]">
           {tiers.map((tier) => (
             <div
               key={tier.name}
-              className="relative flex flex-col"
+              className="relative flex flex-col rounded-2xl overflow-hidden"
               style={{
                 background: tier.featured
-                  ? 'rgba(255, 45, 120, 0.03)'
-                  : 'var(--black)',
-                padding: '56px 48px',
+                  ? 'linear-gradient(180deg, rgba(255,45,120,0.06) 0%, rgba(9,9,11,1) 100%)'
+                  : 'rgba(255,255,255,0.02)',
+                border: tier.featured
+                  ? '1px solid rgba(255,45,120,0.25)'
+                  : '1px solid rgba(255,255,255,0.06)',
               }}
             >
-              {/* Top glow for featured */}
+              {/* Popular badge */}
               {tier.featured && (
-                <div
-                  className="absolute top-0 left-0 right-0 h-px"
-                  style={{ background: 'linear-gradient(90deg, transparent, rgba(255, 45, 120, 0.5), transparent)' }}
-                />
+                <div className="flex justify-center pt-4">
+                  <span
+                    className="text-[9px] tracking-[2px] font-semibold uppercase px-4 py-1 rounded-full"
+                    style={{ background: 'var(--pink)', color: 'white' }}
+                  >
+                    Most Popular
+                  </span>
+                </div>
               )}
 
-              {/* Tier name */}
-              <div
-                className="text-[11px] font-bold tracking-[4px] uppercase mb-12"
-                style={{ color: tier.featured ? 'var(--pink)' : 'var(--white)' }}
-              >
-                {tier.name}
-              </div>
+              <div className="flex flex-col flex-1 p-8 md:p-10">
+                {/* Tier name */}
+                <div
+                  className="text-[11px] font-bold tracking-[3px] uppercase mb-6"
+                  style={{ color: tier.featured ? 'var(--pink)' : 'var(--gray)' }}
+                >
+                  {tier.name}
+                </div>
 
-              {/* Price */}
-              <div className="mb-4">
-                <span className="text-[11px] tracking-[2px] align-top" style={{ color: 'var(--gray)' }}>$</span>
-                <span className="text-[56px] font-light tracking-tight leading-none" style={{ color: 'var(--white)' }}>
-                  {tier.price}
-                </span>
-              </div>
-
-              {/* Scans */}
-              <div
-                className="text-[10px] tracking-[3px] uppercase mb-16"
-                style={{ color: 'var(--gray)' }}
-              >
-                {tier.scans}
-              </div>
-
-              {/* Features */}
-              <ul className="flex flex-col gap-6 mb-16 flex-1 list-none p-0 m-0">
-                {tier.features.map((feature) => (
-                  <li
-                    key={feature}
-                    className="flex items-start gap-5 text-[11px] tracking-[1px] leading-relaxed"
-                    style={{ color: 'var(--gray)' }}
+                {/* Price */}
+                <div className="flex items-baseline gap-1 mb-1">
+                  <span className="text-sm" style={{ color: 'var(--gray)' }}>$</span>
+                  <span
+                    className="text-5xl font-light tracking-tight"
+                    style={{ color: 'var(--white)' }}
                   >
-                    <span
-                      className="shrink-0 mt-[6px] w-[3px] h-[3px]"
-                      style={{ background: tier.featured ? 'var(--pink)' : 'rgba(255,255,255,0.15)' }}
-                    />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
+                    {tier.price}
+                  </span>
+                </div>
 
-              {/* CTA — tries checkout first, falls back to signup */}
-              <button
-                onClick={() => handleBuy(tier.id)}
-                disabled={loading !== null}
-                className="block w-full text-center text-[10px] tracking-[3px] uppercase font-medium cursor-pointer"
-                style={{
-                  color: loading === tier.id ? 'var(--gray)' : tier.featured ? 'var(--white)' : 'var(--gray)',
-                  background: 'transparent',
-                  border: tier.featured
-                    ? '1px solid rgba(255, 45, 120, 0.4)'
-                    : '1px solid rgba(255, 255, 255, 0.08)',
-                  padding: '20px',
-                  boxShadow: tier.featured
-                    ? '0 0 30px rgba(255, 45, 120, 0.1)'
-                    : 'none',
-                  transition: 'all 0.3s ease',
-                  opacity: loading !== null && loading !== tier.id ? 0.4 : 1,
-                }}
-              >
-                {loading === tier.id ? 'Processing...' : 'Get Started'}
-              </button>
+                {/* Scans */}
+                <div
+                  className="text-[10px] tracking-[2px] uppercase mb-10"
+                  style={{ color: 'var(--gray)' }}
+                >
+                  {tier.scans}
+                </div>
+
+                {/* Features */}
+                <ul className="flex flex-col gap-4 mb-10 flex-1 list-none p-0 m-0">
+                  {tier.features.map((feature) => (
+                    <li
+                      key={feature}
+                      className="flex items-center gap-3 text-[12px] leading-relaxed"
+                      style={{ color: 'rgba(255,255,255,0.7)' }}
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 14 14"
+                        fill="none"
+                        className="shrink-0"
+                      >
+                        <path
+                          d="M3.5 7L6 9.5L10.5 4.5"
+                          stroke={tier.featured ? 'var(--pink)' : 'rgba(255,255,255,0.3)'}
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                {/* CTA */}
+                <button
+                  onClick={() => handleBuy(tier.id)}
+                  disabled={loading !== null}
+                  className="w-full py-3.5 rounded-xl text-[11px] tracking-[2px] uppercase font-medium cursor-pointer transition-all duration-200"
+                  style={{
+                    color: tier.featured ? 'white' : 'var(--gray)',
+                    background: tier.featured
+                      ? 'var(--pink)'
+                      : 'transparent',
+                    border: tier.featured
+                      ? '1px solid var(--pink)'
+                      : '1px solid rgba(255,255,255,0.1)',
+                    opacity: loading !== null && loading !== tier.id ? 0.4 : 1,
+                  }}
+                >
+                  {loading === tier.id ? 'Processing...' : 'Get Started'}
+                </button>
+              </div>
             </div>
           ))}
         </div>
-
-        {/* Below cards */}
-        <p
-          className="text-[13px] font-bold tracking-[4px] uppercase mt-[40px] text-center"
-          style={{ color: 'var(--white)', textShadow: '0 0 20px rgba(255, 45, 120, 0.4), 0 0 40px rgba(255, 45, 120, 0.2)' }}
-        >
-          One-time purchase &middot; Credits never expire
-        </p>
       </main>
 
       <Footer />

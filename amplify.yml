@@ -6,7 +6,15 @@ frontend:
         - npm ci
     build:
       commands:
-        - env | grep -E '^(AWS_REGION|COGNITO_|DYNAMODB_|S3_|SQUARE_)' >> .env.production
+        - echo "AWS_REGION=$AWS_REGION" >> .env.production
+        - echo "COGNITO_USER_POOL_ID=$COGNITO_USER_POOL_ID" >> .env.production
+        - echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> .env.production
+        - echo "DYNAMODB_TABLE=$DYNAMODB_TABLE" >> .env.production
+        - echo "S3_BUCKET=$S3_BUCKET" >> .env.production
+        - echo "SQUARE_ACCESS_TOKEN=$SQUARE_ACCESS_TOKEN" >> .env.production
+        - echo "SQUARE_LOCATION_ID=$SQUARE_LOCATION_ID" >> .env.production
+        - echo "SQUARE_APP_ID=$SQUARE_APP_ID" >> .env.production
+        - echo "SQUARE_WEBHOOK_SIGNATURE_KEY=$SQUARE_WEBHOOK_SIGNATURE_KEY" >> .env.production
         - npm run build
   artifacts:
     baseDirectory: .next

@@ -16,17 +16,27 @@ const secretsClient = new SecretsManagerClient({
 let cachedWebhookSig: string | null = null;
 
 async function getWebhookSignatureKey(): Promise<string> {
+  // Try env var first
+  const envKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+  if (envKey) return envKey;
+
   if (cachedWebhookSig) return cachedWebhookSig;
-  const command = new GetSecretValueCommand({
-    SecretId: "luminetic/square-webhook-signature",
-  });
-  const response = await secretsClient.send(command);
-  const key = response.SecretString
-    ? JSON.parse(response.SecretString).SQUARE_WEBHOOK_SIGNATURE_KEY
-    : null;
-  if (!key) throw new Error("Square webhook signature key not found");
-  cachedWebhookSig = key;
-  return key;
+  try {
+    const command = new GetSecretValueCommand({
+      SecretId: "luminetic/square-webhook-signature",
+    });
+    const response = await secretsClient.send(command);
+    const key = response.SecretString
+      ? JSON.parse(response.SecretString).SQUARE_WEBHOOK_SIGNATURE_KEY
+      : null;
+    if (!key) throw new Error("Square webhook signature key not found");
+    cachedWebhookSig = key;
+    return key;
+  } catch {
+    throw new Error(
+      "Square webhook signature key is not configured. Set SQUARE_WEBHOOK_SIGNATURE_KEY environment variable."
+    );
+  }
 }
 
 /** Check if we already processed this event (idempotency). */
