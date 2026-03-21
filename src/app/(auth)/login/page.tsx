@@ -38,7 +38,7 @@ function LoginForm() {
       }
 
       // If explicit redirect was passed, use it. Otherwise route by credits.
-      const destination = safeRedirect || (data.credits > 0 ? '/dashboard' : '/pricing');
+      const destination = safeRedirect || '/dashboard';
       router.push(destination);
       router.refresh();
     } catch {
