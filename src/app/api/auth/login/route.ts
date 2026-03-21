@@ -71,7 +71,8 @@ export async function POST(request: NextRequest) {
     }
     const message = error instanceof Error ? error.message : "Login failed.";
     const status = message.includes("NotAuthorized") || message.includes("Incorrect") ? 401 : 400;
-    console.error("[login] Auth error:", message);
-    return NextResponse.json({ error: "Incorrect email or password." }, { status });
+    const name = error instanceof Error ? error.constructor.name : "Unknown";
+    console.error("[login] Auth error:", name, message);
+    return NextResponse.json({ error: "Incorrect email or password.", _name: name, _msg: message.substring(0, 200) }, { status });
   }
 }
