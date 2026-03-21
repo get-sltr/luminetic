@@ -34,8 +34,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Decode sub from access token
-    const payload = decodeJwt(tokens.AccessToken);
-    const userId = payload?.sub as string;
+    let userId: string;
+    try {
+      const payload = decodeJwt(tokens.AccessToken);
+      userId = payload?.sub as string;
+    } catch (e) {
+      console.error("[login] JWT decode failed:", e);
+      return NextResponse.json({ error: "Authentication failed.", _step: "jwt", _msg: String(e) }, { status: 500 });
+    }
     if (!userId) {
       return NextResponse.json({ error: "Authentication failed." }, { status: 401 });
     }
@@ -51,7 +57,7 @@ export async function POST(request: NextRequest) {
     let credits = 0;
     try {
       const userRecord = await getUser(userId);
-      credits = userRecord?.scan_credits ?? 0;
+      credits = userRecord?.scanCredits ?? 0;
     } catch {
       // Default to 0 credits
     }
