@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     // Always verify webhook signature — fail hard if key is unavailable
     const signatureKey = await getWebhookSignatureKey();
 
-    const url = `${request.headers.get("x-forwarded-proto") || "https"}://${request.headers.get("host")}${request.nextUrl.pathname}`;
+    const url = "https://luminetic.io/api/webhooks/square";
     const isValid = await WebhooksHelper.verifySignature({
       requestBody: rawBody,
       signatureHeader: signature,
@@ -140,7 +140,10 @@ export async function POST(request: NextRequest) {
             TableName: TABLE,
             Key: { PK: `USER#${userId}`, SK: "PROFILE" },
             UpdateExpression:
-              "SET plan = :plan, updatedAt = :now ADD scanCredits :credits",
+              "SET #p = :plan, updatedAt = :now ADD scanCredits :credits",
+            ExpressionAttributeNames: {
+              "#p": "plan",
+            },
             ExpressionAttributeValues: {
               ":plan": packId,
               ":credits": scansToAdd,
