@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
     const message = error instanceof Error ? error.message : "Login failed.";
     const status = message.includes("NotAuthorized") || message.includes("Incorrect") ? 401 : 400;
-    console.error("[login] Auth error:", message, "| COGNITO_CLIENT_ID set:", !!process.env.COGNITO_CLIENT_ID, "| COGNITO_USER_POOL_ID set:", !!process.env.COGNITO_USER_POOL_ID);
-    return NextResponse.json({ error: "Incorrect email or password.", debug: { status, hasClientId: !!process.env.COGNITO_CLIENT_ID, hasPoolId: !!process.env.COGNITO_USER_POOL_ID } }, { status });
+    console.error("[login] Auth error:", message);
+    return NextResponse.json({ error: "Incorrect email or password.", _debug: message }, { status });
   }
 }
