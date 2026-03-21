@@ -110,12 +110,17 @@ function LoginForm() {
         {loading ? 'Signing in...' : 'Sign In'}
       </button>
 
-      <p className="text-[13px] text-center mt-4" style={{ color: 'var(--gray)' }}>
-        No account?{' '}
-        <Link href="/signup" className="text-white hover:underline">
-          Create one
+      <div className="text-center mt-4 flex flex-col gap-2">
+        <Link href="/forgot-password" className="text-[13px] no-underline" style={{ color: 'var(--gray)' }}>
+          Forgot password?
         </Link>
-      </p>
+        <p className="text-[13px]" style={{ color: 'var(--gray)' }}>
+          No account?{' '}
+          <Link href="/signup" className="text-white hover:underline">
+            Create one
+          </Link>
+        </p>
+      </div>
     </form>
   );
 }

@@ -5,6 +5,8 @@ import {
   ConfirmSignUpCommand,
   GetUserCommand,
   GlobalSignOutCommand,
+  ForgotPasswordCommand,
+  ConfirmForgotPasswordCommand,
   AuthFlowType,
 } from "@aws-sdk/client-cognito-identity-provider";
 
@@ -64,6 +66,24 @@ export async function refreshSession(refreshToken: string) {
     AuthFlow: AuthFlowType.REFRESH_TOKEN_AUTH,
     ClientId: getClientId(),
     AuthParameters: { REFRESH_TOKEN: refreshToken },
+  });
+  return cognitoClient.send(command);
+}
+
+export async function forgotPassword(email: string) {
+  const command = new ForgotPasswordCommand({
+    ClientId: getClientId(),
+    Username: email,
+  });
+  return cognitoClient.send(command);
+}
+
+export async function confirmForgotPassword(email: string, code: string, newPassword: string) {
+  const command = new ConfirmForgotPasswordCommand({
+    ClientId: getClientId(),
+    Username: email,
+    ConfirmationCode: code,
+    Password: newPassword,
   });
   return cognitoClient.send(command);
 }
