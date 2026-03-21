@@ -3,6 +3,7 @@ import { signIn } from "@/lib/cognito";
 import { putUser, getUser } from "@/lib/db";
 import { setAuthCookies } from "@/lib/auth";
 import { z } from "zod";
+import { decodeJwt } from "jose";
 import { authLimiter, getClientIp } from "@/lib/rate-limit";
 
 const schema = z.object({
@@ -33,11 +34,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Decode sub from access token
-    const parts = tokens.AccessToken.split(".");
-    if (parts.length !== 3 || !parts[1]) {
-      return NextResponse.json({ error: "Authentication failed." }, { status: 401 });
-    }
-    const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+    const payload = decodeJwt(tokens.AccessToken);
     const userId = payload?.sub as string;
     if (!userId) {
       return NextResponse.json({ error: "Authentication failed." }, { status: 401 });
@@ -69,6 +66,6 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : "Login failed.";
     const status = message.includes("NotAuthorized") || message.includes("Incorrect") ? 401 : 400;
     console.error("[login] Auth error:", message);
-    return NextResponse.json({ error: "Incorrect email or password.", _debug: message }, { status });
+    return NextResponse.json({ error: "Incorrect email or password." }, { status });
   }
 }
