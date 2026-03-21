@@ -66,9 +66,10 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: "Invalid input." }, { status: 400 });
     }
-    console.error("[upload-ipa] Error:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error("[upload-ipa] Error:", msg);
     return NextResponse.json(
-      { error: "Upload setup failed. Please try again." },
+      { error: "Upload setup failed. Please try again.", _debug: msg.substring(0, 200) },
       { status: 500 }
     );
   }
