@@ -47,7 +47,8 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
     ]);
 
     plan = (profile?.plan as string) || 'free';
-    isFounder = plan === 'founder';
+    const role = (profile?.role as string) || 'user';
+    isFounder = role === 'founder' || role === 'admin';
     credits = (profile?.scanCredits as number) || 0;
     scanCount = (profile?.scanCount as number) || 0;
     recentScans = (scans || []) as Array<{ scanId: string; score: number; createdAt: string }>;
