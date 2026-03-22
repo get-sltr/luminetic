@@ -81,11 +81,18 @@ export const checkoutLimiter = new RateLimiter({
   windowMs: 10 * 60 * 1000,
 });
 
+/** IPA presign + upload attempts: generous limit for a core flow (was sharing checkout limiter at 5/10m) */
+export const uploadLimiter = new RateLimiter({
+  maxRequests: 30,
+  windowMs: 15 * 60 * 1000,
+});
+
 // Cleanup every 5 minutes
 setInterval(() => {
   authLimiter.cleanup();
   analyzeLimiter.cleanup();
   checkoutLimiter.cleanup();
+  uploadLimiter.cleanup();
 }, 5 * 60 * 1000).unref();
 
 // ── Helper ──────────────────────────────────────────────────

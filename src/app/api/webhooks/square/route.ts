@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { WebhooksHelper } from "square";
+import { getSquareClient } from "@/lib/square";
 import { db } from "@/lib/db";
 import { UpdateCommand, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import {
@@ -71,27 +72,93 @@ async function markEventProcessed(eventId: string, userId: string, scans: number
 const VALID_PACK_IDS = new Set(["starter", "pro", "agency"]);
 const MAX_SCANS_PER_PACK = 10;
 
+/** Must match the subscription URL in Square Developer Dashboard (used for HMAC). */
+const WEBHOOK_NOTIFICATION_URL =
+  process.env.SQUARE_WEBHOOK_NOTIFICATION_URL || "https://luminetic.io/api/webhooks/square";
+
+type OrderMeta = { userId?: string; scans?: string; packId?: string };
+
+function metadataComplete(m: OrderMeta | undefined): m is Required<Pick<OrderMeta, "userId" | "scans">> & OrderMeta {
+  return !!(m?.userId && m?.scans);
+}
+
+/**
+ * Square often omits `order` on payment webhooks. Metadata is on the Order — fetch by `orderId` when needed.
+ */
+async function resolveOrderMetadata(
+  payment: Record<string, unknown> | undefined,
+  eventDataObject: Record<string, unknown> | undefined
+): Promise<OrderMeta | null> {
+  const fromPaymentOrder = (payment?.order as { metadata?: OrderMeta } | undefined)?.metadata;
+  if (metadataComplete(fromPaymentOrder)) return fromPaymentOrder;
+
+  const fromEventOrder = (eventDataObject?.order as { metadata?: OrderMeta } | undefined)?.metadata;
+  if (metadataComplete(fromEventOrder)) return fromEventOrder;
+
+  const orderId =
+    (typeof payment?.orderId === "string" && payment.orderId) ||
+    (typeof payment?.order_id === "string" && payment.order_id) ||
+    undefined;
+
+  if (!orderId) {
+    console.warn("[square-webhook] COMPLETED payment has no embedded order metadata and no orderId — cannot grant credits");
+    return null;
+  }
+
+  try {
+    const square = await getSquareClient();
+    const res = await square.orders.get({ orderId });
+    const meta = res.order?.metadata as OrderMeta | undefined;
+    if (metadataComplete(meta)) return meta;
+    console.warn("[square-webhook] Retrieved order but metadata incomplete:", orderId);
+  } catch (e) {
+    console.error("[square-webhook] orders.get failed for", orderId, e);
+  }
+  return null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
     const signature = request.headers.get("x-square-hmacsha256-signature") || "";
 
-    // Always verify webhook signature — fail hard if key is unavailable
-    const signatureKey = await getWebhookSignatureKey();
+    let signatureKey: string;
+    try {
+      signatureKey = await getWebhookSignatureKey();
+    } catch (configErr) {
+      const msg = configErr instanceof Error ? configErr.message : String(configErr);
+      console.error("[square-webhook] Missing or invalid SQUARE_WEBHOOK_SIGNATURE_KEY / Secrets Manager:", msg);
+      return NextResponse.json(
+        { error: "Webhook signing key not configured on server." },
+        { status: 503 }
+      );
+    }
 
-    const url = "https://luminetic.io/api/webhooks/square";
-    const isValid = await WebhooksHelper.verifySignature({
-      requestBody: rawBody,
-      signatureHeader: signature,
-      signatureKey,
-      notificationUrl: url,
-    });
+    const url = WEBHOOK_NOTIFICATION_URL;
+    let isValid: boolean;
+    try {
+      isValid = await WebhooksHelper.verifySignature({
+        requestBody: rawBody,
+        signatureHeader: signature,
+        signatureKey,
+        notificationUrl: url,
+      });
+    } catch (verifyErr) {
+      console.error("[square-webhook] verifySignature threw:", verifyErr);
+      return NextResponse.json({ error: "Signature verification error." }, { status: 400 });
+    }
     if (!isValid) {
-      console.error("[square-webhook] Invalid signature");
+      console.error("[square-webhook] Invalid signature (check SQUARE_WEBHOOK_NOTIFICATION_URL matches subscription URL exactly)");
       return NextResponse.json({ error: "Invalid signature." }, { status: 401 });
     }
 
-    const event = JSON.parse(rawBody);
+    let event: { event_id?: string; type?: string; data?: { object?: { payment?: unknown; order?: unknown } } };
+    try {
+      event = JSON.parse(rawBody) as typeof event;
+    } catch {
+      console.error("[square-webhook] Invalid JSON body");
+      return NextResponse.json({ error: "Invalid JSON." }, { status: 400 });
+    }
     const eventId = event.event_id as string | undefined;
     const eventType = event.type as string;
 
@@ -107,16 +174,18 @@ export async function POST(request: NextRequest) {
 
     // Handle payment events
     if (eventType === "payment.created" || eventType === "payment.updated") {
-      const payment = event.data?.object?.payment;
-      const status = payment?.status;
+      const payment = event.data?.object?.payment as Record<string, unknown> | undefined;
+      const status = typeof payment?.status === "string" ? payment.status : undefined;
 
       // Only process completed payments
       if (status !== "COMPLETED") {
         return NextResponse.json({ received: true });
       }
 
-      const order = payment?.order || event.data?.object?.order;
-      const orderMetadata = order?.metadata;
+      const orderMetadata = await resolveOrderMetadata(
+        payment as Record<string, unknown> | undefined,
+        event.data?.object as Record<string, unknown> | undefined
+      );
 
       if (orderMetadata?.userId && orderMetadata?.scans) {
         const userId = orderMetadata.userId;

@@ -35,6 +35,14 @@ const PROGRESS_STEPS = [
   { keys: ['generating-tests'], label: 'Generating test suite...', Icon: IconCheck },
 ];
 
+const MAX_IPA_BYTES = 500 * 1024 * 1024;
+
+/** Best-effort parse of S3 XML error bodies (browser PUT failures are often CORS or 403). */
+function parseS3ErrorHint(xmlOrText: string): string | null {
+  const m = xmlOrText.match(/<Message>([^<]+)<\/Message>/);
+  return m?.[1]?.trim() ?? null;
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return bytes + ' B';
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -69,30 +77,77 @@ export default function AnalyzePage() {
       return;
     }
 
+    if (selectedFile.size > MAX_IPA_BYTES) {
+      setError(`File is too large (max ${Math.round(MAX_IPA_BYTES / (1024 * 1024))} MB).`);
+      return;
+    }
+
     setFile(selectedFile);
     setError('');
     setUploading(true);
     setUploadProgress(0);
 
     try {
-      // Get presigned URL
+      const clientContentType =
+        selectedFile.type === 'application/zip' || selectedFile.type === 'application/x-itunes-ipa'
+          ? selectedFile.type
+          : 'application/octet-stream';
+
+      // Get presigned URL (must send cookies for Cognito session)
       const presignRes = await fetch('/api/upload-ipa', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: selectedFile.name, contentType: 'application/octet-stream', size: selectedFile.size }),
+        body: JSON.stringify({
+          filename: selectedFile.name,
+          contentType: clientContentType,
+          size: selectedFile.size,
+        }),
       });
 
-      if (!presignRes.ok) {
-        const data = await presignRes.json();
-        throw new Error(data.error || 'Failed to get upload URL.');
+      let presignJson: {
+        error?: string;
+        code?: string;
+        uploadUrl?: string;
+        s3Key?: string;
+        contentType?: string;
+        bundleId?: string;
+        appName?: string;
+      } = {};
+      try {
+        presignJson = await presignRes.json();
+      } catch {
+        throw new Error('Could not start upload (invalid server response). Is the API running?');
       }
 
-      const { uploadUrl, s3Key: key, bundleId: detectedBundleId, appName: detectedAppName } = await presignRes.json();
+      if (!presignRes.ok) {
+        const { error, code } = presignJson;
+        if (code === 'NO_CREDITS') {
+          throw new Error(error || 'No scan credits. Purchase credits on the Pricing page.');
+        }
+        if (code === 'RATE_LIMIT') {
+          throw new Error(error || 'Too many uploads. Wait a few minutes.');
+        }
+        if (code === 'SERVER_CONFIG') {
+          throw new Error(error || 'Upload storage is not configured on the server.');
+        }
+        throw new Error(error || `Failed to get upload URL (${presignRes.status}).`);
+      }
+
+      const { uploadUrl, s3Key: key, bundleId: detectedBundleId, appName: detectedAppName, contentType: signedContentType } =
+        presignJson;
+
+      if (!uploadUrl || !key) {
+        throw new Error('Upload URL missing from server. Check deployment logs.');
+      }
+
+      // Must match exactly what was signed (default octet-stream)
+      const putContentType = signedContentType || 'application/octet-stream';
 
       // Upload directly to S3
       const xhr = new XMLHttpRequest();
       xhr.open('PUT', uploadUrl, true);
-      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.setRequestHeader('Content-Type', putContentType);
 
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
@@ -103,9 +158,32 @@ export default function AnalyzePage() {
       await new Promise<void>((resolve, reject) => {
         xhr.onload = () => {
           if (xhr.status >= 200 && xhr.status < 300) resolve();
-          else reject(new Error('Upload failed with status ' + xhr.status));
+          else {
+            const hint = parseS3ErrorHint(xhr.responseText || '');
+            const base = `Upload to storage failed (${xhr.status})`;
+            if (xhr.status === 0) {
+              reject(
+                new Error(
+                  'Network error talking to storage. Often caused by missing S3 CORS: allow PUT from your app origin and header Content-Type.'
+                )
+              );
+              return;
+            }
+            reject(
+              new Error(
+                hint
+                  ? `${base}: ${hint}`
+                  : `${base}. If this is 403, check S3 CORS and that Content-Type matches the presigned request.`
+              )
+            );
+          }
         };
-        xhr.onerror = () => reject(new Error('Upload failed.'));
+        xhr.onerror = () =>
+          reject(
+            new Error(
+              'Upload failed (network). Check S3 bucket CORS allows PUT from this site and exposes ETag / allowed headers.'
+            )
+          );
         xhr.send(selectedFile);
       });
 

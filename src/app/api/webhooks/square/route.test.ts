@@ -2,9 +2,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Only stub external services — AWS network calls
 const dbSend = vi.hoisted(() => vi.fn());
+const getSquareClientMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/db", () => ({
   db: { send: dbSend },
+}));
+
+vi.mock("@/lib/square", () => ({
+  getSquareClient: (...args: unknown[]) => getSquareClientMock(...args),
 }));
 
 vi.mock("@aws-sdk/client-secrets-manager", () => ({
@@ -82,6 +87,10 @@ describe("POST /api/webhooks/square", () => {
     vi.clearAllMocks();
     verifySignature.mockResolvedValue(true);
     dbSend.mockResolvedValue({ Item: undefined }); // event not yet processed
+    getSquareClientMock.mockReset();
+    getSquareClientMock.mockRejectedValue(
+      new Error("getSquareClient should not run when webhook includes order metadata")
+    );
   });
 
   // ── Signature verification ────────────────────────────────
@@ -164,6 +173,38 @@ describe("POST /api/webhooks/square", () => {
     const event = completedPaymentEvent({ packId: "agency", scans: "10" });
     const res = await POST(makeWebhookRequest(event));
     expect(res.status).toBe(200);
+    expect(dbSend).toHaveBeenCalledTimes(3);
+  });
+
+  it("grants credits when webhook has only orderId (fetches Order metadata via Square API)", async () => {
+    getSquareClientMock.mockResolvedValue({
+      orders: {
+        get: vi.fn().mockResolvedValue({
+          order: {
+            metadata: {
+              userId: "cognito-user-a1b2c3",
+              packId: "starter",
+              scans: "1",
+            },
+          },
+        }),
+      },
+    });
+    const event = {
+      event_id: "evt-order-fetch-001",
+      type: "payment.created" as string,
+      data: {
+        object: {
+          payment: {
+            status: "COMPLETED",
+            orderId: "order_test_abc",
+          },
+        },
+      },
+    };
+    const res = await POST(makeWebhookRequest(event));
+    expect(res.status).toBe(200);
+    expect(getSquareClientMock).toHaveBeenCalled();
     expect(dbSend).toHaveBeenCalledTimes(3);
   });
 

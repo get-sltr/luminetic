@@ -118,6 +118,30 @@ The executing role/user needs:
 }
 ```
 
+### S3 uploads (`.ipa` → presigned PUT)
+
+The Analyze flow calls `POST /api/upload-ipa` to get a presigned URL, then the **browser uploads directly to S3**. Without the following, uploads fail with 500 (presign) or opaque “network” / 403 errors (browser → S3).
+
+1. **Environment** — set `S3_BUCKET` and `AWS_REGION` (see `amplify.yml` / `.env.production`). The app server needs AWS credentials with `s3:PutObject` on `arn:aws:s3:::YOUR_BUCKET/*` (and the app reads objects with `GetObject` elsewhere — include that too).
+
+2. **Bucket CORS** — required for browser `PUT`. Example (replace origins with your production URL and `http://localhost:3000` for dev):
+
+```json
+[
+  {
+    "AllowedHeaders": ["*"],
+    "AllowedMethods": ["PUT", "GET", "HEAD"],
+    "AllowedOrigins": ["https://your-domain.com", "http://localhost:3000"],
+    "ExposeHeaders": ["ETag", "x-amz-request-id"],
+    "MaxAgeSeconds": 3000
+  }
+]
+```
+
+3. **Block public access** can stay on; presigned URLs do not require a public bucket.
+
+4. **Troubleshooting** — `GET /api/health` reports whether `S3_BUCKET` is set. If presign works but upload fails: almost always **CORS** or **Content-Type** mismatch (the client must send the same `Content-Type` the server used when signing).
+
 ---
 
 ## API Reference

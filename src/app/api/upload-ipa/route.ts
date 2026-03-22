@@ -3,33 +3,56 @@ import { getAuthUser } from "@/lib/auth";
 import { getUser } from "@/lib/db";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { checkoutLimiter } from "@/lib/rate-limit";
+import { uploadLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION || "us-east-1" });
-const BUCKET = process.env.S3_BUCKET!;
+const BUCKET = process.env.S3_BUCKET;
+
+/** Single PUT limit — adjust if you support larger IPAs */
+const MAX_IPA_BYTES = 500 * 1024 * 1024;
 
 const schema = z.object({
   filename: z.string().min(1).max(255),
   contentType: z.string().refine(
-    (ct) => ct === "application/octet-stream" || ct === "application/zip",
-    { message: "Content type must be application/octet-stream or application/zip" }
+    (ct) =>
+      ct === "application/octet-stream" ||
+      ct === "application/zip" ||
+      ct === "application/x-itunes-ipa" ||
+      ct === "",
+    { message: "Unsupported content type for .ipa upload" }
   ),
   size: z.number().optional(),
 });
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+    if (!BUCKET) {
+      console.error("[upload-ipa] S3_BUCKET is not configured");
+      return NextResponse.json(
+        {
+          error: "Server storage is not configured. Set S3_BUCKET in the deployment environment.",
+          code: "SERVER_CONFIG",
+        },
+        { status: 503 }
+      );
     }
 
-    // Rate limit by userId (reuse checkout limiter: 5 per 10 min)
-    const rl = checkoutLimiter.check(user.userId);
+    const user = await getAuthUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: "Sign in required to upload.", code: "UNAUTHORIZED" },
+        { status: 401 }
+      );
+    }
+
+    const rl = uploadLimiter.check(user.userId);
     if (!rl.allowed) {
       return NextResponse.json(
-        { error: "Too many upload attempts. Please wait a moment." },
+        {
+          error: "Too many upload attempts. Please wait a few minutes and try again.",
+          code: "RATE_LIMIT",
+        },
         { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
       );
     }
@@ -40,12 +63,30 @@ export async function POST(request: NextRequest) {
     if (!isFounder) {
       const credits = (userRecord?.scanCredits as number) || 0;
       if (credits <= 0) {
-        return NextResponse.json({ error: "No scan credits remaining." }, { status: 429 });
+        return NextResponse.json(
+          { error: "No scan credits remaining. Purchase credits to upload.", code: "NO_CREDITS" },
+          { status: 429 }
+        );
       }
     }
 
     const body = await request.json();
-    const { filename, contentType } = schema.parse(body);
+    const { filename, contentType, size } = schema.parse(body);
+
+    if (size != null && size > MAX_IPA_BYTES) {
+      return NextResponse.json(
+        {
+          error: `File too large (max ${Math.round(MAX_IPA_BYTES / (1024 * 1024))} MB).`,
+          code: "FILE_TOO_LARGE",
+        },
+        { status: 413 }
+      );
+    }
+
+    const normalizedContentType =
+      contentType === "" || contentType === "application/x-itunes-ipa"
+        ? "application/octet-stream"
+        : contentType;
 
     // Sanitize filename: keep only safe characters
     const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -56,20 +97,34 @@ export async function POST(request: NextRequest) {
       new PutObjectCommand({
         Bucket: BUCKET,
         Key: s3Key,
-        ContentType: contentType,
+        ContentType: normalizedContentType,
       }),
       { expiresIn: 600 } // 10 minutes
     );
 
-    return NextResponse.json({ uploadUrl, s3Key });
+    return NextResponse.json({
+      uploadUrl,
+      s3Key,
+      /** Client must send this exact header on PUT or S3 returns 403 SignatureDoesNotMatch */
+      contentType: normalizedContentType,
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: "Invalid input." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid upload request (filename or content type).", code: "INVALID_INPUT" },
+        { status: 400 }
+      );
     }
     const msg = error instanceof Error ? error.message : String(error);
     console.error("[upload-ipa] Error:", msg);
+    const isProd = process.env.NODE_ENV === "production";
     return NextResponse.json(
-      { error: "Upload setup failed. Please try again.", _debug: msg.substring(0, 200) },
+      {
+        error:
+          "Could not create upload URL. Check server AWS credentials and S3 permissions (s3:PutObject).",
+        code: "PRESIGN_FAILED",
+        ...(!isProd && { _debug: msg.substring(0, 400) }),
+      },
       { status: 500 }
     );
   }
