@@ -263,6 +263,14 @@ body {
   border: 1px solid;
 }
 
+/* Metrics / durations: keep natural casing (avoid "3S" from uppercase) */
+.badge-metric {
+  text-transform: none;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+  text-wrap: balance;
+}
+
 /* ========== ANIMATIONS ========== */
 @keyframes jarvisSlideDown {
   from { opacity: 0; transform: translateY(-30px); }

@@ -25,6 +25,18 @@ const schema = z.object({
   size: z.number().optional(),
 });
 
+function isAwsLikeError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false;
+  const e = err as { name?: string; Code?: string; $metadata?: unknown };
+  return (
+    e.name === "CredentialsProviderError" ||
+    e.name === "InvalidIdentityToken" ||
+    e.name === "NetworkingError" ||
+    e.Code === "CredentialsError" ||
+    typeof e.$metadata === "object"
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     if (!BUCKET) {
@@ -58,7 +70,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Credit check before issuing presigned URL
-    const userRecord = await getUser(user.userId);
+    let userRecord;
+    try {
+      userRecord = await getUser(user.userId);
+    } catch (dbErr) {
+      console.error("[upload-ipa] DynamoDB getUser failed:", dbErr);
+      return NextResponse.json(
+        {
+          error: "Could not load your account. Check DYNAMODB_TABLE and IAM permissions.",
+          code: "DB_ERROR",
+        },
+        { status: 503 }
+      );
+    }
     const isFounder = userRecord?.plan === "founder" || userRecord?.role === "founder" || userRecord?.role === "admin";
     if (!isFounder) {
       const credits = (userRecord?.scanCredits as number) || 0;
@@ -70,7 +94,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const body = await request.json();
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON body.", code: "INVALID_JSON" },
+        { status: 400 }
+      );
+    }
     const { filename, contentType, size } = schema.parse(body);
 
     if (size != null && size > MAX_IPA_BYTES) {
@@ -92,15 +124,32 @@ export async function POST(request: NextRequest) {
     const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
     const s3Key = `ipa-uploads/${user.userId}/${Date.now()}-${safeName}`;
 
-    const uploadUrl = await getSignedUrl(
-      s3,
-      new PutObjectCommand({
-        Bucket: BUCKET,
-        Key: s3Key,
-        ContentType: normalizedContentType,
-      }),
-      { expiresIn: 600 } // 10 minutes
-    );
+    let uploadUrl: string;
+    try {
+      uploadUrl = await getSignedUrl(
+        s3,
+        new PutObjectCommand({
+          Bucket: BUCKET,
+          Key: s3Key,
+          ContentType: normalizedContentType,
+        }),
+        { expiresIn: 600 } // 10 minutes
+      );
+    } catch (presignErr) {
+      const msg = presignErr instanceof Error ? presignErr.message : String(presignErr);
+      console.error("[upload-ipa] getSignedUrl failed:", presignErr);
+      const credsIssue = isAwsLikeError(presignErr);
+      return NextResponse.json(
+        {
+          error: credsIssue
+            ? "AWS credentials are missing or invalid for this server. Attach an IAM role with s3:PutObject on the bucket, or set AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY for the runtime."
+            : "Could not create upload URL. Verify S3 bucket name, region (AWS_REGION), and s3:PutObject permission.",
+          code: credsIssue ? "AWS_CREDENTIALS" : "PRESIGN_FAILED",
+          ...(process.env.NODE_ENV !== "production" && { _debug: msg.substring(0, 400) }),
+        },
+        { status: credsIssue ? 503 : 500 }
+      );
+    }
 
     return NextResponse.json({
       uploadUrl,
@@ -121,8 +170,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         error:
-          "Could not create upload URL. Check server AWS credentials and S3 permissions (s3:PutObject).",
-        code: "PRESIGN_FAILED",
+          "Upload setup failed unexpectedly. Check server logs.",
+        code: "INTERNAL",
         ...(!isProd && { _debug: msg.substring(0, 400) }),
       },
       { status: 500 }

@@ -185,6 +185,91 @@ function sendEvent(controller: ReadableStreamDefaultController, event: string, d
   controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
 }
 
+/** Model JSON often returns score as string, or omits it — avoid treating missing as 0. */
+function parseReadinessScore(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.min(100, Math.round(value)));
+  }
+  if (typeof value === "string") {
+    const m = value.trim().match(/^(\d+(\.\d+)?)/);
+    if (m) {
+      const n = Math.round(parseFloat(m[1]));
+      if (!Number.isFinite(n)) return null;
+      return Math.max(0, Math.min(100, n));
+    }
+  }
+  return null;
+}
+
+function blendReadinessScores(gs: number | null, os: number | null): number | null {
+  if (gs != null && os != null) return Math.round(gs * 0.3 + os * 0.7);
+  if (os != null) return os;
+  if (gs != null) return gs;
+  return null;
+}
+
+/** When model scores are missing, infer from issue severities (0–100). */
+function heuristicScoreFromIssues(issues: unknown[]): number {
+  if (!issues.length) return 72;
+  let penalty = 0;
+  for (const raw of issues) {
+    const sev = String((raw as Record<string, unknown>).severity || "minor").toLowerCase();
+    if (sev === "critical") penalty += 20;
+    else if (sev === "major") penalty += 10;
+    else penalty += 3;
+  }
+  return Math.max(10, Math.min(95, 100 - Math.min(90, penalty)));
+}
+
+/**
+ * Resolve final 0–100 score: prefer blended Gemini+Opus, then single model, then heuristic.
+ * Avoid showing 0 when analysis succeeded but `score` was omitted or returned as a string.
+ */
+function resolveFinalReadinessScore(opts: {
+  geminiAssessment: Record<string, unknown> | null;
+  opusFinal: Record<string, unknown> | null;
+  allIssues: unknown[];
+  geminiSuccess: boolean;
+  opusSuccess: boolean;
+}): number {
+  const { geminiAssessment, opusFinal, allIssues, geminiSuccess, opusSuccess } = opts;
+
+  let gs = geminiAssessment ? parseReadinessScore(geminiAssessment.score) : null;
+  let os = opusFinal ? parseReadinessScore(opusFinal.score) : null;
+
+  if (gs === null && geminiAssessment) {
+    gs = parseReadinessScore((geminiAssessment as { readiness_score?: unknown }).readiness_score);
+  }
+  if (os === null && opusFinal) {
+    os = parseReadinessScore((opusFinal as { readiness_score?: unknown }).readiness_score);
+  }
+
+  let blended = blendReadinessScores(gs, os);
+
+  if (blended !== null && blended > 0) {
+    return blended;
+  }
+
+  // Both models explicitly returned 0 — only trust if we have strong signal (many issues)
+  if (blended === 0 && gs === 0 && os === 0) {
+    if (allIssues.length >= 3) return heuristicScoreFromIssues(allIssues);
+  }
+
+  if (blended !== null && blended === 0 && (gs === 0 || os === 0)) {
+    if (allIssues.length > 0) return heuristicScoreFromIssues(allIssues);
+    if (geminiSuccess || opusSuccess) return 65;
+  }
+
+  if (blended === null) {
+    if (allIssues.length > 0) return heuristicScoreFromIssues(allIssues);
+    if (geminiSuccess || opusSuccess) return 65;
+    return 0;
+  }
+
+  return blended;
+}
+
 export async function POST(request: NextRequest) {
   const schema = z.object({
     // New IPA-based flow
@@ -440,11 +525,13 @@ export async function POST(request: NextRequest) {
         const opusFinal = opusData ? (opusData.final_assessment as Record<string, unknown>) : null;
         const geminiAssessment = geminiData ? (geminiData.readiness_assessment as Record<string, unknown>) : null;
 
-        const gs = geminiAssessment ? (geminiAssessment.score as number) || 0 : 0;
-        const os = opusFinal ? (opusFinal.score as number) || 0 : 0;
-        const finalScore = opusFinal && geminiAssessment
-          ? Math.round(gs * 0.3 + os * 0.7)
-          : opusFinal ? os : gs;
+        const finalScore = resolveFinalReadinessScore({
+          geminiAssessment,
+          opusFinal,
+          allIssues,
+          geminiSuccess,
+          opusSuccess,
+        });
 
         // Merge preflight checks from Gemini + Sonnet
         const geminiPreflight = geminiData ? (geminiData.preflight_checks as Record<string, unknown>) || {} : {};

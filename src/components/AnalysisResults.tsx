@@ -21,6 +21,32 @@ const CONFIDENCE_COLORS: Record<string, string> = {
   low:    '#f87171',
 };
 
+const MODEL_DISPLAY: Record<string, string> = {
+  'gemini-2.5-pro': 'Gemini',
+  'claude-sonnet': 'Sonnet',
+  'claude-opus': 'Opus',
+};
+
+function formatDurationMs(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '—';
+  if (ms < 1000) return `${Math.round(ms)} ms`;
+  const sec = ms / 1000;
+  if (sec < 60) {
+    const rounded = sec < 10 ? sec.toFixed(1) : String(Math.round(sec));
+    return `${rounded} s`;
+  }
+  const m = Math.floor(sec / 60);
+  const s = Math.round(sec % 60);
+  return `${m}m ${s}s`;
+}
+
+function formatModelsUsed(models: string[] | undefined): string {
+  if (!models?.length) return 'Models: —';
+  return models
+    .map((id) => MODEL_DISPLAY[id] || id.replace(/-/g, ' '))
+    .join(' · ');
+}
+
 interface Issue {
   severity: string;
   issue: string;
@@ -127,8 +153,12 @@ export default function AnalysisResults({ result }: { result: MergedResult }) {
             <span className="badge" style={{ color: 'var(--gray)', borderColor: 'var(--border)' }}>
               {assessment.agreement_level.replace('_', ' ')} agreement
             </span>
-            <span className="badge" style={{ color: 'var(--gray)', borderColor: 'var(--border)' }}>
-              {Math.round(meta.total_latency_ms / 1000)}s &middot; {meta.models_used.join(' + ')}
+            <span
+              className="badge badge-metric"
+              style={{ color: 'var(--gray)', borderColor: 'var(--border)' }}
+              title="Total analysis time and models that responded"
+            >
+              {formatDurationMs(meta.total_latency_ms)} · {formatModelsUsed(meta.models_used)}
             </span>
           </div>
         </div>
