@@ -49,6 +49,7 @@ function LoginForm() {
   }
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="flex flex-col gap-6">
       <div>
         <label className="block text-[11px] tracking-[2px] uppercase mb-2" style={{ color: 'var(--gray)' }}>
@@ -109,9 +110,15 @@ function LoginForm() {
       >
         {loading ? 'Signing in...' : 'Sign In'}
       </button>
+    </form>
 
+      {/* Outside <form> so navigation is never swallowed; proxy must allow /forgot-password */}
       <div className="text-center mt-4 flex flex-col gap-2">
-        <Link href="/forgot-password" className="text-[13px] no-underline" style={{ color: 'var(--gray)' }}>
+        <Link
+          href="/forgot-password"
+          className="text-[13px] no-underline inline-block py-1"
+          style={{ color: 'var(--gray)' }}
+        >
           Forgot password?
         </Link>
         <p className="text-[13px]" style={{ color: 'var(--gray)' }}>
@@ -121,7 +128,7 @@ function LoginForm() {
           </Link>
         </p>
       </div>
-    </form>
+    </>
   );
 }
 
