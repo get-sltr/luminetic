@@ -83,7 +83,7 @@ export default async function MemoryPage() {
   return (
     <div className="w-full px-6 md:px-12 lg:px-20 pt-28 pb-20">
       <div className="mb-10">
-        <div className="text-[11px] font-medium tracking-[5px] uppercase mb-2" style={{ color: 'var(--pink)' }}>Build Memory</div>
+        <div className="text-[11px] font-medium tracking-[5px] uppercase mb-2" style={{ color: 'var(--orange)' }}>Build Memory</div>
         <h1 className="text-[11px] font-medium tracking-[5px] uppercase" style={{ color: 'var(--white)' }}>Submission Intelligence</h1>
         <p className="text-[14px] mt-2" style={{ color: 'var(--gray)' }}>
           Patterns and trends across all your scans.
@@ -94,10 +94,10 @@ export default async function MemoryPage() {
         <div className="glass-card p-12 text-center relative overflow-hidden">
           <div className="glow-line" />
           <div className="w-14 h-14 flex items-center justify-center mx-auto mb-5" style={{ background: 'var(--surface-2)' }}>
-            <IconAnalyze width={24} height={24} style={{ color: 'var(--pink)', opacity: 0.4 }} />
+            <IconAnalyze width={24} height={24} style={{ color: 'var(--orange)', opacity: 0.4 }} />
           </div>
           <div className="text-[15px] mb-2" style={{ color: 'var(--gray)' }}>No scan data yet.</div>
-          <Link href="/analyze" className="text-[12px] tracking-[2px] uppercase no-underline hover-text" style={{ color: 'var(--pink)' }}>
+          <Link href="/analyze" className="text-[12px] tracking-[2px] uppercase no-underline hover-text" style={{ color: 'var(--orange)' }}>
             Run your first analysis &rarr;
           </Link>
         </div>
@@ -115,7 +115,7 @@ export default async function MemoryPage() {
                 <div className="glow-line" />
                 <div className="flex items-center justify-between mb-3">
                   <div className="text-[10px] tracking-[3px] uppercase" style={{ color: 'var(--gray)' }}>{stat.label}</div>
-                  <span style={{ color: stat.color || 'var(--pink)', opacity: 0.4 }}>{stat.icon}</span>
+                  <span style={{ color: stat.color || 'var(--orange)', opacity: 0.4 }}>{stat.icon}</span>
                 </div>
                 <div className="text-[28px] font-bold" style={{ color: stat.color || 'var(--white)' }}>
                   {stat.value}
@@ -128,7 +128,7 @@ export default async function MemoryPage() {
           {scoreTimeline.length > 1 && (
             <div className="glass-card p-6 relative overflow-hidden">
               <div className="glow-line" />
-              <div className="text-[10px] tracking-[3px] uppercase font-medium mb-5" style={{ color: 'var(--pink)' }}>Score Over Time</div>
+              <div className="text-[10px] tracking-[3px] uppercase font-medium mb-5" style={{ color: 'var(--orange)' }}>Score Over Time</div>
               <div className="flex items-end gap-2 h-[120px]">
                 {scoreTimeline.map((point) => (
                   <div key={point.scanId} className="flex-1 flex flex-col items-center gap-1">
@@ -190,11 +190,11 @@ export default async function MemoryPage() {
           {topGuidelines.length > 0 && (
             <div className="glass-card p-6 relative overflow-hidden">
               <div className="glow-line" />
-              <div className="text-[10px] tracking-[3px] uppercase font-medium mb-5" style={{ color: 'var(--pink)' }}>Most Cited Guidelines</div>
+              <div className="text-[10px] tracking-[3px] uppercase font-medium mb-5" style={{ color: 'var(--orange)' }}>Most Cited Guidelines</div>
               <div className="flex flex-col gap-2">
                 {topGuidelines.map(([section, data]) => (
                   <div key={section} className="flex items-center gap-4 py-2.5 border-b" style={{ borderColor: 'var(--border)' }}>
-                    <span className="text-[12px] font-mono shrink-0 w-12" style={{ color: 'var(--pink)' }}>&sect;{section}</span>
+                    <span className="text-[12px] font-mono shrink-0 w-12" style={{ color: 'var(--orange)' }}>&sect;{section}</span>
                     <span className="text-[13px] flex-1" style={{ color: 'var(--gray)' }}>{data.name}</span>
                     <span className="text-[13px] font-medium shrink-0 tabular-nums">
                       {data.count} {data.count === 1 ? 'scan' : 'scans'}

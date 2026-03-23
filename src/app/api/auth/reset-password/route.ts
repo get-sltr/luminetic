@@ -6,7 +6,8 @@ import { authLimiter, getClientIp } from "@/lib/rate-limit";
 const schema = z.object({
   email: z.string().email(),
   code: z.string().min(1),
-  password: z.string().min(8),
+  /** Match signup + typical Cognito password policy */
+  password: z.string().min(12),
 });
 
 export async function POST(request: NextRequest) {
@@ -33,6 +34,15 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : "";
     if (message.includes("CodeMismatch") || message.includes("ExpiredCode")) {
       return NextResponse.json({ error: "Invalid or expired code." }, { status: 400 });
+    }
+    if (message.includes("InvalidPasswordException")) {
+      return NextResponse.json(
+        {
+          error:
+            "Password does not meet requirements. Use 12+ characters with uppercase, lowercase, number, and symbol.",
+        },
+        { status: 400 }
+      );
     }
     return NextResponse.json({ error: "Password reset failed. Please try again." }, { status: 400 });
   }

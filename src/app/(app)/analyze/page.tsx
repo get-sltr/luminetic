@@ -329,7 +329,7 @@ export default function AnalyzePage() {
 
         {/* Header */}
         <div className="mb-12 text-center">
-          <div className="text-[11px] font-medium tracking-[5px] uppercase mb-4" style={{ color: 'var(--pink)' }}>
+          <div className="text-[11px] font-medium tracking-[5px] uppercase mb-4" style={{ color: 'var(--orange)' }}>
             Scan Your App
           </div>
           <h1 className="text-[11px] font-medium tracking-[5px] uppercase" style={{ color: 'var(--white)' }}>
@@ -426,7 +426,7 @@ export default function AnalyzePage() {
                             className="h-full transition-all duration-300"
                             style={{
                               width: `${uploadProgress}%`,
-                              background: 'var(--pink)',
+                              background: 'var(--orange)',
                             }}
                           />
                         </div>
@@ -679,15 +679,15 @@ export default function AnalyzePage() {
                       <div
                         className="w-10 h-10 flex items-center justify-center transition-all duration-500"
                         style={{
-                          background: isDone ? 'var(--pink)' : isActive ? 'var(--surface-2)' : 'var(--surface-1)',
-                          border: isDone ? '1px solid var(--pink)' : isActive ? '1px solid var(--pink-dim)' : '1px solid var(--border)',
-                          boxShadow: isActive ? '0 0 20px var(--pink-glow)' : 'none',
+                          background: isDone ? 'var(--orange)' : isActive ? 'var(--surface-2)' : 'var(--surface-1)',
+                          border: isDone ? '1px solid var(--orange)' : isActive ? '1px solid var(--orange-dim)' : '1px solid var(--border)',
+                          boxShadow: isActive ? '0 0 20px var(--orange-glow)' : 'none',
                         }}
                       >
                         {isDone ? (
                           <IconCheck width={16} height={16} style={{ color: 'white' }} />
                         ) : isActive ? (
-                          <Icon width={16} height={16} style={{ color: 'var(--pink)', animation: 'breathe 2s ease-in-out infinite' }} />
+                          <Icon width={16} height={16} style={{ color: 'var(--orange)', animation: 'breathe 2s ease-in-out infinite' }} />
                         ) : (
                           <Icon width={16} height={16} style={{ color: 'var(--gray-dim)' }} />
                         )}
@@ -703,7 +703,7 @@ export default function AnalyzePage() {
                       <div
                         className="h-[1px] w-full -mt-6"
                         style={{
-                          background: isDone ? 'var(--pink)' : 'var(--border)',
+                          background: isDone ? 'var(--orange)' : 'var(--border)',
                           transition: 'background 0.5s ease',
                         }}
                       />

@@ -13,7 +13,7 @@ export default async function HistoryPage() {
     <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-12">
       <div className="mb-10">
         <div className="section-label mb-3">Build Memory</div>
-        <h1 className="page-title" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
+        <h1 className="page-title" style={{ fontFamily: "var(--font-heading)" }}>
           Scan history
         </h1>
       </div>
@@ -25,7 +25,7 @@ export default async function HistoryPage() {
             className="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-5"
             style={{ background: 'var(--surface-2)' }}
           >
-            <IconHistory width={24} height={24} style={{ color: 'var(--pink)', opacity: 0.4 }} />
+            <IconHistory width={24} height={24} style={{ color: 'var(--orange)', opacity: 0.4 }} />
           </div>
           <p className="text-[14px] mb-2" style={{ color: 'var(--gray)' }}>
             No scans yet
@@ -63,7 +63,7 @@ export default async function HistoryPage() {
                   <span
                     className="badge tabular-nums text-[14px] font-bold"
                     style={{
-                      fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif",
+                      fontFamily: "var(--font-heading)",
                       color: scoreColor,
                       borderColor: scoreColor,
                       background: scoreBg,

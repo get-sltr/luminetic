@@ -54,6 +54,19 @@ export async function deductScanCredit(userId: string): Promise<boolean> {
   }
 }
 
+/** Restore one credit (e.g. analysis failed after deduct). */
+export async function refundScanCredit(userId: string): Promise<void> {
+  await db.send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+    UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+    ExpressionAttributeValues: {
+      ":one": 1,
+      ":now": new Date().toISOString(),
+    },
+  }));
+}
+
 export async function getUser(userId: string) {
   const res = await db.send(new GetCommand({
     TableName: TABLE,

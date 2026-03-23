@@ -11,7 +11,7 @@ export default function GlobalError({
     <div className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--black)' }}>
       <div className="text-center max-w-md">
         <div className="w-3 h-3 rounded-full mx-auto mb-6" style={{ background: 'var(--red)', boxShadow: '0 0 12px rgba(248,113,113,0.4)' }} />
-        <h2 className="text-xl font-semibold mb-3" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
+        <h2 className="text-xl font-semibold mb-3" style={{ fontFamily: "var(--font-heading)" }}>
           Something went wrong
         </h2>
         <p className="text-sm mb-6" style={{ color: 'var(--gray)' }}>

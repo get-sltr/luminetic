@@ -1,21 +1,20 @@
 import type { Metadata } from "next";
-import { Outfit, Plus_Jakarta_Sans } from "next/font/google";
+import { Orbitron, Outfit } from "next/font/google";
 import Script from "next/script";
+import AmbientHud from "@/components/AmbientHud";
 import "./globals.css";
 
-/** Display / headings — clean geometric sans */
-const outfit = Outfit({
+const orbitron = Orbitron({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-heading",
+  weight: ["400", "500", "600"],
+  variable: "--font-orbitron",
   display: "swap",
 });
 
-/** Body / UI — modern, readable */
-const plusJakarta = Plus_Jakarta_Sans({
+const outfit = Outfit({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-body",
+  weight: ["300", "400", "500", "600"],
+  variable: "--font-outfit",
   display: "swap",
 });
 
@@ -162,8 +161,9 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`${outfit.variable} ${plusJakarta.variable} antialiased`}>
-        {children}
+      <body className={`${orbitron.variable} ${outfit.variable} font-outfit antialiased`}>
+        <AmbientHud />
+        <div className="relative z-10 min-h-screen">{children}</div>
       </body>
     </html>
   );

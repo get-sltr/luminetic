@@ -13,11 +13,11 @@ export default function Footer() {
             <div className="flex items-center gap-2">
               <div
                 className="w-2 h-2 rounded-full"
-                style={{ background: 'var(--pink)', boxShadow: '0 0 10px var(--pink)' }}
+                style={{ background: 'var(--orange)', boxShadow: '0 0 10px var(--orange)' }}
               />
               <span
                 className="text-lg font-bold tracking-tight text-white"
-                style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}
+                style={{ fontFamily: "var(--font-heading)" }}
               >
                 Luminetic
               </span>

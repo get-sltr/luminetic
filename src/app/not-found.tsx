@@ -5,10 +5,10 @@ export default function NotFound() {
     <div className="min-h-screen flex items-center justify-center px-6" style={{ background: 'var(--black)' }}>
       <div className="text-center max-w-md">
         <div className="text-[80px] font-bold mb-4 bg-clip-text text-transparent"
-          style={{ backgroundImage: 'var(--gradient-accent)', WebkitBackgroundClip: 'text', fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
+          style={{ backgroundImage: 'var(--gradient-accent)', WebkitBackgroundClip: 'text', fontFamily: "var(--font-heading)" }}>
           404
         </div>
-        <h2 className="text-xl font-semibold mb-3" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
+        <h2 className="text-xl font-semibold mb-3" style={{ fontFamily: "var(--font-heading)" }}>
           Page not found
         </h2>
         <p className="text-sm mb-8" style={{ color: 'var(--gray)' }}>

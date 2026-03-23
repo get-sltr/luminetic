@@ -115,7 +115,7 @@ function ScoreGauge({ score }: { score: number }) {
         />
       </svg>
       <div className="text-center z-10">
-        <span className="text-3xl font-bold" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif", color }}>{score}</span>
+        <span className="text-3xl font-bold" style={{ fontFamily: "var(--font-heading)", color }}>{score}</span>
         <div className="text-[9px] tracking-[2px] uppercase" style={{ color: 'var(--gray)' }}>/ 100</div>
       </div>
     </div>
@@ -171,9 +171,9 @@ export default function AnalysisResults({ result }: { result: MergedResult }) {
           <div className="text-[10px] tracking-[3px] uppercase mb-4" style={{ color: 'var(--gray)' }}>Guidelines Referenced</div>
           <div className="flex flex-wrap gap-3">
             {(guidelines as Guideline[]).map((g) => (
-              <div key={g.section} className="badge rounded-lg" style={{ background: 'rgba(255,45,120,0.04)', borderColor: 'var(--pink-dim)', padding: '8px 12px' }}>
-                <IconShield width={12} height={12} style={{ color: 'var(--pink)', opacity: 0.6 }} />
-                <span className="text-[11px] font-medium" style={{ color: 'var(--pink)', fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
+              <div key={g.section} className="badge rounded-lg" style={{ background: 'rgba(255,106,0,0.04)', borderColor: 'var(--orange-dim)', padding: '8px 12px' }}>
+                <IconShield width={12} height={12} style={{ color: 'var(--orange)', opacity: 0.6 }} />
+                <span className="text-[11px] font-medium" style={{ color: 'var(--orange)', fontFamily: "var(--font-heading)" }}>
                   &sect;{g.section}
                 </span>
                 <span className="text-[12px]" style={{ color: 'rgba(255,255,255,0.7)' }}>{g.name}</span>
@@ -214,7 +214,7 @@ export default function AnalysisResults({ result }: { result: MergedResult }) {
                   <p className="text-[12px]" style={{ color: 'var(--gray)' }}>{issue.evidence}</p>
                 )}
                 {issue.guideline_section && (
-                  <span className="text-[11px] mt-1 inline-block" style={{ color: 'var(--pink)' }}>&sect;{issue.guideline_section}</span>
+                  <span className="text-[11px] mt-1 inline-block" style={{ color: 'var(--orange)' }}>&sect;{issue.guideline_section}</span>
                 )}
               </div>
             ))}
@@ -232,7 +232,7 @@ export default function AnalysisResults({ result }: { result: MergedResult }) {
             {/* Vertical connecting line */}
             <div
               className="absolute left-[19px] top-8 bottom-8 w-[1px]"
-              style={{ background: 'linear-gradient(180deg, var(--pink-dim), var(--border))' }}
+              style={{ background: 'linear-gradient(180deg, var(--orange-dim), var(--border))' }}
             />
             <div className="flex flex-col gap-3">
               {(action_plan as Action[]).map((action, i) => (
@@ -244,7 +244,7 @@ export default function AnalysisResults({ result }: { result: MergedResult }) {
                   <div className="flex items-start gap-4">
                     <span
                       className="shrink-0 w-10 h-10 flex items-center justify-center text-[13px] font-bold rounded-full relative z-10"
-                      style={{ background: 'rgba(255,45,120,0.1)', border: '1px solid var(--pink-dim)', color: 'var(--pink)', fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}
+                      style={{ background: 'rgba(255,106,0,0.1)', border: '1px solid var(--orange-dim)', color: 'var(--orange)', fontFamily: "var(--font-heading)" }}
                     >
                       {action.priority}
                     </span>

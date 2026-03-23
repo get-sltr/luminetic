@@ -160,7 +160,7 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
     <label className="flex items-center gap-3 cursor-pointer py-2">
       <div
         className="w-9 h-5 rounded-full relative transition-all duration-200 cursor-pointer"
-        style={{ background: checked ? 'var(--pink)' : 'var(--border)' }}
+        style={{ background: checked ? 'var(--orange)' : 'var(--border)' }}
         onClick={() => onChange(!checked)}
       >
         <div
@@ -200,7 +200,7 @@ export default function ReviewPacketPage() {
   return (
     <div className="w-full px-6 md:px-12 lg:px-20 pt-28 pb-20">
       <div className="mb-10">
-        <div className="text-[11px] font-medium tracking-[5px] uppercase mb-2" style={{ color: 'var(--pink)' }}>
+        <div className="text-[11px] font-medium tracking-[5px] uppercase mb-2" style={{ color: 'var(--orange)' }}>
           Review Packet
         </div>
         <h1 className="text-[11px] font-medium tracking-[5px] uppercase" style={{ color: 'var(--white)' }}>
@@ -218,7 +218,7 @@ export default function ReviewPacketPage() {
             className="glass-card p-6 relative overflow-hidden"
           >
             <div className="glow-line" />
-            <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--pink)' }}>App Info</div>
+            <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--orange)' }}>App Info</div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <InputField label="App Name" value={data.appName} onChange={(v) => update('appName', v)} placeholder="My App" />
               <InputField label="Bundle ID" value={data.bundleId} onChange={(v) => update('bundleId', v)} placeholder="com.company.app" />
@@ -231,7 +231,7 @@ export default function ReviewPacketPage() {
             className="glass-card p-6 relative overflow-hidden"
           >
             <div className="glow-line" />
-            <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--pink)' }}>Demo Credentials</div>
+            <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--orange)' }}>Demo Credentials</div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <InputField label="Demo Email" value={data.demoEmail} onChange={(v) => update('demoEmail', v)} placeholder="demo@example.com" />
               <InputField label="Demo Password" value={data.demoPassword} onChange={(v) => update('demoPassword', v)} placeholder="testPassword123" type="text" />
@@ -243,7 +243,7 @@ export default function ReviewPacketPage() {
             className="glass-card p-6 relative overflow-hidden"
           >
             <div className="glow-line" />
-            <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--pink)' }}>Testing Instructions</div>
+            <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--orange)' }}>Testing Instructions</div>
             <TextAreaField
               label="Testing Steps (one per line)"
               value={data.testingSteps}
@@ -267,7 +267,7 @@ export default function ReviewPacketPage() {
             className="glass-card p-6 relative overflow-hidden"
           >
             <div className="glow-line" />
-            <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--pink)' }}>Features</div>
+            <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--orange)' }}>Features</div>
 
             <div className="flex flex-col gap-3">
               <Toggle label="In-App Purchases" checked={data.hasIAP} onChange={(v) => update('hasIAP', v)} />
@@ -309,7 +309,7 @@ export default function ReviewPacketPage() {
           <div className="glass-card relative overflow-hidden">
             <div className="glow-line" />
             <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-              <div className="text-[11px] tracking-[3px] uppercase" style={{ color: 'var(--pink)' }}>
+              <div className="text-[11px] tracking-[3px] uppercase" style={{ color: 'var(--orange)' }}>
                 Generated Packet
               </div>
               <button

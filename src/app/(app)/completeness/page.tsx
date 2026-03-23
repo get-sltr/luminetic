@@ -71,7 +71,7 @@ function ScoreGauge({ score }: { score: number }) {
         />
       </svg>
       <div className="text-center z-10">
-        <div className="text-3xl font-bold" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif", color }}>{score}</div>
+        <div className="text-3xl font-bold" style={{ fontFamily: "var(--font-heading)", color }}>{score}</div>
         <div className="text-[10px] tracking-[2px] uppercase" style={{ color: 'var(--gray)' }}>/ 100</div>
       </div>
     </div>
@@ -104,7 +104,7 @@ export default function CompletenessPage() {
     <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-12">
       <div className="mb-10">
         <div className="section-label mb-3">Pre-Flight Check</div>
-        <h1 className="page-title" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
+        <h1 className="page-title" style={{ fontFamily: "var(--font-heading)" }}>
           Submission Readiness
         </h1>
       </div>
@@ -114,7 +114,7 @@ export default function CompletenessPage() {
         <div className="glow-line" />
         <ScoreGauge score={score} />
         <div className="text-center sm:text-left">
-          <div className="text-[22px] font-semibold mb-1" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
+          <div className="text-[22px] font-semibold mb-1" style={{ fontFamily: "var(--font-heading)" }}>
             {checkedCount} / {items.length} checks passed
           </div>
           <div className="text-[14px] mb-3" style={{ color: 'var(--gray)' }}>

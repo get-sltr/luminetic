@@ -46,11 +46,11 @@ function HudPanel({
     >
       <div
         className={`flex items-center gap-1.5 text-[9px] font-medium tracking-[2px] uppercase mb-1 ${isLeft ? 'justify-end' : 'justify-start'}`}
-        style={{ color: 'var(--pink)' }}
+        style={{ color: 'var(--orange)' }}
       >
         <div
           className="w-1 h-1 rounded-full animate-pulse"
-          style={{ background: 'var(--pink)' }}
+          style={{ background: 'var(--orange)' }}
         />
         {label}
       </div>
@@ -78,7 +78,7 @@ export default function IPhoneHero() {
         className="absolute top-1/2 left-1/2 w-[350px] h-[550px] -z-10 animate-glow-pulse"
         style={{
           transform: 'translate(-50%, -50%)',
-          background: 'radial-gradient(ellipse, rgba(255,45,120,0.08) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse, rgba(255,106,0,0.08) 0%, transparent 70%)',
         }}
       />
 
@@ -94,7 +94,7 @@ export default function IPhoneHero() {
           right: 'calc(50% + 110px)',
           width: '30px',
           top: '25%',
-          background: 'linear-gradient(90deg, rgba(255,45,120,0.2), transparent)',
+          background: 'linear-gradient(90deg, rgba(255,106,0,0.2), transparent)',
           opacity: 0,
           animation: 'fadeIn 0.5s 1.5s forwards',
         }}
@@ -105,7 +105,7 @@ export default function IPhoneHero() {
           left: 'calc(50% + 110px)',
           width: '30px',
           top: '25%',
-          background: 'linear-gradient(90deg, transparent, rgba(255,45,120,0.2))',
+          background: 'linear-gradient(90deg, transparent, rgba(255,106,0,0.2))',
           opacity: 0,
           animation: 'fadeIn 0.5s 1.8s forwards',
         }}
@@ -116,7 +116,7 @@ export default function IPhoneHero() {
           right: 'calc(50% + 110px)',
           width: '30px',
           top: '60%',
-          background: 'linear-gradient(90deg, rgba(255,45,120,0.2), transparent)',
+          background: 'linear-gradient(90deg, rgba(255,106,0,0.2), transparent)',
           opacity: 0,
           animation: 'fadeIn 0.5s 2.1s forwards',
         }}
@@ -127,7 +127,7 @@ export default function IPhoneHero() {
           left: 'calc(50% + 110px)',
           width: '30px',
           top: '60%',
-          background: 'linear-gradient(90deg, transparent, rgba(255,45,120,0.2))',
+          background: 'linear-gradient(90deg, transparent, rgba(255,106,0,0.2))',
           opacity: 0,
           animation: 'fadeIn 0.5s 2.4s forwards',
         }}
@@ -140,7 +140,7 @@ export default function IPhoneHero() {
           background: '#0a0a0a',
           border: '2px solid rgba(255,255,255,0.06)',
           boxShadow:
-            '0 0 0 1px rgba(255,255,255,0.02), 0 0 60px rgba(255,45,120,0.05), 0 0 120px rgba(255,45,120,0.03), 0 30px 80px rgba(0,0,0,0.8)',
+            '0 0 0 1px rgba(255,255,255,0.02), 0 0 60px rgba(255,106,0,0.05), 0 0 120px rgba(255,106,0,0.03), 0 30px 80px rgba(0,0,0,0.8)',
         }}
       >
         {/* Notch */}
@@ -156,13 +156,13 @@ export default function IPhoneHero() {
         <div
           className="absolute inset-[8px] rounded-[30px] flex items-center justify-center overflow-hidden"
           style={{
-            background: 'radial-gradient(ellipse at center 30%, rgba(255,45,120,0.04) 0%, rgba(0,0,0,0.9) 60%, #000 100%)',
+            background: 'radial-gradient(ellipse at center 30%, rgba(255,106,0,0.04) 0%, rgba(0,0,0,0.9) 60%, #000 100%)',
           }}
         >
           <div
             className="w-[90px] h-[90px] rounded-full animate-breathe"
             style={{
-              background: 'radial-gradient(circle, rgba(255,45,120,0.12) 0%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(255,106,0,0.12) 0%, transparent 70%)',
             }}
           />
         </div>

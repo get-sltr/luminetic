@@ -78,12 +78,12 @@ function FeatureCard({
           className="flex items-center justify-center w-10 h-10 rounded-xl"
           style={{ background: 'var(--surface-2)', border: '1px solid var(--border)' }}
         >
-          <Icon width={18} height={18} style={{ color: 'var(--pink)' }} />
+          <Icon width={18} height={18} style={{ color: 'var(--orange)' }} />
         </div>
       </div>
       <h3
         className="text-lg font-medium mb-2.5 text-white"
-        style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}
+        style={{ fontFamily: "var(--font-heading)" }}
       >
         {name}
       </h3>
@@ -129,7 +129,7 @@ export default function Features() {
         ref={titleRef}
         className="text-4xl font-semibold tracking-tight mb-16 animate-jarvis-text-in"
         style={{
-          fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif",
+          fontFamily: "var(--font-heading)",
           animationPlayState: 'paused',
           animationDelay: '0.2s',
         }}

@@ -100,7 +100,7 @@ function LoginForm() {
         disabled={loading}
         className="w-full text-white text-[12px] tracking-[2px] uppercase font-medium mt-2"
         style={{
-          background: loading ? 'var(--pink-dim)' : 'var(--pink)',
+          background: loading ? 'var(--orange-dim)' : 'var(--orange)',
           padding: '16px',
           cursor: loading ? 'not-allowed' : 'pointer',
           border: 'none',
@@ -133,7 +133,7 @@ export default function LoginPage() {
 
       <main className="min-h-screen flex items-center justify-center px-6 pt-[100px] pb-[80px]">
         <div className="w-full max-w-[420px]">
-          <div className="text-[11px] font-medium tracking-[4px] uppercase mb-4" style={{ color: 'var(--pink)' }}>
+          <div className="text-[11px] font-medium tracking-[4px] uppercase mb-4" style={{ color: 'var(--orange)' }}>
             Welcome Back
           </div>
           <h1 className="text-[32px] font-bold mb-10" style={{ letterSpacing: '-0.5px' }}>

@@ -63,7 +63,7 @@ function VerifyForm() {
             maxLength={6}
             placeholder="000000"
             className="input-field w-full text-center"
-            style={{ letterSpacing: '8px', fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif", fontSize: '22px' }}
+            style={{ letterSpacing: '8px', fontFamily: "var(--font-heading)", fontSize: '22px' }}
           />
         </div>
 
@@ -96,11 +96,11 @@ export default function VerifyPage() {
             className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-6"
             style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid var(--border)' }}
           >
-            <IconShield width={26} height={26} style={{ color: 'var(--pink)' }} />
+            <IconShield width={26} height={26} style={{ color: 'var(--orange)' }} />
           </div>
 
-          <div className="section-label mb-3" style={{ color: 'var(--pink)' }}>One more step</div>
-          <h1 className="page-title text-3xl mb-2" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
+          <div className="section-label mb-3" style={{ color: 'var(--orange)' }}>One more step</div>
+          <h1 className="page-title text-3xl mb-2" style={{ fontFamily: "var(--font-heading)" }}>
             Verify email
           </h1>
 

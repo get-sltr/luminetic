@@ -111,7 +111,7 @@ export default function PricingPage() {
           <Link href="/" className="flex items-center gap-2.5 no-underline">
             <div
               className="w-2 h-2 rounded-full"
-              style={{ background: 'var(--pink)', boxShadow: '0 0 12px var(--pink-dim)' }}
+              style={{ background: 'var(--orange)', boxShadow: '0 0 12px var(--orange-dim)' }}
             />
             <span className="text-xl font-bold tracking-tight text-white">Luminetic</span>
           </Link>
@@ -123,13 +123,13 @@ export default function PricingPage() {
         <div className="mb-16 text-center">
           <div
             className="text-[13px] font-medium tracking-[5px] uppercase mb-4"
-            style={{ color: 'var(--pink)' }}
+            style={{ color: 'var(--orange)' }}
           >
             Pricing
           </div>
           <h1
             className="text-2xl md:text-3xl font-semibold tracking-tight mb-3"
-            style={{ color: 'var(--white)', fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}
+            style={{ color: 'var(--white)', fontFamily: "var(--font-heading)" }}
           >
             Pay per scan — no subscription
           </h1>
@@ -160,10 +160,10 @@ export default function PricingPage() {
               className="relative flex flex-col rounded-2xl overflow-hidden"
               style={{
                 background: tier.featured
-                  ? 'linear-gradient(180deg, rgba(255,45,120,0.06) 0%, rgba(9,9,11,1) 100%)'
+                  ? 'linear-gradient(180deg, rgba(255,106,0,0.06) 0%, rgba(9,9,11,1) 100%)'
                   : 'rgba(255,255,255,0.02)',
                 border: tier.featured
-                  ? '1px solid rgba(255,45,120,0.25)'
+                  ? '1px solid rgba(255,106,0,0.25)'
                   : '1px solid rgba(255,255,255,0.06)',
               }}
             >
@@ -172,7 +172,7 @@ export default function PricingPage() {
                 <div className="flex justify-center pt-4">
                   <span
                     className="text-[9px] tracking-[2px] font-semibold uppercase px-4 py-1 rounded-full"
-                    style={{ background: 'var(--pink)', color: 'white' }}
+                    style={{ background: 'var(--orange)', color: 'white' }}
                   >
                     Most Popular
                   </span>
@@ -183,7 +183,7 @@ export default function PricingPage() {
                 {/* Tier name */}
                 <div
                   className="text-[11px] font-bold tracking-[3px] uppercase mb-6"
-                  style={{ color: tier.featured ? 'var(--pink)' : 'var(--gray)' }}
+                  style={{ color: tier.featured ? 'var(--orange)' : 'var(--gray)' }}
                 >
                   {tier.name}
                 </div>
@@ -224,7 +224,7 @@ export default function PricingPage() {
                       >
                         <path
                           d="M3.5 7L6 9.5L10.5 4.5"
-                          stroke={tier.featured ? 'var(--pink)' : 'rgba(255,255,255,0.3)'}
+                          stroke={tier.featured ? 'var(--orange)' : 'rgba(255,255,255,0.3)'}
                           strokeWidth="1.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -243,10 +243,10 @@ export default function PricingPage() {
                   style={{
                     color: tier.featured ? 'white' : 'var(--gray)',
                     background: tier.featured
-                      ? 'var(--pink)'
+                      ? 'var(--orange)'
                       : 'transparent',
                     border: tier.featured
-                      ? '1px solid var(--pink)'
+                      ? '1px solid var(--orange)'
                       : '1px solid rgba(255,255,255,0.1)',
                     opacity: loading !== null && loading !== tier.id ? 0.4 : 1,
                   }}

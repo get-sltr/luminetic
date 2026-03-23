@@ -16,7 +16,7 @@ export default function Home() {
         {/* Tagline — positioned higher, independent of phone */}
         <div
           className="text-[11px] font-medium tracking-[5px] uppercase animate-jarvis-flicker"
-          style={{ color: 'var(--pink)', opacity: 0, animationDelay: '0.5s', marginBottom: '60px' }}
+          style={{ color: 'var(--orange)', opacity: 0, animationDelay: '0.5s', marginBottom: '60px' }}
         >
           Submission Intelligence
         </div>

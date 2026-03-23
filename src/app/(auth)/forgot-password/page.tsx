@@ -73,7 +73,7 @@ export default function ForgotPasswordPage() {
 
       <main className="min-h-screen flex items-center justify-center px-6 pt-[100px] pb-[80px]">
         <div className="w-full max-w-[420px]">
-          <div className="text-[11px] font-medium tracking-[4px] uppercase mb-4" style={{ color: 'var(--pink)' }}>
+          <div className="text-[11px] font-medium tracking-[4px] uppercase mb-4" style={{ color: 'var(--orange)' }}>
             Account Recovery
           </div>
           <h1 className="text-[32px] font-bold mb-10" style={{ letterSpacing: '-0.5px' }}>
@@ -108,7 +108,7 @@ export default function ForgotPasswordPage() {
                 disabled={loading}
                 className="w-full text-white text-[12px] tracking-[2px] uppercase font-medium mt-2"
                 style={{
-                  background: loading ? 'var(--pink-dim)' : 'var(--pink)',
+                  background: loading ? 'var(--orange-dim)' : 'var(--orange)',
                   padding: '16px',
                   cursor: loading ? 'not-allowed' : 'pointer',
                   border: 'none',
@@ -128,7 +128,9 @@ export default function ForgotPasswordPage() {
           {step === 'code' && (
             <form onSubmit={handleResetPassword} className="flex flex-col gap-6">
               <p className="text-[13px]" style={{ color: 'var(--gray)' }}>
-                We sent a verification code to <strong style={{ color: 'var(--white)' }}>{email}</strong>
+                If an account exists for{' '}
+                <strong style={{ color: 'var(--white)' }}>{email}</strong>, you should get a code by email.
+                Check spam/junk — it can take a minute.
               </p>
 
               <div>
@@ -155,9 +157,9 @@ export default function ForgotPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={8}
+                  minLength={12}
                   autoComplete="new-password"
-                  placeholder="Min 8 characters"
+                  placeholder="12+ chars: upper, lower, number, symbol"
                   className="input-field"
                 />
               </div>
@@ -173,7 +175,7 @@ export default function ForgotPasswordPage() {
                 disabled={loading}
                 className="w-full text-white text-[12px] tracking-[2px] uppercase font-medium mt-2"
                 style={{
-                  background: loading ? 'var(--pink-dim)' : 'var(--pink)',
+                  background: loading ? 'var(--orange-dim)' : 'var(--orange)',
                   padding: '16px',
                   cursor: loading ? 'not-allowed' : 'pointer',
                   border: 'none',
@@ -194,7 +196,7 @@ export default function ForgotPasswordPage() {
                 href="/login"
                 className="inline-block text-white text-[12px] tracking-[2px] uppercase font-medium no-underline"
                 style={{
-                  background: 'var(--pink)',
+                  background: 'var(--orange)',
                   padding: '16px 32px',
                 }}
               >

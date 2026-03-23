@@ -20,10 +20,10 @@ export default function Header() {
       <div className="flex justify-between items-center py-4 px-6 md:px-10 lg:px-16 max-w-[1200px] mx-auto w-full">
         <Link href="/" className="flex items-center gap-2.5 no-underline">
           <div className="w-2 h-2 rounded-full animate-pulse"
-            style={{ background: 'var(--pink)', boxShadow: '0 0 12px var(--pink-dim)' }}
+            style={{ background: 'var(--orange)', boxShadow: '0 0 12px var(--orange-dim)' }}
           />
           <span className="text-xl font-bold tracking-tight text-white"
-            style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}
+            style={{ fontFamily: "var(--font-heading)" }}
           >
             Luminetic
           </span>
@@ -38,7 +38,7 @@ export default function Header() {
           <Link href="/signup"
             className="no-underline text-white text-[11px] tracking-[2px] uppercase font-medium"
             style={{
-              background: 'var(--pink)',
+              background: 'var(--orange)',
               padding: '10px 28px',
               boxShadow: '0 0 20px rgba(255, 45, 120, 0.15)',
             }}>
@@ -80,7 +80,7 @@ export default function Header() {
             </Link>
             <Link href="/signup"
               className="no-underline text-white text-[12px] tracking-[2px] uppercase font-medium text-center mt-4"
-              style={{ background: 'var(--pink)', padding: '14px 24px' }}
+              style={{ background: 'var(--orange)', padding: '14px 24px' }}
               onClick={() => setMobileOpen(false)}>
               Get Started
             </Link>

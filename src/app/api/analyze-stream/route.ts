@@ -6,7 +6,7 @@
 import { NextRequest } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyToken } from "@/lib/auth";
-import { putScan, getUser, deductScanCredit } from "@/lib/db";
+import { putScan, getUser, deductScanCredit, refundScanCredit } from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 import {
@@ -26,11 +26,13 @@ const secretsClient = new SecretsManagerClient({
 let cachedGeminiKey: string | null = null;
 
 async function getGeminiKey(): Promise<string> {
+  const envKey = process.env.GEMINI_API_KEY;
+  if (envKey) return envKey;
   if (cachedGeminiKey) return cachedGeminiKey;
   const command = new GetSecretValueCommand({ SecretId: "luminetic/gemini-api-key" });
   const response = await secretsClient.send(command);
   const key = response.SecretString ? JSON.parse(response.SecretString).GEMINI_API_KEY : null;
-  if (!key) throw new Error("Gemini API key not found in Secrets Manager");
+  if (!key) throw new Error("Gemini API key not found (set GEMINI_API_KEY or luminetic/gemini-api-key in Secrets Manager)");
   cachedGeminiKey = key;
   return key;
 }
@@ -231,9 +233,11 @@ function resolveFinalReadinessScore(opts: {
   opusFinal: Record<string, unknown> | null;
   allIssues: unknown[];
   geminiSuccess: boolean;
+  sonnetSuccess: boolean;
   opusSuccess: boolean;
 }): number {
-  const { geminiAssessment, opusFinal, allIssues, geminiSuccess, opusSuccess } = opts;
+  const { geminiAssessment, opusFinal, allIssues, geminiSuccess, sonnetSuccess, opusSuccess } = opts;
+  const anyAiOk = geminiSuccess || sonnetSuccess || opusSuccess;
 
   let gs = geminiAssessment ? parseReadinessScore(geminiAssessment.score) : null;
   let os = opusFinal ? parseReadinessScore(opusFinal.score) : null;
@@ -258,17 +262,23 @@ function resolveFinalReadinessScore(opts: {
 
   if (blended !== null && blended === 0 && (gs === 0 || os === 0)) {
     if (allIssues.length > 0) return heuristicScoreFromIssues(allIssues);
-    if (geminiSuccess || opusSuccess) return 65;
+    if (anyAiOk) return 65;
   }
 
   if (blended === null) {
     if (allIssues.length > 0) return heuristicScoreFromIssues(allIssues);
-    if (geminiSuccess || opusSuccess) return 65;
+    if (anyAiOk) return 65;
     return 0;
   }
 
   return blended;
 }
+
+const ALL_MODELS_FAILED_MSG =
+  "Every AI step failed (Gemini + Claude on Bedrock). Fix configuration, then retry: " +
+  "(1) Add IAM permission bedrock:InvokeModel for your Bedrock Claude models in this region. " +
+  "(2) Set GEMINI_API_KEY in the host environment or Secrets Manager secret luminetic/gemini-api-key. " +
+  "Check CloudWatch logs for the exact error.";
 
 export async function POST(request: NextRequest) {
   const schema = z.object({
@@ -326,7 +336,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Credit check
+  let scanCreditCharged = false;
   {
     try {
       const userRecord = await getUser(authUser.userId);
@@ -346,6 +356,7 @@ export async function POST(request: NextRequest) {
             { status: 429, headers: { "Content-Type": "application/json" } }
           );
         }
+        scanCreditCharged = true;
       }
     } catch (err) {
       console.error("Credit check error:", err);
@@ -359,6 +370,16 @@ export async function POST(request: NextRequest) {
   const stream = new ReadableStream({
     async start(controller) {
       const totalStart = Date.now();
+
+      const maybeRefundCredit = async (reason: string) => {
+        if (!scanCreditCharged) return;
+        try {
+          await refundScanCredit(authUser.userId);
+          console.log("[analyze-stream] Refunded 1 scan credit:", reason);
+        } catch (e) {
+          console.error("[analyze-stream] Failed to refund scan credit:", e);
+        }
+      };
 
       try {
         let contextForAI: string;
@@ -374,6 +395,7 @@ export async function POST(request: NextRequest) {
             sendEvent(controller, "status", { step: "extracted", metadata: { appName: ipaMetadata.appName, bundleId: ipaMetadata.bundleId, version: ipaMetadata.version } });
           } catch (err) {
             console.error("[IPA parse error]", err);
+            await maybeRefundCredit("ipa_parse_failed");
             sendEvent(controller, "error", { error: "Failed to parse .ipa file. Please ensure it's a valid iOS app." });
             controller.close();
             return;
@@ -498,6 +520,21 @@ export async function POST(request: NextRequest) {
 
         sendEvent(controller, "status", { step: "opus_done", success: opusSuccess, latency: opusLatency });
 
+        const anyModelSucceeded = geminiSuccess || sonnetSuccess || opusSuccess;
+        if (!anyModelSucceeded) {
+          console.error(
+            "[analyze-stream] All models failed — Gemini:",
+            geminiSuccess,
+            "Sonnet:",
+            sonnetSuccess,
+            "Opus:",
+            opusSuccess
+          );
+          await maybeRefundCredit("all_models_failed");
+          sendEvent(controller, "error", { error: ALL_MODELS_FAILED_MSG, code: "ALL_MODELS_FAILED" });
+          return;
+        }
+
         // MERGE ALL THREE MODELS
         sendEvent(controller, "status", { step: "merging", message: "Preparing your results..." });
 
@@ -530,6 +567,7 @@ export async function POST(request: NextRequest) {
           opusFinal,
           allIssues,
           geminiSuccess,
+          sonnetSuccess,
           opusSuccess,
         });
 

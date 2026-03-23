@@ -15,6 +15,7 @@ frontend:
         - echo "SQUARE_LOCATION_ID=$SQUARE_LOCATION_ID" >> .env.production
         - echo "SQUARE_APP_ID=$SQUARE_APP_ID" >> .env.production
         - echo "SQUARE_WEBHOOK_SIGNATURE_KEY=$SQUARE_WEBHOOK_SIGNATURE_KEY" >> .env.production
+        - echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env.production
         - npm run build
   artifacts:
     baseDirectory: .next

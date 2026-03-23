@@ -25,6 +25,22 @@ const navLinks = [
   { href: '/history', label: 'History', Icon: IconHistory },
 ];
 
+function initialsFromEmail(email: string): string {
+  const local = email.split('@')[0] || '';
+  const parts = local.split(/[._-]+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return local.slice(0, 2).toUpperCase() || '?';
+}
+
+function tierLabel(plan: string, isAdmin: boolean): string {
+  if (isAdmin) return 'FOUNDER';
+  if (plan === 'pro' || plan === 'agency' || plan === 'indie') return 'PRO';
+  if (plan === 'founder') return 'FOUNDER';
+  return 'FREE';
+}
+
 export default function AppNav({ email, plan, role = 'user' }: { email: string; plan: string; role?: string }) {
   const isAdmin = role === 'founder' || role === 'admin';
   const pathname = usePathname();
@@ -37,72 +53,65 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
     router.refresh();
   }
 
-  const planColors: Record<string, { text: string; border: string; bg: string }> = {
-    founder: { text: '#a78bfa', border: 'rgba(167, 139, 250, 0.3)', bg: 'rgba(167, 139, 250, 0.06)' },
-    pro: { text: 'var(--pink)', border: 'var(--pink-dim)', bg: 'rgba(255, 45, 120, 0.06)' },
-    indie: { text: '#34d399', border: 'rgba(52, 211, 153, 0.3)', bg: 'rgba(52, 211, 153, 0.06)' },
-    free: { text: 'var(--gray)', border: 'var(--border)', bg: 'transparent' },
-  };
-
-  const pc = planColors[plan] || planColors.free;
+  const tier = tierLabel(plan, isAdmin);
+  const showProStyle = tier === 'PRO' || tier === 'FOUNDER';
 
   return (
     <>
       <header
         className="fixed top-0 left-0 w-full z-50"
         style={{
-          background: 'rgba(9, 9, 11, 0.85)',
-          backdropFilter: 'blur(24px) saturate(1.2)',
-          borderBottom: '1px solid var(--border)',
+          background: 'rgba(6, 6, 8, 0.9)',
+          backdropFilter: 'blur(60px)',
+          WebkitBackdropFilter: 'blur(60px)',
+          borderBottom: '1px solid rgba(255, 106, 0, 0.06)',
         }}
       >
-        {/* Top accent line */}
-        <div className="glow-line" />
-
         <div
-          className="flex justify-between items-center py-4 px-5 sm:px-8"
-          style={{ maxWidth: 'min(960px, 100vw - 2rem)', margin: '0 auto' }}
+          className="flex justify-between items-center gap-3 py-3.5 px-6 lg:px-10 mx-auto w-full max-w-[1200px]"
         >
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-2.5 no-underline group">
-            <div
-              className="w-2 h-2 rounded-full"
-              style={{
-                background: 'var(--pink)',
-                boxShadow: '0 0 8px var(--pink-dim)',
-              }}
-            />
+          <Link href="/dashboard" className="flex items-center gap-3 no-underline shrink-0 min-w-0">
+            <div className="relative w-7 h-7 shrink-0 flex items-center justify-center" aria-hidden>
+              <div
+                className="absolute inset-0 rounded-full border-2 logo-ring-spin"
+                style={{
+                  borderColor: 'rgba(255, 106, 0, 0.2)',
+                  borderTopColor: 'var(--orange)',
+                }}
+              />
+              <span
+                className="relative z-[1] w-2 h-2 rounded-full block"
+                style={{
+                  background: 'var(--orange)',
+                  boxShadow: '0 0 12px rgba(255, 106, 0, 0.5)',
+                }}
+              />
+            </div>
             <span
-              className="text-lg font-bold tracking-tight text-white"
-              style={{ fontFamily: 'var(--font-heading), ui-sans-serif, system-ui, sans-serif' }}
+              className="text-base font-medium tracking-wide text-white uppercase logo-wordmark font-orbitron hidden sm:block"
+              style={{ letterSpacing: '0.12em' }}
             >
               Luminetic
             </span>
           </Link>
 
-          {/* Nav Links - Desktop */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map(({ href, label, Icon }) => {
+          {/* Desktop nav — text-first HUD */}
+          <nav className="hidden lg:flex items-stretch justify-center flex-1 gap-0 min-w-0 mx-4">
+            {navLinks.map(({ href, label }) => {
               const isActive = pathname === href;
               return (
                 <Link
                   key={href}
                   href={href}
-                  className={`relative flex items-center gap-2 px-3.5 py-2 rounded-lg text-[11px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 ${
-                    isActive ? '' : 'hover-text'
-                  }`}
+                  className="relative flex items-center px-3 xl:px-4 py-2.5 text-[11px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 font-outfit"
                   style={{
-                    color: isActive ? 'var(--white)' : 'var(--gray)',
-                    background: isActive ? 'var(--surface-2)' : 'transparent',
+                    color: isActive ? 'var(--orange)' : 'var(--text-tertiary)',
+                    background: isActive ? 'rgba(255, 106, 0, 0.05)' : 'transparent',
+                    boxShadow: isActive ? 'inset 0 1px 0 0 var(--orange)' : 'none',
+                    fontWeight: 500,
                   }}
                 >
-                  <Icon width={14} height={14} style={{ opacity: isActive ? 1 : 0.5 }} />
-                  {isActive && (
-                    <span
-                      className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-[2px] rounded-full"
-                      style={{ background: 'var(--pink)', boxShadow: '0 0 6px var(--pink-dim)' }}
-                    />
-                  )}
                   {label}
                 </Link>
               );
@@ -110,54 +119,60 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
             {isAdmin && (
               <Link
                 href="/admin"
-                className={`relative flex items-center gap-2 px-3.5 py-2 rounded-lg text-[11px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 ${
-                  pathname === '/admin' ? '' : 'hover-text'
-                }`}
+                className="relative flex items-center px-3 xl:px-4 py-2.5 text-[11px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 font-outfit"
                 style={{
-                  color: pathname === '/admin' ? 'var(--pink)' : 'var(--pink)',
-                  background: pathname === '/admin' ? 'rgba(255,45,120,0.08)' : 'transparent',
+                  color: pathname === '/admin' ? 'var(--orange)' : 'var(--text-tertiary)',
+                  background: pathname === '/admin' ? 'rgba(255, 106, 0, 0.05)' : 'transparent',
+                  boxShadow: pathname === '/admin' ? 'inset 0 1px 0 0 var(--orange)' : 'none',
+                  fontWeight: 500,
                 }}
               >
-                <IconShield width={14} height={14} style={{ opacity: pathname === '/admin' ? 1 : 0.7 }} />
                 Admin
               </Link>
             )}
           </nav>
 
-          {/* Right Side */}
-          <div className="flex items-center gap-4">
+          {/* Right */}
+          <div className="flex items-center gap-3 shrink-0">
             <span
-              className="badge"
+              className="hidden sm:inline-flex items-center justify-center rounded-full px-2.5 py-1 font-orbitron uppercase"
               style={{
-                color: pc.text,
-                borderColor: pc.border,
-                background: pc.bg,
                 fontSize: '9px',
-                letterSpacing: '2px',
+                letterSpacing: '0.2em',
+                color: showProStyle ? 'var(--orange)' : 'var(--text-tertiary)',
+                border: `1px solid ${showProStyle ? 'rgba(255, 106, 0, 0.45)' : 'var(--glass-border)'}`,
+                background: showProStyle ? 'rgba(255, 106, 0, 0.06)' : 'transparent',
               }}
             >
-              {plan}
+              {tier}
             </span>
-            <span
-              className="text-[11px] hidden lg:block"
-              style={{ color: 'var(--text-muted)' }}
+            <div
+              className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[10px] font-orbitron font-normal tracking-wide"
+              style={{
+                background: 'var(--glass)',
+                border: '1px solid var(--glass-border)',
+                color: 'var(--text-secondary)',
+              }}
+              title={email}
             >
-              {email}
-            </span>
+              {initialsFromEmail(email)}
+            </div>
             <button
               onClick={handleLogout}
-              className="hidden md:flex items-center gap-1.5 text-[10px] tracking-[1.5px] uppercase font-medium bg-transparent border-none cursor-pointer px-3 py-1.5 rounded-lg hover-text hover-bg"
-              style={{ color: 'var(--gray)' }}
+              className="hidden md:flex items-center gap-1.5 text-[10px] tracking-[1.5px] uppercase font-medium bg-transparent border-none cursor-pointer px-2 py-1.5 rounded-lg hover-text font-outfit"
+              style={{ color: 'var(--text-tertiary)' }}
+              type="button"
             >
               <IconLogout width={14} height={14} />
-              Sign out
+              <span className="hidden xl:inline">Sign out</span>
             </button>
 
-            {/* Mobile hamburger */}
             <button
               onClick={() => setMobileOpen(true)}
-              className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg bg-transparent border-none cursor-pointer hover-bg"
-              style={{ color: 'var(--gray)' }}
+              className="lg:hidden flex items-center justify-center w-9 h-9 rounded-lg bg-transparent border-none cursor-pointer hover-bg"
+              style={{ color: 'var(--text-secondary)' }}
+              type="button"
+              aria-label="Open menu"
             >
               <IconMenu width={20} height={20} />
             </button>
@@ -165,21 +180,19 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
         </div>
       </header>
 
-      {/* Mobile Drawer */}
       <div className={`mobile-drawer ${mobileOpen ? 'open' : ''}`}>
-        <div className="mobile-drawer-backdrop" onClick={() => setMobileOpen(false)} />
-        <div className="mobile-drawer-panel">
+        <div className="mobile-drawer-backdrop" onClick={() => setMobileOpen(false)} role="presentation" />
+        <div className="mobile-drawer-panel" style={{ background: 'var(--bg-elevated)' }}>
           <div className="flex items-center justify-between mb-8">
-            <span
-              className="text-lg font-bold tracking-tight text-white"
-              style={{ fontFamily: 'var(--font-heading), ui-sans-serif, system-ui, sans-serif' }}
-            >
+            <span className="text-base font-medium tracking-wide text-white uppercase font-orbitron" style={{ letterSpacing: '0.12em' }}>
               Luminetic
             </span>
             <button
               onClick={() => setMobileOpen(false)}
               className="flex items-center justify-center w-9 h-9 rounded-lg bg-transparent border-none cursor-pointer hover-bg"
-              style={{ color: 'var(--gray)' }}
+              style={{ color: 'var(--text-secondary)' }}
+              type="button"
+              aria-label="Close menu"
             >
               <IconX width={20} height={20} />
             </button>
@@ -193,12 +206,11 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
                   key={href}
                   href={href}
                   onClick={() => setMobileOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 ${
-                    isActive ? '' : 'hover-bg'
-                  }`}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 font-outfit"
                   style={{
-                    color: isActive ? 'var(--white)' : 'var(--gray)',
-                    background: isActive ? 'var(--surface-2)' : 'transparent',
+                    color: isActive ? 'var(--orange)' : 'var(--text-secondary)',
+                    background: isActive ? 'rgba(255, 106, 0, 0.08)' : 'transparent',
+                    boxShadow: isActive ? 'inset 0 1px 0 0 var(--orange)' : 'none',
                   }}
                 >
                   <Icon width={18} height={18} style={{ opacity: isActive ? 1 : 0.5 }} />
@@ -210,12 +222,10 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
               <Link
                 href="/admin"
                 onClick={() => setMobileOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 ${
-                  pathname === '/admin' ? '' : 'hover-bg'
-                }`}
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 font-outfit"
                 style={{
-                  color: 'var(--pink)',
-                  background: pathname === '/admin' ? 'rgba(255,45,120,0.08)' : 'transparent',
+                  color: pathname === '/admin' ? 'var(--orange)' : 'var(--orange)',
+                  background: pathname === '/admin' ? 'rgba(255, 106, 0, 0.08)' : 'transparent',
                 }}
               >
                 <IconShield width={18} height={18} style={{ opacity: pathname === '/admin' ? 1 : 0.7 }} />
@@ -224,14 +234,18 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
             )}
           </nav>
 
-          <div className="mt-8 pt-6" style={{ borderTop: '1px solid var(--border)' }}>
-            <div className="text-[11px] mb-3" style={{ color: 'var(--text-muted)' }}>
+          <div className="mt-8 pt-6" style={{ borderTop: '1px solid var(--glass-border)' }}>
+            <div className="text-[11px] mb-3 font-outfit" style={{ color: 'var(--text-tertiary)' }}>
               {email}
             </div>
             <button
-              onClick={() => { setMobileOpen(false); handleLogout(); }}
-              className="flex items-center gap-2 text-[11px] tracking-[1.5px] uppercase font-medium bg-transparent border-none cursor-pointer px-0 py-2 hover-text"
-              style={{ color: 'var(--gray)' }}
+              onClick={() => {
+                setMobileOpen(false);
+                handleLogout();
+              }}
+              className="flex items-center gap-2 text-[11px] tracking-[1.5px] uppercase font-medium bg-transparent border-none cursor-pointer px-0 py-2 hover-text font-outfit"
+              style={{ color: 'var(--text-secondary)' }}
+              type="button"
             >
               <IconLogout width={16} height={16} />
               Sign out

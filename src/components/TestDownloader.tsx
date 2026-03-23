@@ -67,7 +67,7 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
         <div className="glass-card p-6 relative overflow-hidden rounded-2xl">
           <div className="glow-line" />
           <div className="mb-5">
-            <h3 className="text-[16px] font-medium mb-1" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
+            <h3 className="text-[16px] font-medium mb-1" style={{ fontFamily: "var(--font-heading)" }}>
               Generate Maestro &amp; Detox Test Suite
             </h3>
             <p className="text-[13px]" style={{ color: 'var(--gray)' }}>
@@ -94,7 +94,7 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
                 type="checkbox"
                 checked={includeDetox}
                 onChange={(e) => setIncludeDetox(e.target.checked)}
-                className="accent-[#ff2d78]"
+                className="accent-[#ff6a00]"
               />
               <span className="text-[12px]" style={{ color: 'var(--gray)' }}>
                 Include Detox tests (React Native)
@@ -116,7 +116,7 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
       ) : status === 'generating' ? (
         <div className="glass-card p-8 flex flex-col items-center justify-center gap-3 rounded-2xl" style={{ minHeight: '160px' }}>
           <div className="flex items-center gap-3">
-            <span className="w-3 h-3 rounded-full animate-pulse" style={{ background: 'var(--pink)' }} />
+            <span className="w-3 h-3 rounded-full animate-pulse" style={{ background: 'var(--orange)' }} />
             <span className="text-[13px]">Generating test scripts...</span>
           </div>
           <p className="text-[12px]" style={{ color: 'var(--gray)' }}>
@@ -129,7 +129,7 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
           <div className="glass-card glass-card-glow p-5 flex items-center justify-between relative overflow-hidden rounded-2xl">
             <div className="glow-line" />
             <div>
-              <div className="text-[14px] font-medium mb-0.5" style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}>
+              <div className="text-[14px] font-medium mb-0.5" style={{ fontFamily: "var(--font-heading)" }}>
                 {tests.length} test {tests.length === 1 ? 'file' : 'files'} generated
               </div>
               {expiresAt && (

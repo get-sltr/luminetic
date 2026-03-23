@@ -86,7 +86,7 @@ function PriceCard({
       <div className="text-[11px] tracking-[3px] uppercase mb-4" style={{ color: 'var(--gray)' }}>
         {tier}
       </div>
-      <div style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }} className="text-4xl font-bold mb-1">
+      <div style={{ fontFamily: "var(--font-heading)" }} className="text-4xl font-bold mb-1">
         {price}{' '}
         <span className="text-sm font-light" style={{ color: 'var(--gray)' }}>
           {period}
@@ -155,7 +155,7 @@ export default function Pricing() {
         ref={titleRef}
         className="text-4xl font-semibold tracking-tight mb-16 animate-jarvis-text-in"
         style={{
-          fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif",
+          fontFamily: "var(--font-heading)",
           animationPlayState: 'paused',
           animationDelay: '0.2s',
         }}
