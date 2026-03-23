@@ -229,9 +229,14 @@ export async function POST(request: NextRequest) {
             })
           );
         } catch (txErr) {
-          const name = txErr instanceof Error ? txErr.name : "";
-          const msg = txErr instanceof Error ? txErr.message : String(txErr);
-          const cancellationReasons = (txErr as { CancellationReasons?: Array<{ Code?: string }> })?.CancellationReasons || [];
+          const tx = txErr as {
+            name?: string;
+            message?: string;
+            CancellationReasons?: Array<{ Code?: string }>;
+          };
+          const name = tx.name || "";
+          const msg = tx.message || String(txErr);
+          const cancellationReasons = tx.CancellationReasons || [];
           const isDuplicate =
             name === "TransactionCanceledException" &&
             (
