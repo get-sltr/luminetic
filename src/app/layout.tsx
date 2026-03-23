@@ -1,18 +1,22 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Sora } from "next/font/google";
+import { Outfit, Plus_Jakarta_Sans } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
+/** Display / headings — clean geometric sans */
+const outfit = Outfit({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-heading",
+  display: "swap",
 });
 
-const sora = Sora({
+/** Body / UI — modern, readable */
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-sora",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-body",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -158,7 +162,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`${spaceGrotesk.variable} ${sora.variable} antialiased`}>
+      <body className={`${outfit.variable} ${plusJakarta.variable} antialiased`}>
         {children}
       </body>
     </html>

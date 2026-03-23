@@ -32,7 +32,7 @@ No signup required. Free tier available.
 | **Framework** | [Next.js 16](https://nextjs.org/) (App Router) |
 | **Language** | TypeScript 5 |
 | **UI** | React 19, Tailwind CSS 4 |
-| **Fonts** | Inter, Space Grotesk (via `next/font`) |
+| **Fonts** | Plus Jakarta Sans (body), Outfit (headings) via `next/font` |
 | **AI Backend** | AWS Bedrock (Claude Sonnet) |
 | **Infrastructure** | AWS |
 
@@ -192,7 +192,7 @@ Analyzes App Store review feedback and returns an action plan.
 
 - **Dark theme** — pure black (`#000`) background
 - **Accent color** — `#ff2d78` (hot pink) for CTAs, highlights, and branding
-- **Typography** — Space Grotesk for headings, Inter for body text
+- **Typography** — Outfit for headings, Plus Jakarta Sans for body
 - **Animations** — Canvas-drawn wave lines, floating gradient orbs, CSS `fadeUp` transitions
 - **Dot grid** — Subtle radial gradient pattern in bottom-right corner
 

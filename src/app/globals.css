@@ -62,11 +62,20 @@ html {
 body {
   background: var(--black);
   color: var(--white);
-  font-family: var(--font-heading), 'Space Grotesk', sans-serif;
-  font-weight: 300;
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+.page-title {
+  font-family: var(--font-heading), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.03em;
 }
 
 /* ========== GLASS CARD ========== */
@@ -244,9 +253,8 @@ body {
 .page-title {
   font-size: 32px;
   font-weight: 600;
-  letter-spacing: -0.5px;
+  letter-spacing: -0.03em;
   color: var(--white);
-  font-family: var(--font-heading), 'Space Grotesk', sans-serif;
 }
 
 /* ========== BADGE ========== */

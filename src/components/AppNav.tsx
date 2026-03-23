@@ -60,8 +60,8 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
         <div className="glow-line" />
 
         <div
-          className="flex justify-between items-center py-4 px-6 md:px-10"
-          style={{ maxWidth: '1100px', margin: '0 auto' }}
+          className="flex justify-between items-center py-4 px-5 sm:px-8"
+          style={{ maxWidth: 'min(960px, 100vw - 2rem)', margin: '0 auto' }}
         >
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center gap-2.5 no-underline group">
@@ -74,7 +74,7 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
             />
             <span
               className="text-lg font-bold tracking-tight text-white"
-              style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}
+              style={{ fontFamily: 'var(--font-heading), ui-sans-serif, system-ui, sans-serif' }}
             >
               Luminetic
             </span>
@@ -172,7 +172,7 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
           <div className="flex items-center justify-between mb-8">
             <span
               className="text-lg font-bold tracking-tight text-white"
-              style={{ fontFamily: "var(--font-heading), 'Space Grotesk', sans-serif" }}
+              style={{ fontFamily: 'var(--font-heading), ui-sans-serif, system-ui, sans-serif' }}
             >
               Luminetic
             </span>
