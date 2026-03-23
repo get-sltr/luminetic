@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { WebhooksHelper } from "square";
 import { getSquareClient } from "@/lib/square";
 import { db } from "@/lib/db";
-import { UpdateCommand, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import {
   SecretsManagerClient,
   GetSecretValueCommand,
@@ -50,23 +50,6 @@ async function isEventProcessed(eventId: string): Promise<boolean> {
     })
   );
   return !!res.Item;
-}
-
-/** Mark an event as processed. TTL = 30 days. */
-async function markEventProcessed(eventId: string, userId: string, scans: number) {
-  await db.send(
-    new PutCommand({
-      TableName: TABLE,
-      Item: {
-        PK: `WEBHOOK#${eventId}`,
-        SK: "EVENT",
-        userId,
-        scans,
-        processedAt: new Date().toISOString(),
-        ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
-      },
-    })
-  );
 }
 
 const VALID_PACK_IDS = new Set(["starter", "pro", "agency"]);
@@ -203,26 +186,65 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "Invalid pack." }, { status: 400 });
         }
 
-        // Add scan credits to user
-        await db.send(
-          new UpdateCommand({
-            TableName: TABLE,
-            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
-            UpdateExpression:
-              "SET #p = :plan, updatedAt = :now ADD scanCredits :credits",
-            ExpressionAttributeNames: {
-              "#p": "plan",
-            },
-            ExpressionAttributeValues: {
-              ":plan": packId,
-              ":credits": scansToAdd,
-              ":now": new Date().toISOString(),
-            },
-          })
-        );
+        const nowIso = new Date().toISOString();
+        const eventTtl = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
 
-        // Record event as processed (idempotency)
-        await markEventProcessed(eventId, userId, scansToAdd);
+        try {
+          // Atomic idempotency: credits + webhook marker must commit together.
+          await db.send(
+            new TransactWriteCommand({
+              TransactItems: [
+                {
+                  Update: {
+                    TableName: TABLE,
+                    Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+                    UpdateExpression:
+                      "SET #p = :plan, updatedAt = :now ADD scanCredits :credits",
+                    ExpressionAttributeNames: {
+                      "#p": "plan",
+                    },
+                    ExpressionAttributeValues: {
+                      ":plan": packId,
+                      ":credits": scansToAdd,
+                      ":now": nowIso,
+                    },
+                  },
+                },
+                {
+                  Put: {
+                    TableName: TABLE,
+                    Item: {
+                      PK: `WEBHOOK#${eventId}`,
+                      SK: "EVENT",
+                      userId,
+                      scans: scansToAdd,
+                      processedAt: nowIso,
+                      ttl: eventTtl,
+                    },
+                    ConditionExpression:
+                      "attribute_not_exists(PK) AND attribute_not_exists(SK)",
+                  },
+                },
+              ],
+            })
+          );
+        } catch (txErr) {
+          const name = txErr instanceof Error ? txErr.name : "";
+          const msg = txErr instanceof Error ? txErr.message : String(txErr);
+          const cancellationReasons = (txErr as { CancellationReasons?: Array<{ Code?: string }> })?.CancellationReasons || [];
+          const isDuplicate =
+            name === "TransactionCanceledException" &&
+            (
+              msg.includes("ConditionalCheckFailed") ||
+              msg.includes("attribute_not_exists") ||
+              cancellationReasons.some((r) => r?.Code === "ConditionalCheckFailed")
+            );
+
+          if (isDuplicate) {
+            return NextResponse.json({ received: true, duplicate: true });
+          }
+          throw txErr;
+        }
       }
     }
 
