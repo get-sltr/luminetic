@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { WebhooksHelper } from "square";
 import { getSquareClient } from "@/lib/square";
 import { db } from "@/lib/db";
-import { UpdateCommand, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { UpdateCommand, GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import {
   SecretsManagerClient,
   GetSecretValueCommand,
@@ -52,21 +52,81 @@ async function isEventProcessed(eventId: string): Promise<boolean> {
   return !!res.Item;
 }
 
-/** Mark an event as processed. TTL = 30 days. */
-async function markEventProcessed(eventId: string, userId: string, scans: number) {
-  await db.send(
-    new PutCommand({
-      TableName: TABLE,
-      Item: {
-        PK: `WEBHOOK#${eventId}`,
-        SK: "EVENT",
-        userId,
-        scans,
-        processedAt: new Date().toISOString(),
-        ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
-      },
-    })
+function isDuplicateEventError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const e = error as {
+    name?: string;
+    message?: string;
+    CancellationReasons?: Array<{ Code?: string }>;
+    cancellationReasons?: Array<{ Code?: string }>;
+  };
+
+  const reasons = e.CancellationReasons || e.cancellationReasons;
+  if (Array.isArray(reasons) && reasons.some((r) => r?.Code === "ConditionalCheckFailed")) {
+    return true;
+  }
+
+  return (
+    e.name === "ConditionalCheckFailedException" ||
+    (e.name === "TransactionCanceledException" &&
+      typeof e.message === "string" &&
+      e.message.includes("ConditionalCheckFailed"))
   );
+}
+
+/**
+ * Atomically grants credits exactly once per event:
+ * - writes webhook marker with conditional put
+ * - updates user credits in the same transaction
+ */
+async function grantCreditsExactlyOnce(
+  eventId: string,
+  userId: string,
+  scansToAdd: number,
+  packId: string
+): Promise<"applied" | "duplicate"> {
+  try {
+    await db.send(
+      new TransactWriteCommand({
+        TransactItems: [
+          {
+            Put: {
+              TableName: TABLE,
+              Item: {
+                PK: `WEBHOOK#${eventId}`,
+                SK: "EVENT",
+                userId,
+                scans: scansToAdd,
+                processedAt: new Date().toISOString(),
+                ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+              },
+              ConditionExpression: "attribute_not_exists(PK)",
+            },
+          },
+          {
+            Update: {
+              TableName: TABLE,
+              Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+              UpdateExpression: "SET #p = :plan, updatedAt = :now ADD scanCredits :credits",
+              ExpressionAttributeNames: {
+                "#p": "plan",
+              },
+              ExpressionAttributeValues: {
+                ":plan": packId,
+                ":credits": scansToAdd,
+                ":now": new Date().toISOString(),
+              },
+            },
+          },
+        ],
+      })
+    );
+    return "applied";
+  } catch (error) {
+    if (isDuplicateEventError(error)) return "duplicate";
+    throw error;
+  }
 }
 
 const VALID_PACK_IDS = new Set(["starter", "pro", "agency"]);
@@ -203,26 +263,10 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "Invalid pack." }, { status: 400 });
         }
 
-        // Add scan credits to user
-        await db.send(
-          new UpdateCommand({
-            TableName: TABLE,
-            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
-            UpdateExpression:
-              "SET #p = :plan, updatedAt = :now ADD scanCredits :credits",
-            ExpressionAttributeNames: {
-              "#p": "plan",
-            },
-            ExpressionAttributeValues: {
-              ":plan": packId,
-              ":credits": scansToAdd,
-              ":now": new Date().toISOString(),
-            },
-          })
-        );
-
-        // Record event as processed (idempotency)
-        await markEventProcessed(eventId, userId, scansToAdd);
+        const grantResult = await grantCreditsExactlyOnce(eventId, userId, scansToAdd, packId);
+        if (grantResult === "duplicate") {
+          return NextResponse.json({ received: true, duplicate: true });
+        }
       }
     }
 
