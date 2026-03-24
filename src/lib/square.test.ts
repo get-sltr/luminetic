@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { SCAN_PACKS, SQUARE_LOCATION_ID, SQUARE_APP_ID } from "./square";
+import { SQUARE_LOCATION_ID, SQUARE_APP_ID } from "./square";
+import { SCAN_PACKS } from "./scan-packs";
 
 describe("Square config", () => {
   it("has correct scan pack definitions", () => {
@@ -18,7 +19,7 @@ describe("Square config", () => {
     const agency = SCAN_PACKS.find((p) => p.id === "agency");
     expect(agency).toBeDefined();
     expect(agency!.scans).toBe(10);
-    expect(agency!.priceInCents).toBe(14900);
+    expect(agency!.priceInCents).toBe(11900);
   });
 
   it("all packs have positive prices", () => {
@@ -33,8 +34,8 @@ describe("Square config", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("exports Square location and app IDs", () => {
-    expect(SQUARE_LOCATION_ID).toBeTruthy();
-    expect(SQUARE_APP_ID).toBeTruthy();
+  it("exports Square location and app IDs as strings", () => {
+    expect(typeof SQUARE_LOCATION_ID).toBe("string");
+    expect(typeof SQUARE_APP_ID).toBe("string");
   });
 });

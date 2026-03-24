@@ -58,20 +58,7 @@ export async function getSquareClient(): Promise<SquareClient> {
   });
 }
 
-export const SQUARE_LOCATION_ID = process.env.SQUARE_ENVIRONMENT === "sandbox"
-  ? "L2JFTMEF0VC8N"
-  : (process.env.SQUARE_LOCATION_ID || "LA734SKS22172");
-export const SQUARE_APP_ID = process.env.SQUARE_APP_ID || "sq0idp-wpV9sdOfB-BsA2aM-KoE9w";
+export const SQUARE_LOCATION_ID = process.env.SQUARE_LOCATION_ID || "";
+export const SQUARE_APP_ID = process.env.SQUARE_APP_ID || "";
 
-export interface ScanPack {
-  id: string;
-  name: string;
-  scans: number;
-  priceInCents: number;
-}
-
-export const SCAN_PACKS: ScanPack[] = [
-  { id: "starter", name: "Starter", scans: 1, priceInCents: 1500 },
-  { id: "pro", name: "Pro", scans: 3, priceInCents: 4000 },
-  { id: "agency", name: "Agency", scans: 10, priceInCents: 11900 },
-];
+export { SCAN_PACKS } from "./scan-packs";

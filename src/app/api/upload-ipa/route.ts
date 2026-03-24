@@ -142,10 +142,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error: credsIssue
-            ? "AWS credentials are missing or invalid for this server. Attach an IAM role with s3:PutObject on the bucket, or set AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY for the runtime."
-            : "Could not create upload URL. Verify S3 bucket name, region (AWS_REGION), and s3:PutObject permission.",
+            ? "Server storage is temporarily unavailable. Please try again later."
+            : "Could not create upload URL. Please try again.",
           code: credsIssue ? "AWS_CREDENTIALS" : "PRESIGN_FAILED",
-          ...(process.env.NODE_ENV !== "production" && { _debug: msg.substring(0, 400) }),
         },
         { status: credsIssue ? 503 : 500 }
       );
@@ -169,10 +168,8 @@ export async function POST(request: NextRequest) {
     const isProd = process.env.NODE_ENV === "production";
     return NextResponse.json(
       {
-        error:
-          "Upload setup failed unexpectedly. Check server logs.",
+        error: "Upload failed unexpectedly. Please try again.",
         code: "INTERNAL",
-        ...(!isProd && { _debug: msg.substring(0, 400) }),
       },
       { status: 500 }
     );

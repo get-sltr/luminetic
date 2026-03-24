@@ -55,7 +55,7 @@ function buildMetadataContext(metadata: IpaMetadata, synopsis: string, credentia
   if (credentials?.email) {
     parts.push(`\n## Test Credentials`);
     parts.push(`- Email: ${credentials.email}`);
-    parts.push(`- Password: ${credentials.password}`);
+    parts.push(`- Password: [provided]`);
   }
 
   const privacyEntries = Object.entries(metadata.privacyUsageDescriptions || {});
@@ -249,7 +249,7 @@ function resolveFinalReadinessScore(opts: {
     os = parseReadinessScore((opusFinal as { readiness_score?: unknown }).readiness_score);
   }
 
-  let blended = blendReadinessScores(gs, os);
+  const blended = blendReadinessScores(gs, os);
 
   if (blended !== null && blended > 0) {
     return blended;
@@ -275,10 +275,7 @@ function resolveFinalReadinessScore(opts: {
 }
 
 const ALL_MODELS_FAILED_MSG =
-  "Every AI step failed (Gemini + Claude on Bedrock). Fix configuration, then retry: " +
-  "(1) Add IAM permission bedrock:InvokeModel for your Bedrock Claude models in this region. " +
-  "(2) Set GEMINI_API_KEY in the host environment or Secrets Manager secret luminetic/gemini-api-key. " +
-  "Check CloudWatch logs for the exact error.";
+  "All AI analysis steps failed. Please try again later or contact support if the issue persists.";
 
 export async function POST(request: NextRequest) {
   const schema = z.object({
