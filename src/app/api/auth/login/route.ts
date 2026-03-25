@@ -7,7 +7,7 @@ import { authLimiter, getClientIp } from "@/lib/rate-limit";
 
 const schema = z.object({
   email: z.string().email(),
-  password: z.string().min(8),
+  password: z.string().min(12),
 });
 
 export async function POST(request: NextRequest) {

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { WebhooksHelper } from "square";
 import { getSquareClient } from "@/lib/square";
+import { SCAN_PACKS } from "@/lib/scan-packs";
 import { db } from "@/lib/db";
-import { UpdateCommand, GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 import {
   SecretsManagerClient,
   GetSecretValueCommand,
@@ -15,13 +16,16 @@ const secretsClient = new SecretsManagerClient({
 });
 
 let cachedWebhookSig: string | null = null;
+let webhookSigFetchedAt = 0;
+const WEBHOOK_SIG_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 async function getWebhookSignatureKey(): Promise<string> {
-  // Try env var first
+  // Try env var first (always fresh)
   const envKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
   if (envKey) return envKey;
 
-  if (cachedWebhookSig) return cachedWebhookSig;
+  const now = Date.now();
+  if (cachedWebhookSig && now - webhookSigFetchedAt < WEBHOOK_SIG_TTL_MS) return cachedWebhookSig;
   try {
     const command = new GetSecretValueCommand({
       SecretId: "luminetic/square-webhook-signature",
@@ -32,6 +36,7 @@ async function getWebhookSignatureKey(): Promise<string> {
       : null;
     if (!key) throw new Error("Square webhook signature key not found");
     cachedWebhookSig = key;
+    webhookSigFetchedAt = Date.now();
     return key;
   } catch {
     throw new Error(
@@ -52,25 +57,59 @@ async function isEventProcessed(eventId: string): Promise<boolean> {
   return !!res.Item;
 }
 
-/** Mark an event as processed. TTL = 30 days. */
-async function markEventProcessed(eventId: string, userId: string, scans: number) {
+async function grantCreditsAtomically(params: {
+  eventId: string;
+  userId: string;
+  scans: number;
+  packId: string;
+}) {
+  const { eventId, userId, scans, packId } = params;
+  const now = new Date().toISOString();
+
   await db.send(
-    new PutCommand({
-      TableName: TABLE,
-      Item: {
-        PK: `WEBHOOK#${eventId}`,
-        SK: "EVENT",
-        userId,
-        scans,
-        processedAt: new Date().toISOString(),
-        ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
-      },
+    new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+            UpdateExpression: "SET #p = :plan, updatedAt = :now ADD scanCredits :credits",
+            ConditionExpression: "attribute_exists(PK) AND attribute_exists(SK)",
+            ExpressionAttributeNames: {
+              "#p": "plan",
+            },
+            ExpressionAttributeValues: {
+              ":plan": packId,
+              ":credits": scans,
+              ":now": now,
+            },
+          },
+        },
+        {
+          Put: {
+            TableName: TABLE,
+            Item: {
+              PK: `WEBHOOK#${eventId}`,
+              SK: "EVENT",
+              userId,
+              scans,
+              processedAt: now,
+              ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+            },
+            ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
+          },
+        },
+      ],
     })
   );
 }
 
-const VALID_PACK_IDS = new Set(["starter", "pro", "agency"]);
-const MAX_SCANS_PER_PACK = 10;
+function isTransactionCanceled(error: unknown): error is Error & { name: string; CancellationReasons?: Array<{ Code?: string }> } {
+  return error instanceof Error && error.name === "TransactionCanceledException";
+}
+
+const VALID_PACK_IDS = new Set<string>(SCAN_PACKS.map((pack) => pack.id));
+const MAX_SCANS_PER_PACK = Math.max(...SCAN_PACKS.map((pack) => pack.scans));
 
 /** Must match the subscription URL in Square Developer Dashboard (used for HMAC). */
 const WEBHOOK_NOTIFICATION_URL =
@@ -120,7 +159,11 @@ async function resolveOrderMetadata(
 export async function POST(request: NextRequest) {
   try {
     const rawBody = await request.text();
-    const signature = request.headers.get("x-square-hmacsha256-signature") || "";
+    const signature = request.headers.get("x-square-hmacsha256-signature");
+    if (!signature) {
+      console.error("[square-webhook] Missing x-square-hmacsha256-signature header");
+      return NextResponse.json({ error: "Missing signature." }, { status: 401 });
+    }
 
     let signatureKey: string;
     try {
@@ -203,32 +246,56 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ error: "Invalid pack." }, { status: 400 });
         }
 
-        // Add scan credits to user
-        await db.send(
-          new UpdateCommand({
-            TableName: TABLE,
-            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
-            UpdateExpression:
-              "SET #p = :plan, updatedAt = :now ADD scanCredits :credits",
-            ExpressionAttributeNames: {
-              "#p": "plan",
-            },
-            ExpressionAttributeValues: {
-              ":plan": packId,
-              ":credits": scansToAdd,
-              ":now": new Date().toISOString(),
-            },
-          })
-        );
+        // Validate payment amount matches expected pack price
+        // Square webhook payloads use snake_case (amount_money), not camelCase
+        if (packId !== "unknown") {
+          const expectedPack = SCAN_PACKS.find((p) => p.id === packId);
+          const amountObj = (payment as Record<string, unknown>)?.amount_money ?? (payment as Record<string, unknown>)?.amountMoney;
+          const paidAmountCents = typeof amountObj === "object" && amountObj !== null
+            ? ((amountObj as { amount?: number }).amount ?? null)
+            : null;
+          if (expectedPack && paidAmountCents !== null && paidAmountCents < expectedPack.priceInCents) {
+            console.error(`[square-webhook] Amount mismatch: paid ${paidAmountCents} < expected ${expectedPack.priceInCents} for ${packId}`);
+            return NextResponse.json({ error: "Payment amount mismatch." }, { status: 400 });
+          }
+        }
 
-        // Record event as processed (idempotency)
-        await markEventProcessed(eventId, userId, scansToAdd);
+        try {
+          await grantCreditsAtomically({
+            eventId,
+            userId,
+            scans: scansToAdd,
+            packId,
+          });
+        } catch (error) {
+          if (isTransactionCanceled(error)) {
+            const reasons = error.CancellationReasons?.map((reason) => reason.Code).filter(Boolean) || [];
+            if (reasons.includes("ConditionalCheckFailed")) {
+              if (await isEventProcessed(eventId)) {
+                console.warn("[square-webhook] Duplicate event raced during processing:", eventId);
+                return NextResponse.json({ received: true, duplicate: true });
+              }
+
+              console.error("[square-webhook] User profile missing or invalid during credit grant:", {
+                eventId,
+                userId,
+                packId,
+                scansToAdd,
+                reasons,
+              });
+            }
+          }
+          throw error;
+        }
       }
     }
 
     return NextResponse.json({ received: true });
   } catch (error) {
-    console.error("[square-webhook] Error:", error);
+    const msg = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : undefined;
+    console.error("[square-webhook] Unhandled error:", msg);
+    if (stack) console.error("[square-webhook] Stack:", stack);
     return NextResponse.json({ error: "Webhook processing failed." }, { status: 500 });
   }
 }

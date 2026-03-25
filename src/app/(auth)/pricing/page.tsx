@@ -2,14 +2,16 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Footer from '@/components/Footer';
+import { SCAN_PACKS } from '@/lib/scan-packs';
 
 const tiers = [
   {
     id: 'starter',
-    name: 'Starter',
-    price: '15',
-    scans: '1 scan',
+    name: SCAN_PACKS[0].name,
+    price: String(SCAN_PACKS[0].priceInCents / 100),
+    scans: `${SCAN_PACKS[0].scans} scan`,
     features: [
       'Dual-model AI analysis',
       'Pre-flight submission checklist',
@@ -20,9 +22,9 @@ const tiers = [
   },
   {
     id: 'pro',
-    name: 'Pro',
-    price: '40',
-    scans: '3 scans',
+    name: SCAN_PACKS[1].name,
+    price: String(SCAN_PACKS[1].priceInCents / 100),
+    scans: `${SCAN_PACKS[1].scans} scans`,
     featured: true,
     features: [
       'Everything in Starter',
@@ -34,9 +36,9 @@ const tiers = [
   },
   {
     id: 'agency',
-    name: 'Agency',
-    price: '119',
-    scans: '10 scans',
+    name: SCAN_PACKS[2].name,
+    price: String(SCAN_PACKS[2].priceInCents / 100),
+    scans: `${SCAN_PACKS[2].scans} scans`,
     features: [
       'Everything in Pro',
       'Multi-app support',
@@ -48,6 +50,7 @@ const tiers = [
 ];
 
 export default function PricingPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState('');
 
@@ -65,14 +68,14 @@ export default function PricingPage() {
 
       const contentType = res.headers.get('content-type') || '';
       if (!contentType.includes('application/json')) {
-        window.location.href = '/login?redirect=/pricing';
+        router.push('/login?redirect=/pricing');
         return;
       }
 
       const data = await res.json();
 
       if (res.status === 401) {
-        window.location.href = '/login?redirect=/pricing';
+        router.push('/login?redirect=/pricing');
         return;
       }
 
@@ -82,8 +85,12 @@ export default function PricingPage() {
         return;
       }
 
-      if (data.url) {
-        window.location.href = data.url;
+      if (data.url && typeof data.url === 'string' && (data.url.startsWith('https://square.link/') || data.url.startsWith('https://checkout.squareup.com/'))) {
+        window.location.assign(data.url);
+      } else if (data.url) {
+        console.error('Unexpected checkout URL origin:', data.url);
+        setError('Invalid checkout URL. Please contact support.');
+        setLoading(null);
       } else {
         setError('No checkout URL returned. Please try again.');
         setLoading(null);

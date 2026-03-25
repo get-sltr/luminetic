@@ -9,8 +9,9 @@ import Footer from '@/components/Footer';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const ALLOWED_REDIRECTS = ['/dashboard', '/analyze', '/completeness', '/history', '/review-packet', '/pricing', '/admin', '/memory'];
   const rawRedirect = searchParams.get('redirect') || '';
-  const safeRedirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '';
+  const safeRedirect = ALLOWED_REDIRECTS.some((p) => rawRedirect === p || rawRedirect.startsWith(p + '/')) ? rawRedirect : '';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

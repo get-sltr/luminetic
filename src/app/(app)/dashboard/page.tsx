@@ -1,13 +1,12 @@
 import type { CSSProperties } from 'react';
 import { getAuthUser } from '@/lib/auth';
 import { getUser, getScans } from '@/lib/db';
+import { SCAN_PACKS } from '@/lib/scan-packs';
 import Link from 'next/link';
 
-const PACK_CREDITS: Record<string, number> = {
-  starter: 1,
-  pro: 3,
-  agency: 10,
-};
+const PACK_CREDITS: Record<string, number> = Object.fromEntries(
+  SCAN_PACKS.map((p) => [p.id, p.scans])
+);
 
 function displayNameFromEmail(email: string): string {
   const local = email.split('@')[0] || 'there';
@@ -127,7 +126,6 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
     // searchParams unavailable
   }
 
-  let plan = 'free';
   let isFounder = false;
   let credits = 0;
   let scanCount = 0;
@@ -140,7 +138,6 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
       getScans(authUser.userId, 5),
     ]);
 
-    plan = (profile?.plan as string) || 'free';
     const role = (profile?.role as string) || 'user';
     isFounder = role === 'founder' || role === 'admin';
     credits = (profile?.scanCredits as number) || 0;

@@ -55,7 +55,6 @@ export default function AnalyzePage() {
   const [s3Key, setS3Key] = useState('');
   const [bundleId, setBundleId] = useState('');
   const [bundleDetected, setBundleDetected] = useState(false);
-  const [appName, setAppName] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [loginEmail, setLoginEmail] = useState('');
@@ -134,7 +133,7 @@ export default function AnalyzePage() {
         throw new Error(error || `Failed to get upload URL (${presignRes.status}).`);
       }
 
-      const { uploadUrl, s3Key: key, bundleId: detectedBundleId, appName: detectedAppName, contentType: signedContentType } =
+      const { uploadUrl, s3Key: key, bundleId: detectedBundleId, contentType: signedContentType } =
         presignJson;
 
       if (!uploadUrl || !key) {
@@ -192,9 +191,6 @@ export default function AnalyzePage() {
         setBundleId(detectedBundleId);
         setBundleDetected(true);
       }
-      if (detectedAppName) {
-        setAppName(detectedAppName);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed.');
       setFile(null);
@@ -208,7 +204,6 @@ export default function AnalyzePage() {
     setS3Key('');
     setBundleId('');
     setBundleDetected(false);
-    setAppName('');
     setUploadProgress(0);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
@@ -320,8 +315,6 @@ export default function AnalyzePage() {
     setScanId(null);
     setError('');
   }
-
-  const isScanning = step !== 'idle' && step !== 'done' && step !== 'error';
 
   return (
     <div className="min-h-[calc(100vh-72px)] flex flex-col items-center justify-center px-6 md:px-16 lg:px-24 py-16">
@@ -465,9 +458,12 @@ export default function AnalyzePage() {
 
             {/* 3. Login Credentials */}
             <div>
-              <label className="block text-[10px] tracking-[3px] uppercase mb-4" style={{ color: 'var(--gray)' }}>
+              <label className="block text-[10px] tracking-[3px] uppercase mb-2" style={{ color: 'var(--gray)' }}>
                 Test Login Credentials
               </label>
+              <p className="text-[11px] mb-4" style={{ color: 'var(--gray-dim)' }}>
+                Use test-only credentials. Never enter real passwords.
+              </p>
               <div className="grid grid-cols-2 gap-4">
                 <input
                   type="email"
