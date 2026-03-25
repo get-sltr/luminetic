@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob:",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.squareup.com https://*.squareupsandbox.com",
+              "connect-src 'self' https://*.s3.us-east-1.amazonaws.com https://*.s3.amazonaws.com https://*.squareup.com https://*.squareupsandbox.com",
               "frame-src 'none'",
               "object-src 'none'",
               "base-uri 'self'",
