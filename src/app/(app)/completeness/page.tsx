@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { IconCheck, IconChecklist } from '@/components/icons';
+import { IconCheck } from '@/components/icons';
 
 interface CheckItem {
   id: string;

@@ -108,15 +108,62 @@ The app uses **AWS Bedrock** to power the review feedback analysis. The API rout
 
 ### IAM Permissions
 
-The executing role/user needs:
+The executing role/user needs app-specific permissions in addition to the normal AWS credential setup.
+
+Minimum example:
 
 ```json
-{
-  "Effect": "Allow",
-  "Action": "bedrock:InvokeModel",
-  "Resource": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-6"
-}
+[
+  {
+    "Effect": "Allow",
+    "Action": [
+      "bedrock:InvokeModel"
+    ],
+    "Resource": [
+      "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-sonnet-4-6"
+    ]
+  },
+  {
+    "Effect": "Allow",
+    "Action": [
+      "dynamodb:GetItem",
+      "dynamodb:PutItem",
+      "dynamodb:UpdateItem",
+      "dynamodb:Query",
+      "dynamodb:Scan",
+      "dynamodb:TransactWriteItems"
+    ],
+    "Resource": [
+      "arn:aws:dynamodb:us-east-1:*:table/appready",
+      "arn:aws:dynamodb:us-east-1:*:table/appready/index/*"
+    ]
+  },
+  {
+    "Effect": "Allow",
+    "Action": [
+      "s3:GetObject",
+      "s3:PutObject"
+    ],
+    "Resource": [
+      "arn:aws:s3:::YOUR_BUCKET/*"
+    ]
+  },
+  {
+    "Effect": "Allow",
+    "Action": [
+      "secretsmanager:GetSecretValue"
+    ],
+    "Resource": [
+      "arn:aws:secretsmanager:us-east-1:*:secret:luminetic/*"
+    ]
+  }
+]
 ```
+
+Notes:
+- `dynamodb:TransactWriteItems` is required for the Square webhook credit grant flow.
+- If you provide `SQUARE_WEBHOOK_SIGNATURE_KEY`, `SQUARE_ACCESS_TOKEN`, and `GEMINI_API_KEY` directly as Amplify environment variables, Secrets Manager permission is optional for those paths.
+- Replace `appready` and `YOUR_BUCKET` with your real table and bucket names if they differ by environment.
 
 ### S3 uploads (`.ipa` → presigned PUT)
 
@@ -205,7 +252,7 @@ Analyzes App Store review feedback and returns an action plan.
 | **Free** | $0/forever | 1 scan/month, basic checklist, URL health checks |
 | **Indie** | $19/month | 5 scans/month, AI readiness check, review packet generator |
 | **Pro** | $49/month | Unlimited scans, App Store Connect integration, team seats |
-| **Agency** | $149/month | Multi-app support, client dashboards, white-label packets, API access |
+| **Agency** | $119/month | Multi-app support, client dashboards, white-label packets, API access |
 
 ---
 

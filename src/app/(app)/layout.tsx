@@ -25,7 +25,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen" style={{ background: 'transparent' }}>
       <AppNav email={user.email} plan={user.plan} role={role} />
-      <main className="pt-[80px] md:pt-[88px] min-h-[calc(100vh-4rem)]">
+      <main className="pt-[64px] md:pt-[72px] min-h-[calc(100vh-4rem)]">
         {children}
       </main>
     </div>

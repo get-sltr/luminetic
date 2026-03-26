@@ -406,7 +406,7 @@ export async function POST(request: NextRequest) {
 
         // PHASE 2: AI Analysis — Gemini + Sonnet run in parallel, then Opus reconciles
 
-        sendEvent(controller, "status", { step: "gemini", message: "Scanning with Gemini 2.5 Pro & Claude Sonnet..." });
+        sendEvent(controller, "status", { step: "gemini", message: "Running primary analysis..." });
 
         // Run Gemini and Sonnet in parallel (both analyze metadata independently)
         const geminiPromise = (async () => {
@@ -478,7 +478,7 @@ export async function POST(request: NextRequest) {
         sendEvent(controller, "status", { step: "sonnet_done", success: sonnetSuccess, latency: sonnetLatency });
 
         // Model 3: Claude Opus (reconciles Gemini + Sonnet findings)
-        sendEvent(controller, "status", { step: "claude-opus", message: "Deep analysis with Claude Opus..." });
+        sendEvent(controller, "status", { step: "claude-opus", message: "Deep reconciliation analysis..." });
 
         let opusData: Record<string, unknown> | null = null;
         let opusLatency = 0;
@@ -498,7 +498,7 @@ export async function POST(request: NextRequest) {
           };
 
           const command = new InvokeModelCommand({
-            modelId: "us.anthropic.claude-opus-4-5-v1",
+            modelId: "us.anthropic.claude-opus-4-20250514-v1:0",
             contentType: "application/json",
             accept: "application/json",
             body: JSON.stringify(payload),
@@ -600,9 +600,9 @@ export async function POST(request: NextRequest) {
           } : null,
           meta: {
             models_used: [
-              geminiSuccess ? "gemini-2.5-pro" : null,
-              sonnetSuccess ? "claude-sonnet" : null,
-              opusSuccess ? "claude-opus" : null,
+              geminiSuccess ? "engine-1" : null,
+              sonnetSuccess ? "engine-2" : null,
+              opusSuccess ? "engine-3" : null,
             ].filter(Boolean),
             gemini_latency_ms: geminiLatency,
             sonnet_latency_ms: sonnetLatency,

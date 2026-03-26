@@ -25,15 +25,6 @@ const navLinks = [
   { href: '/history', label: 'History', Icon: IconHistory },
 ];
 
-function initialsFromEmail(email: string): string {
-  const local = email.split('@')[0] || '';
-  const parts = local.split(/[._-]+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return local.slice(0, 2).toUpperCase() || '?';
-}
-
 function tierLabel(plan: string, isAdmin: boolean): string {
   if (isAdmin) return 'FOUNDER';
   if (plan === 'pro' || plan === 'agency' || plan === 'indie') return 'PRO';
@@ -54,123 +45,82 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
   }
 
   const tier = tierLabel(plan, isAdmin);
-  const showProStyle = tier === 'PRO' || tier === 'FOUNDER';
 
   return (
     <>
       <header
         className="fixed top-0 left-0 w-full z-50"
         style={{
-          background: 'rgba(6, 6, 8, 0.9)',
-          backdropFilter: 'blur(60px)',
-          WebkitBackdropFilter: 'blur(60px)',
-          borderBottom: '1px solid rgba(255, 106, 0, 0.06)',
+          borderBottom: '2px solid var(--orange)',
+          background: 'rgba(5, 5, 5, 0.92)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
         }}
       >
+        {/* Orange glow under nav */}
         <div
-          className="flex justify-between items-center gap-3 py-3.5 px-6 lg:px-10 mx-auto w-full max-w-[1200px]"
-        >
+          style={{
+            position: 'absolute',
+            bottom: -12,
+            left: 0,
+            right: 0,
+            height: 10,
+            background: 'linear-gradient(to bottom, rgba(255,106,0,0.06), transparent)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        <div className="flex items-center py-3 px-6 lg:px-10 mx-auto w-full max-w-[1400px]">
           {/* Logo */}
-          <Link href="/dashboard" className="flex items-center gap-3 no-underline shrink-0 min-w-0">
-            <div className="relative w-7 h-7 shrink-0 flex items-center justify-center" aria-hidden>
-              <div
-                className="absolute inset-0 rounded-full border-2 logo-ring-spin"
-                style={{
-                  borderColor: 'rgba(255, 106, 0, 0.2)',
-                  borderTopColor: 'var(--orange)',
-                }}
-              />
-              <span
-                className="relative z-[1] w-2 h-2 rounded-full block"
-                style={{
-                  background: 'var(--orange)',
-                  boxShadow: '0 0 12px rgba(255, 106, 0, 0.5)',
-                }}
-              />
-            </div>
+          <Link href="/dashboard" className="no-underline shrink-0">
             <span
-              className="text-base font-medium tracking-wide text-white uppercase logo-wordmark font-orbitron hidden sm:block"
-              style={{ letterSpacing: '0.12em' }}
+              style={{
+                fontFamily: "var(--display)",
+                fontSize: '1.8rem',
+                letterSpacing: 4,
+                color: 'var(--orange)',
+                position: 'relative',
+              }}
             >
-              Luminetic
+              LUMINETIC
+              <span style={{ animation: 'blink 1s step-end infinite', color: 'var(--orange)' }}>_</span>
             </span>
           </Link>
 
-          {/* Desktop nav — text-first HUD */}
-          <nav className="hidden lg:flex items-stretch justify-center flex-1 gap-0 min-w-0 mx-4">
-            {navLinks.map(({ href, label }) => {
-              const isActive = pathname === href;
-              return (
-                <Link
-                  key={href}
-                  href={href}
-                  className="relative flex items-center px-3 xl:px-4 py-2.5 text-[11px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 font-outfit"
-                  style={{
-                    color: isActive ? 'var(--orange)' : 'var(--text-tertiary)',
-                    background: isActive ? 'rgba(255, 106, 0, 0.05)' : 'transparent',
-                    boxShadow: isActive ? 'inset 0 1px 0 0 var(--orange)' : 'none',
-                    fontWeight: 500,
-                  }}
-                >
-                  {label}
-                </Link>
-              );
-            })}
-            {isAdmin && (
+          {/* Desktop nav links */}
+          <nav className="nav-links-brutalist hidden lg:flex">
+            {navLinks.map(({ href, label }) => (
               <Link
-                href="/admin"
-                className="relative flex items-center px-3 xl:px-4 py-2.5 text-[11px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 font-outfit"
-                style={{
-                  color: pathname === '/admin' ? 'var(--orange)' : 'var(--text-tertiary)',
-                  background: pathname === '/admin' ? 'rgba(255, 106, 0, 0.05)' : 'transparent',
-                  boxShadow: pathname === '/admin' ? 'inset 0 1px 0 0 var(--orange)' : 'none',
-                  fontWeight: 500,
-                }}
+                key={href}
+                href={href}
+                data-active={pathname === href}
               >
+                {label}
+              </Link>
+            ))}
+            {isAdmin && (
+              <Link href="/admin" data-active={pathname === '/admin'}>
                 Admin
               </Link>
             )}
           </nav>
 
-          {/* Right */}
-          <div className="flex items-center gap-3 shrink-0">
-            <span
-              className="hidden sm:inline-flex items-center justify-center rounded-full px-2.5 py-1 font-orbitron uppercase"
-              style={{
-                fontSize: '9px',
-                letterSpacing: '0.2em',
-                color: showProStyle ? 'var(--orange)' : 'var(--text-tertiary)',
-                border: `1px solid ${showProStyle ? 'rgba(255, 106, 0, 0.45)' : 'var(--glass-border)'}`,
-                background: showProStyle ? 'rgba(255, 106, 0, 0.06)' : 'transparent',
-              }}
-            >
+          {/* Right side */}
+          <div className="ml-auto flex items-center gap-3">
+            <span className="badge-brutalist hidden sm:inline-block">
               {tier}
             </span>
-            <div
-              className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[10px] font-orbitron font-normal tracking-wide"
-              style={{
-                background: 'var(--glass)',
-                border: '1px solid var(--glass-border)',
-                color: 'var(--text-secondary)',
-              }}
-              title={email}
-            >
-              {initialsFromEmail(email)}
-            </div>
             <button
               onClick={handleLogout}
-              className="hidden md:flex items-center gap-1.5 text-[10px] tracking-[1.5px] uppercase font-medium bg-transparent border-none cursor-pointer px-2 py-1.5 rounded-lg hover-text font-outfit"
-              style={{ color: 'var(--text-tertiary)' }}
+              className="btn-secondary hidden md:inline-flex items-center gap-1.5"
               type="button"
             >
-              <IconLogout width={14} height={14} />
-              <span className="hidden xl:inline">Sign out</span>
+              → Sign out
             </button>
-
             <button
               onClick={() => setMobileOpen(true)}
-              className="lg:hidden flex items-center justify-center w-9 h-9 rounded-lg bg-transparent border-none cursor-pointer hover-bg"
-              style={{ color: 'var(--text-secondary)' }}
+              className="lg:hidden flex items-center justify-center w-9 h-9 bg-transparent border-none cursor-pointer hover-bg"
+              style={{ color: 'var(--text-mid)' }}
               type="button"
               aria-label="Open menu"
             >
@@ -180,17 +130,26 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
         </div>
       </header>
 
+      {/* Mobile drawer */}
       <div className={`mobile-drawer ${mobileOpen ? 'open' : ''}`}>
         <div className="mobile-drawer-backdrop" onClick={() => setMobileOpen(false)} role="presentation" />
         <div className="mobile-drawer-panel" style={{ background: 'var(--bg-elevated)' }}>
           <div className="flex items-center justify-between mb-8">
-            <span className="text-base font-medium tracking-wide text-white uppercase font-orbitron" style={{ letterSpacing: '0.12em' }}>
-              Luminetic
+            <span
+              style={{
+                fontFamily: "var(--display)",
+                fontSize: '1.4rem',
+                letterSpacing: 3,
+                color: 'var(--orange)',
+                textTransform: 'uppercase',
+              }}
+            >
+              LUMINETIC
             </span>
             <button
               onClick={() => setMobileOpen(false)}
-              className="flex items-center justify-center w-9 h-9 rounded-lg bg-transparent border-none cursor-pointer hover-bg"
-              style={{ color: 'var(--text-secondary)' }}
+              className="flex items-center justify-center w-9 h-9 bg-transparent border-none cursor-pointer hover-bg"
+              style={{ color: 'var(--text-mid)' }}
               type="button"
               aria-label="Close menu"
             >
@@ -206,11 +165,12 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
                   key={href}
                   href={href}
                   onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 font-outfit"
+                  className="flex items-center gap-3 px-4 py-3 text-[12px] tracking-[1.5px] uppercase no-underline transition-all duration-200"
                   style={{
-                    color: isActive ? 'var(--orange)' : 'var(--text-secondary)',
+                    fontFamily: 'var(--mono)',
+                    color: isActive ? 'var(--orange)' : 'var(--text-mid)',
                     background: isActive ? 'rgba(255, 106, 0, 0.08)' : 'transparent',
-                    boxShadow: isActive ? 'inset 0 1px 0 0 var(--orange)' : 'none',
+                    borderLeft: isActive ? '2px solid var(--orange)' : '2px solid transparent',
                   }}
                 >
                   <Icon width={18} height={18} style={{ opacity: isActive ? 1 : 0.5 }} />
@@ -222,10 +182,12 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
               <Link
                 href="/admin"
                 onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-[12px] tracking-[1.5px] uppercase no-underline font-medium transition-all duration-200 font-outfit"
+                className="flex items-center gap-3 px-4 py-3 text-[12px] tracking-[1.5px] uppercase no-underline transition-all duration-200"
                 style={{
+                  fontFamily: 'var(--mono)',
                   color: pathname === '/admin' ? 'var(--orange)' : 'var(--orange)',
                   background: pathname === '/admin' ? 'rgba(255, 106, 0, 0.08)' : 'transparent',
+                  borderLeft: pathname === '/admin' ? '2px solid var(--orange)' : '2px solid transparent',
                 }}
               >
                 <IconShield width={18} height={18} style={{ opacity: pathname === '/admin' ? 1 : 0.7 }} />
@@ -234,8 +196,8 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
             )}
           </nav>
 
-          <div className="mt-8 pt-6" style={{ borderTop: '1px solid var(--glass-border)' }}>
-            <div className="text-[11px] mb-3 font-outfit" style={{ color: 'var(--text-tertiary)' }}>
+          <div className="mt-8 pt-6" style={{ borderTop: '1px solid var(--border)' }}>
+            <div className="text-[11px] mb-3" style={{ fontFamily: 'var(--mono)', color: 'var(--text-dim)' }}>
               {email}
             </div>
             <button
@@ -243,8 +205,8 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
                 setMobileOpen(false);
                 handleLogout();
               }}
-              className="flex items-center gap-2 text-[11px] tracking-[1.5px] uppercase font-medium bg-transparent border-none cursor-pointer px-0 py-2 hover-text font-outfit"
-              style={{ color: 'var(--text-secondary)' }}
+              className="flex items-center gap-2 text-[11px] tracking-[1.5px] uppercase bg-transparent border-none cursor-pointer px-0 py-2 hover-text"
+              style={{ fontFamily: 'var(--mono)', color: 'var(--text-mid)' }}
               type="button"
             >
               <IconLogout width={16} height={16} />

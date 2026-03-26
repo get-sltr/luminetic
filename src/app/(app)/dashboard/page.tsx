@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react';
 import { getAuthUser } from '@/lib/auth';
 import { getUser, getScans } from '@/lib/db';
 import { SCAN_PACKS } from '@/lib/scan-packs';
@@ -31,84 +30,7 @@ function formatRelativeLastScan(iso: string | undefined): string {
 
 function shortScanId(id: string): string {
   if (id.length <= 10) return id;
-  return `${id.slice(0, 4)}…${id.slice(-4)}`;
-}
-
-function ScoreArcGauge({ score }: { score: number | null }) {
-  const r = 34;
-  const c = 2 * Math.PI * r;
-  const pct = score === null ? 0 : Math.min(1, Math.max(0, score / 100));
-  const offset = c * (1 - pct);
-  return (
-    <svg width={90} height={90} viewBox="0 0 90 90" className="shrink-0" aria-hidden>
-      <defs>
-        <filter id="gaugeGlow" x="-40%" y="-40%" width="180%" height="180%">
-          <feGaussianBlur stdDeviation="2" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-      <circle
-        cx={45}
-        cy={45}
-        r={r}
-        fill="none"
-        stroke="rgba(255,106,0,0.08)"
-        strokeWidth={3}
-      />
-      <circle
-        cx={45}
-        cy={45}
-        r={r}
-        fill="none"
-        stroke="var(--orange)"
-        strokeWidth={3}
-        strokeLinecap="round"
-        strokeDasharray={c}
-        strokeDashoffset={offset}
-        transform="rotate(-90 45 45)"
-        filter="url(#gaugeGlow)"
-      />
-      <text
-        x={45}
-        y={46}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        style={{
-          fontFamily: 'var(--font-orbitron), ui-monospace, monospace',
-          fontSize: 24,
-          fontWeight: 400,
-          fill: 'var(--orange)',
-          letterSpacing: '0.08em',
-        }}
-      >
-        {score !== null ? score : '—'}
-      </text>
-    </svg>
-  );
-}
-
-function SearchIcon({ className, style }: { className?: string; style?: CSSProperties }) {
-  return (
-    <svg
-      className={className}
-      style={style}
-      width={16}
-      height={16}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <circle cx={11} cy={11} r={8} />
-      <path d="m21 21-4.35-4.35" />
-    </svg>
-  );
+  return `${id.slice(0, 4)}...${id.slice(-4)}`;
 }
 
 export default async function DashboardPage(props: { searchParams: Promise<Record<string, string | undefined>> }) {
@@ -161,54 +83,37 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
           ? 'Room to improve'
           : 'Needs attention';
 
-  const scoreColor = (s: number) =>
-    s >= 80 ? 'var(--success)' : s >= 60 ? 'var(--warning)' : 'var(--danger)';
+  const scorePct = avgScore !== null ? Math.max(1, avgScore) : 0;
 
   const bento = [
-    {
-      n: '01',
-      href: '/completeness',
-      title: 'Pre-flight check',
-      body: 'Run diagnostics before your next analysis',
-    },
-    {
-      n: '02',
-      href: '/review-packet',
-      title: 'Review packet',
-      body: 'View your latest scan analysis report',
-    },
-    {
-      n: '03',
-      href: '/memory',
-      title: 'Build memory',
-      body: 'Train AI on your brand identity',
-    },
+    { n: '01', href: '/completeness', title: 'Pre-flight check', body: 'Run diagnostics before your next analysis' },
+    { n: '02', href: '/review-packet', title: 'Review packet', body: 'View your latest scan analysis report' },
+    { n: '03', href: '/memory', title: 'Build memory', body: 'Train AI on your brand identity' },
   ] as const;
 
   return (
-    <div className="min-h-screen w-full font-outfit" style={{ background: 'transparent' }}>
-      <div className="w-full max-w-[1200px] mx-auto px-6 lg:px-10 pt-10 sm:pt-14 pb-24 md:pb-32">
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 32px 80px' }}>
 
         {purchasedCredits && (
           <div
-            className="rounded-xl p-6 sm:p-7 mb-10 sm:mb-12 relative overflow-hidden border"
             style={{
-              background: 'rgba(0, 214, 143, 0.04)',
-              borderColor: 'rgba(0, 214, 143, 0.2)',
+              background: 'rgba(34, 197, 94, 0.04)',
+              border: '1px solid rgba(34, 197, 94, 0.2)',
+              padding: '20px 24px',
+              marginBottom: 40,
+              marginTop: 20,
             }}
           >
-            <div className="flex items-center gap-3 mb-2">
-              <div
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ background: 'var(--success)', boxShadow: '0 0 8px rgba(0,214,143,0.45)' }}
-              />
-              <span className="text-xs tracking-[0.2em] uppercase font-medium font-orbitron" style={{ color: 'var(--success)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span className="blink-dot" style={{ background: 'var(--green)', boxShadow: '0 0 6px rgba(34,197,94,0.5)' }} />
+              <span style={{ fontFamily: 'var(--mono)', fontSize: '0.58rem', letterSpacing: 2, textTransform: 'uppercase', color: 'var(--green)' }}>
                 Payment received
               </span>
             </div>
-            <p className="text-sm ml-5 leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+            <p style={{ fontFamily: 'var(--body)', fontSize: '0.84rem', color: 'var(--text-mid)', margin: 0, paddingLeft: 13 }}>
               {purchasedCredits} scan credit{purchasedCredits > 1 ? 's' : ''} added.{' '}
-              <Link href="/analyze" className="no-underline font-medium" style={{ color: 'var(--orange)' }}>
+              <Link href="/analyze" className="no-underline" style={{ color: 'var(--orange)', fontWeight: 600 }}>
                 Run an analysis now →
               </Link>
             </p>
@@ -216,259 +121,338 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
         )}
 
         {/* Hero */}
-        <header className="text-center mb-12 md:mb-16">
-          <p
-            className="text-[13px] uppercase mb-4 font-outfit font-light"
-            style={{ color: 'var(--text-tertiary)', letterSpacing: '0.15em' }}
-          >
-            System status: online
-          </p>
-          <div className="flex justify-center mb-4">
-            <h1
-              className="hud-bracket-heading font-orbitron text-[28px] sm:text-[32px] m-0"
-              style={{
-                color: 'var(--text-primary)',
-                fontWeight: 400,
-                letterSpacing: '0.08em',
-              }}
-            >
-              Welcome back,{' '}
-              <span
-                style={{
-                  color: 'var(--orange)',
-                  textShadow: '0 0 30px rgba(255,106,0,0.2)',
-                }}
-              >
-                {firstName}
-              </span>
-            </h1>
-          </div>
-          <p className="text-sm sm:text-[14px] font-light max-w-md mx-auto" style={{ color: 'var(--text-secondary)' }}>
+        <div style={{ padding: '60px 0 20px', position: 'relative', overflow: 'hidden' }}>
+          <h1 style={{
+            fontFamily: 'var(--display)',
+            fontSize: '5.5rem',
+            letterSpacing: 3,
+            lineHeight: 0.9,
+            margin: 0,
+            color: 'var(--text)',
+          }}>
+            WELCOME BACK,
+            <span style={{
+              display: 'block',
+              fontSize: '6.5rem',
+              color: 'var(--orange)',
+              textShadow: '0 0 40px rgba(255,106,0,0.2), 0 0 80px rgba(255,106,0,0.1)',
+            }}>
+              {firstName.toUpperCase()}
+            </span>
+          </h1>
+          <p style={{
+            fontFamily: 'var(--mono)',
+            fontSize: '0.68rem',
+            color: 'var(--text-dim)',
+            letterSpacing: 2,
+            textTransform: 'uppercase',
+            marginTop: 16,
+          }}>
+            <span style={{ color: 'var(--orange)', opacity: 0.5 }}>{'> '}</span>
             {formatRelativeLastScan(lastScanAt)}
           </p>
 
-          <div className="mt-10 flex justify-center">
-            <Link
-              href="/analyze"
-              className="hud-cta-scan group inline-flex items-center gap-2.5 no-underline px-7 py-3.5 rounded-none font-outfit uppercase"
-              style={{
-                fontSize: 13,
-                fontWeight: 500,
-                letterSpacing: '0.08em',
-                color: 'var(--orange)',
-                border: '1px solid var(--orange)',
-                background: 'transparent',
-              }}
-            >
-              <SearchIcon className="opacity-90 group-hover:opacity-100" style={{ color: 'var(--orange)' }} />
-              Initialize scan
-            </Link>
-          </div>
-        </header>
+          {/* Decorative line */}
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            right: 0,
+            width: '40%',
+            height: 1,
+            background: 'linear-gradient(90deg, transparent, var(--orange), transparent)',
+            animation: 'pulse 4s ease-in-out infinite',
+            opacity: 0.3,
+          }} />
+        </div>
 
-        {/* HUD stats bar */}
-        <div
-          className="flex flex-col md:flex-row rounded-xl overflow-hidden mb-12 md:mb-14 border transition-shadow duration-300"
-          style={{
-            borderColor: 'var(--glass-border)',
-            background: 'var(--glass)',
-            backdropFilter: 'blur(20px)',
-          }}
-        >
-          {/* Credits */}
-          <div
-            className="hud-stat-segment flex-1 px-6 md:px-8 py-8 transition-colors duration-200 md:border-r"
-            style={{ borderColor: 'var(--glass-border)' }}
+        {/* CTA */}
+        <div style={{ padding: '32px 0 52px' }}>
+          <Link
+            href="/analyze"
+            className="btn-primary no-underline"
+            style={{ padding: '16px 44px' }}
           >
-            <div className="flex items-center gap-2 mb-3">
-              <span className="w-1 h-1 rounded-full shrink-0" style={{ background: 'var(--orange)', boxShadow: '0 0 6px var(--orange)' }} />
-              <span
-                className="text-[10px] uppercase font-medium font-orbitron"
-                style={{ color: 'var(--text-tertiary)', letterSpacing: '0.25em' }}
-              >
-                Credits
-              </span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} width={20} height={20}>
+              <circle cx={11} cy={11} r={8} />
+              <path d="M21 21l-4.35-4.35" />
+            </svg>
+            INITIALIZE SCAN
+          </Link>
+        </div>
+
+        {/* Stats grid */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '240px 1fr 240px',
+          gap: 0,
+          marginBottom: 52,
+          border: '1px solid var(--border)',
+          position: 'relative',
+        }}>
+          {/* Gradient border overlay */}
+          <div style={{
+            position: 'absolute',
+            inset: -1,
+            border: '1px solid transparent',
+            background: 'linear-gradient(135deg, rgba(255,106,0,0.2), transparent 30%, transparent 70%, rgba(255,106,0,0.1)) border-box',
+            WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
+            WebkitMaskComposite: 'xor',
+            maskComposite: 'exclude',
+            pointerEvents: 'none',
+          }} />
+
+          {/* Credits */}
+          <div className="stat-card-brutalist">
+            <div className="stat-label-brutalist">
+              <span className="blink-dot" /> // Credits
             </div>
-            <div
-              className="font-orbitron text-[36px] sm:text-[40px] tabular-nums mb-1"
-              style={{
-                fontWeight: 400,
-                letterSpacing: '0.06em',
-                color: isFounder ? 'var(--purple)' : credits > 0 ? 'var(--success)' : 'var(--danger)',
-              }}
-            >
+            <div className="stat-value-brutalist" style={{
+              color: isFounder ? 'var(--orange)' : credits > 0 ? 'var(--text)' : 'var(--red)',
+              textShadow: isFounder ? '0 0 30px rgba(255,106,0,0.2)' : 'none',
+            }}>
               {isFounder ? '∞' : credits}
             </div>
-            <p className="text-xs font-light m-0" style={{ color: 'var(--text-secondary)' }}>
-              {isFounder ? 'Founder access' : credits === 1 ? '1 scan remaining' : `${credits} scans available`}
-            </p>
+            <div style={{ fontFamily: 'var(--mono)', color: 'var(--text-dim)', fontSize: '0.62rem', letterSpacing: 1, textTransform: 'uppercase', marginTop: 8 }}>
+              {isFounder ? 'Founder access' : `${credits} scan${credits !== 1 ? 's' : ''} available`}
+            </div>
           </div>
 
-          {/* Avg + gauge */}
-          <div
-            className="hud-stat-segment flex-1 flex flex-col sm:flex-row items-center justify-center gap-6 px-6 md:px-8 py-8 transition-colors duration-200 md:border-r"
-            style={{ borderColor: 'var(--glass-border)' }}
-          >
-            <ScoreArcGauge score={avgScore} />
-            <div className="text-center sm:text-left">
-              <div className="flex items-center gap-2 justify-center sm:justify-start mb-2">
-                <span className="w-1 h-1 rounded-full shrink-0" style={{ background: 'var(--orange)', boxShadow: '0 0 6px var(--orange)' }} />
-                <span
-                  className="text-[10px] uppercase font-medium font-orbitron"
-                  style={{ color: 'var(--text-tertiary)', letterSpacing: '0.25em' }}
-                >
-                  Avg score
-                </span>
+          {/* Score */}
+          <div className="stat-card-brutalist">
+            <div className="stat-label-brutalist">
+              <span className="blink-dot" /> // Avg Score
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 28 }}>
+              <div className="score-block-brutalist">
+                <div className="num">{avgScore ?? '—'}</div>
+                <div className="corner-bl" />
               </div>
-              <p className="text-sm font-light m-0 mb-1" style={{ color: 'var(--text-secondary)' }}>
-                Out of 100
-              </p>
-              <p className="text-xs font-light m-0" style={{ color: 'var(--text-tertiary)' }}>
-                {scoreMeta}
-              </p>
+              <div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: '0.62rem', letterSpacing: 1, textTransform: 'uppercase' }}>
+                  <div style={{ color: 'var(--text-mid)' }}>Out of 100</div>
+                  {avgScore !== null && avgScore < 60 && (
+                    <div style={{ color: 'var(--red)', marginTop: 5, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ animation: 'blink 1.5s step-end infinite' }}>!!</span> {scoreMeta}
+                    </div>
+                  )}
+                  {avgScore !== null && avgScore >= 60 && (
+                    <div style={{ color: avgScore >= 80 ? 'var(--green)' : 'var(--warning)', marginTop: 5 }}>
+                      {scoreMeta}
+                    </div>
+                  )}
+                  {avgScore === null && (
+                    <div style={{ color: 'var(--text-dim)', marginTop: 5 }}>{scoreMeta}</div>
+                  )}
+                </div>
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: '0.5rem', color: 'var(--text-dim)', letterSpacing: 1, marginBottom: 4 }}>
+                    PROGRESS {avgScore ?? 0}/100
+                  </div>
+                  <div className="score-bar-bg">
+                    <div className="score-bar-fill" style={{ width: `${scorePct}%` }} />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Total scans */}
-          <div className="hud-stat-segment flex-1 px-6 md:px-8 py-8 transition-colors duration-200">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="w-1 h-1 rounded-full shrink-0" style={{ background: 'var(--orange)', boxShadow: '0 0 6px var(--orange)' }} />
-              <span
-                className="text-[10px] uppercase font-medium font-orbitron"
-                style={{ color: 'var(--text-tertiary)', letterSpacing: '0.25em' }}
-              >
-                Total scans
-              </span>
+          {/* Total Scans */}
+          <div className="stat-card-brutalist">
+            <div className="stat-label-brutalist">
+              <span className="blink-dot" /> // Total Scans
             </div>
-            <div
-              className="font-orbitron text-[36px] sm:text-[40px] tabular-nums mb-1"
-              style={{ fontWeight: 400, letterSpacing: '0.06em', color: 'var(--text-primary)' }}
-            >
+            <div className="stat-value-brutalist" style={{ color: 'var(--text)' }}>
               {scanCount}
             </div>
-            <p className="text-xs font-light m-0" style={{ color: 'var(--text-secondary)' }}>
+            <div style={{ fontFamily: 'var(--mono)', color: 'var(--text-dim)', fontSize: '0.62rem', letterSpacing: 1, textTransform: 'uppercase', marginTop: 8 }}>
               Lifetime analyses
-            </p>
+            </div>
           </div>
         </div>
 
-        {/* Bento */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5 mb-8">
+        {/* Steps */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 0,
+          marginBottom: 52,
+          border: '1px solid var(--border)',
+        }}>
           {bento.map((card) => (
             <Link
               key={card.href}
               href={card.href}
-              className="group relative no-underline rounded-xl p-6 border transition-all duration-250 hover:-translate-y-0.5"
-              style={{
-                borderColor: 'var(--glass-border)',
-                background: 'var(--glass)',
-              }}
+              className="step-brutalist no-underline"
             >
-              <div className="flex items-start justify-between mb-4">
-                <span
-                  className="font-orbitron text-[10px]"
-                  style={{ color: 'var(--text-tertiary)', letterSpacing: '0.2em' }}
-                >
-                  {card.n}
-                </span>
-                <span
-                  className="text-lg leading-none transition-colors duration-200 group-hover:text-[var(--orange)]"
-                  style={{ color: 'var(--text-tertiary)' }}
-                >
-                  →
-                </span>
+              <div style={{
+                fontFamily: 'var(--display)',
+                fontSize: '2.4rem',
+                color: 'rgba(255,106,0,0.12)',
+                marginBottom: 12,
+                letterSpacing: 2,
+              }}>
+                {card.n}
               </div>
-              <h3 className="text-base font-medium mb-2 m-0 font-outfit" style={{ color: 'var(--text-primary)' }}>
+              <h3 style={{
+                fontFamily: 'var(--body)',
+                fontSize: '1rem',
+                fontWeight: 700,
+                marginBottom: 6,
+                letterSpacing: 0.3,
+                color: 'var(--text)',
+                position: 'relative',
+                zIndex: 1,
+              }}>
                 {card.title}
               </h3>
-              <p className="text-[13px] leading-relaxed font-light m-0" style={{ color: 'var(--text-secondary)' }}>
+              <p style={{
+                fontFamily: 'var(--body)',
+                color: 'var(--text-dim)',
+                fontSize: '0.78rem',
+                lineHeight: 1.5,
+                position: 'relative',
+                zIndex: 1,
+                margin: 0,
+              }}>
                 {card.body}
               </p>
+              <div style={{
+                position: 'absolute',
+                top: 28,
+                right: 24,
+                color: 'var(--orange)',
+                fontFamily: 'var(--mono)',
+                fontSize: '0.9rem',
+                opacity: 0,
+                transform: 'translateX(-8px)',
+                transition: 'all 0.25s',
+              }}
+              className="step-arrow"
+              >
+                →
+              </div>
             </Link>
           ))}
         </div>
 
-        {/* Recent scans table */}
-        <div
-          className="rounded-xl border overflow-hidden"
-          style={{ borderColor: 'var(--glass-border)', background: 'var(--glass)' }}
-        >
-          <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'rgba(255,106,0,0.04)' }}>
-            <span
-              className="font-orbitron text-[10px] tracking-[0.2em] uppercase"
-              style={{ color: 'var(--text-tertiary)' }}
-            >
-              Recent scans
-            </span>
+        {/* Recent Scans */}
+        <div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '14px 0',
+            borderBottom: '2px solid var(--orange)',
+            position: 'relative',
+          }}>
+            <div style={{
+              fontFamily: 'var(--mono)',
+              fontSize: '0.58rem',
+              letterSpacing: 2.5,
+              textTransform: 'uppercase',
+              color: 'var(--text-dim)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+            }}>
+              <span className="blink-dot" style={{ background: 'var(--green)', boxShadow: '0 0 4px rgba(34,197,94,0.5)' }} />
+              // Recent Scans
+            </div>
             {recentScans.length > 0 && (
-              <Link href="/history" className="text-[11px] no-underline font-medium font-outfit transition-colors hover:opacity-90" style={{ color: 'var(--orange)' }}>
+              <Link
+                href="/history"
+                className="no-underline"
+                style={{
+                  color: 'var(--orange)',
+                  fontFamily: 'var(--mono)',
+                  fontSize: '0.62rem',
+                  letterSpacing: 1.5,
+                  textTransform: 'uppercase',
+                  transition: 'all 0.2s',
+                }}
+              >
                 View all →
               </Link>
             )}
           </div>
 
           {recentScans.length === 0 ? (
-            <div className="px-5 py-16 text-center">
-              <p className="text-sm font-medium mb-2 font-outfit" style={{ color: 'var(--text-secondary)' }}>
+            <div style={{ padding: '48px 16px', textAlign: 'center' }}>
+              <p style={{ fontFamily: 'var(--body)', fontSize: '0.84rem', color: 'var(--text-mid)', marginBottom: 8 }}>
                 No scans yet
               </p>
-              <p className="text-sm font-light max-w-xs mx-auto m-0" style={{ color: 'var(--text-tertiary)' }}>
+              <p style={{ fontFamily: 'var(--mono)', fontSize: '0.68rem', color: 'var(--text-dim)', margin: 0 }}>
                 Initialize a scan to populate this log.
               </p>
             </div>
           ) : (
-            <div className="divide-y" style={{ borderColor: 'rgba(255,106,0,0.04)' }}>
-              {recentScans.map((scan, i) => (
-                <Link
-                  key={scan.scanId}
-                  href={`/history/${scan.scanId}`}
-                  className="hud-scan-row px-4 sm:px-5 py-3.5 no-underline font-outfit"
-                >
-                  <span className="text-xs tabular-nums font-orbitron font-normal" style={{ color: 'var(--text-tertiary)' }}>
-                    #{String(i + 1).padStart(2, '0')}
-                  </span>
-                  <span className="text-sm truncate min-w-0" style={{ color: 'var(--text-secondary)' }}>
-                    {new Date(scan.createdAt).toLocaleString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                  <span className="hud-scan-id text-xs truncate font-mono min-w-0" style={{ color: 'var(--text-tertiary)' }}>
-                    {shortScanId(scan.scanId)}
-                  </span>
-                  <span className="font-orbitron text-sm tabular-nums text-right font-normal" style={{ color: scoreColor(scan.score) }}>
-                    {scan.score}
-                  </span>
-                  <div className="flex justify-end">
-                    <span
-                      className="text-[10px] uppercase px-2 py-1 font-orbitron font-medium"
-                      style={{
-                        color: 'var(--success)',
-                        background: 'rgba(0,214,143,0.08)',
-                        border: '1px solid rgba(0,214,143,0.25)',
-                        borderRadius: 4,
-                        letterSpacing: '0.12em',
-                      }}
-                    >
-                      Complete
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            <table className="tbl-brutalist">
+              <tbody>
+                {recentScans.map((scan, i) => (
+                  <tr key={scan.scanId} onClick={() => {}} style={{ cursor: 'pointer' }}>
+                    <td>
+                      <Link href={`/history/${scan.scanId}`} className="no-underline" style={{ fontFamily: 'var(--mono)', color: 'var(--orange)', fontWeight: 700, fontSize: '0.72rem' }}>
+                        #{String(i + 1).padStart(2, '0')}
+                      </Link>
+                    </td>
+                    <td style={{ color: 'var(--text-mid)', fontSize: '0.78rem', fontFamily: 'var(--body)' }}>
+                      {new Date(scan.createdAt).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                    <td style={{ fontFamily: 'var(--mono)', color: 'var(--text-dim)', fontSize: '0.68rem', textAlign: 'center', letterSpacing: 0.5 }}>
+                      {shortScanId(scan.scanId)}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span className={`pill ${scan.score >= 60 ? 'pill-g' : 'pill-r'}`}>
+                        {scan.score}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      <span style={{
+                        fontFamily: 'var(--mono)',
+                        fontSize: '0.6rem',
+                        fontWeight: 700,
+                        letterSpacing: 2,
+                        padding: '5px 16px',
+                        color: 'var(--green)',
+                        border: '1px solid rgba(34,197,94,0.2)',
+                        background: 'rgba(34,197,94,0.04)',
+                      }}>
+                        COMPLETE
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
 
         {!isFounder && credits <= 1 && (
-          <div className="mt-12 text-center">
-            <Link href="/pricing" className="text-sm no-underline font-medium font-outfit" style={{ color: 'var(--orange)' }}>
+          <div style={{ marginTop: 40, textAlign: 'center' }}>
+            <Link href="/pricing" className="no-underline" style={{
+              fontFamily: 'var(--mono)',
+              fontSize: '0.68rem',
+              color: 'var(--orange)',
+              letterSpacing: 1.5,
+              textTransform: 'uppercase',
+            }}>
               Need more credits? View plans →
             </Link>
           </div>
         )}
+
+        {/* Status bar */}
+        <div className="status-bar-brutalist">
+          <div className="status-live">System operational</div>
+          <div>Luminetic v2.0 // Los Angeles, CA</div>
+          <div>&copy; 2026 SLTR Digital LLC</div>
+        </div>
       </div>
     </div>
   );

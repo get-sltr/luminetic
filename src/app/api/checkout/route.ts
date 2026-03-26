@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import { getSquareClient, SQUARE_LOCATION_ID, SCAN_PACKS } from "@/lib/square";
+import { getSquareClient, SQUARE_LOCATION_ID } from "@/lib/square";
 import { checkoutLimiter } from "@/lib/rate-limit";
+import { SCAN_PACKS } from "@/lib/scan-packs";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 
@@ -78,9 +79,6 @@ export async function POST(request: NextRequest) {
     }
     const errorMessage = error instanceof Error ? error.message : "Checkout failed.";
     console.error("[checkout] Error:", errorMessage, error);
-    return NextResponse.json(
-      { error: errorMessage || "Checkout failed. Please try again." },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Checkout failed. Please try again." }, { status: 500 });
   }
 }

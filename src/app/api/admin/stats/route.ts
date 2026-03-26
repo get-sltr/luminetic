@@ -2,12 +2,11 @@ import { NextResponse } from 'next/server';
 import { getAuthUser } from '@/lib/auth';
 import { requireAdmin } from '@/lib/admin';
 import { listUsers } from '@/lib/db';
+import { SCAN_PACKS } from '@/lib/scan-packs';
 
-const PLAN_PRICES: Record<string, number> = {
-  starter: 15,
-  pro: 40,
-  agency: 119,
-};
+const PLAN_PRICES = Object.fromEntries(
+  SCAN_PACKS.map((pack) => [pack.id, pack.priceInCents / 100]),
+);
 
 export async function GET() {
   const auth = await getAuthUser();

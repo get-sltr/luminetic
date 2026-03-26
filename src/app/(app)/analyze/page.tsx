@@ -6,7 +6,7 @@ import AnalysisResults from '@/components/AnalysisResults';
 import TestDownloader from '@/components/TestDownloader';
 import { IconCheck, IconZap, IconBrain, IconWarning, IconX } from '@/components/icons';
 
-type Step = 'idle' | 'uploading' | 'extracting' | 'gemini' | 'claude-sonnet' | 'claude-opus' | 'generating-tests' | 'done' | 'error';
+type Step = 'idle' | 'uploading' | 'extracting' | 'primary' | 'secondary' | 'deep' | 'generating-tests' | 'done' | 'error';
 
 interface MergedResult {
   guidelines: unknown[];
@@ -31,7 +31,7 @@ interface MergedResult {
 
 const PROGRESS_STEPS = [
   { keys: ['extracting'], label: 'Extracting app metadata...', Icon: IconZap },
-  { keys: ['gemini', 'claude-sonnet', 'claude-opus'], label: 'Running AI analysis...', Icon: IconBrain },
+  { keys: ['primary', 'secondary', 'deep'], label: 'Running AI analysis...', Icon: IconBrain },
   { keys: ['generating-tests'], label: 'Generating test suite...', Icon: IconCheck },
 ];
 
@@ -282,9 +282,9 @@ export default function AnalyzePage() {
               if (eventType === 'status') {
                 const s = data.step;
                 if (s === 'extracting') setStep('extracting');
-                else if (s === 'gemini') setStep('gemini');
-                else if (s === 'claude-sonnet') setStep('claude-sonnet');
-                else if (s === 'claude-opus') setStep('claude-opus');
+                else if (s === 'gemini') setStep('primary');
+                else if (s === 'claude-sonnet') setStep('secondary');
+                else if (s === 'claude-opus') setStep('deep');
                 else if (s === 'generating-tests') setStep('generating-tests');
               } else if (eventType === 'result') {
                 setResult(data.result);

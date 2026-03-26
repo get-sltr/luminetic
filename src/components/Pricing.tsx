@@ -2,26 +2,27 @@
 
 import { useEffect, useRef } from 'react';
 import { IconCheck } from '@/components/icons';
+import { SCAN_PACKS } from '@/lib/scan-packs';
 
 const tiers = [
   {
-    tier: 'Starter',
-    price: '$15',
-    period: '/ 1 scan',
+    tier: SCAN_PACKS[0].name,
+    price: `$${SCAN_PACKS[0].priceInCents / 100}`,
+    period: `/ ${SCAN_PACKS[0].scans} scan`,
     features: ['1 dual-model AI analysis', 'Pre-flight checklist', 'Review packet generator', 'Action plan with priorities'],
     featured: false,
   },
   {
-    tier: 'Pro',
-    price: '$40',
-    period: '/ 3 scans',
+    tier: SCAN_PACKS[1].name,
+    price: `$${SCAN_PACKS[1].priceInCents / 100}`,
+    period: `/ ${SCAN_PACKS[1].scans} scans`,
     features: ['3 dual-model AI analyses', 'Maestro & Detox test gen', 'Build Memory intelligence', 'Score trend tracking'],
     featured: true,
   },
   {
-    tier: 'Agency',
-    price: '$149',
-    period: '/ 10 scans',
+    tier: SCAN_PACKS[2].name,
+    price: `$${SCAN_PACKS[2].priceInCents / 100}`,
+    period: `/ ${SCAN_PACKS[2].scans} scans`,
     features: ['10 dual-model AI analyses', 'Everything in Pro', 'Multi-app support', 'Priority analysis'],
     featured: false,
   },

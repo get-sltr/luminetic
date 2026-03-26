@@ -7,10 +7,13 @@ vi.mock("@/lib/auth", () => ({
 vi.mock("@/lib/square", () => ({
   getSquareClient: vi.fn(),
   SQUARE_LOCATION_ID: "TEST_LOCATION",
+}));
+
+vi.mock("@/lib/scan-packs", () => ({
   SCAN_PACKS: [
     { id: "starter", name: "Starter", scans: 1, priceInCents: 1500 },
     { id: "pro", name: "Pro", scans: 3, priceInCents: 4000 },
-    { id: "agency", name: "Agency", scans: 10, priceInCents: 14900 },
+    { id: "agency", name: "Agency", scans: 10, priceInCents: 11900 },
   ],
 }));
 
@@ -139,6 +142,6 @@ describe("POST /api/checkout", () => {
     const res = await POST(makeRequest({ packId: "starter" }));
     expect(res.status).toBe(500);
     const data = await res.json();
-    expect(data.error).not.toContain("Square API");
+    expect(data.error).toBe("Checkout failed. Please try again.");
   });
 });

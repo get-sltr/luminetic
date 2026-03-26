@@ -1,12 +1,12 @@
 'use client';
 
-import { IconWarning, IconCheck, IconShield } from '@/components/icons';
+import { IconWarning, IconShield } from '@/components/icons';
 
 const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
-  gemini_confirmed: { label: 'Gemini Confirmed', color: '#60a5fa' },
-  claude_added:     { label: 'Claude Added',     color: '#a78bfa' },
-  claude_corrected: { label: 'Claude Corrected', color: '#fb923c' },
-  gemini_only:      { label: 'Gemini',           color: '#60a5fa' },
+  gemini_confirmed: { label: 'Confirmed',  color: '#60a5fa' },
+  claude_added:     { label: 'Added',      color: '#a78bfa' },
+  claude_corrected: { label: 'Corrected',  color: '#fb923c' },
+  gemini_only:      { label: 'Primary',    color: '#60a5fa' },
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -19,12 +19,6 @@ const CONFIDENCE_COLORS: Record<string, string> = {
   high:   '#4ade80',
   medium: '#facc15',
   low:    '#f87171',
-};
-
-const MODEL_DISPLAY: Record<string, string> = {
-  'gemini-2.5-pro': 'Gemini',
-  'claude-sonnet': 'Sonnet',
-  'claude-opus': 'Opus',
 };
 
 function formatDurationMs(ms: number): string {
@@ -41,10 +35,8 @@ function formatDurationMs(ms: number): string {
 }
 
 function formatModelsUsed(models: string[] | undefined): string {
-  if (!models?.length) return 'Models: —';
-  return models
-    .map((id) => MODEL_DISPLAY[id] || id.replace(/-/g, ' '))
-    .join(' · ');
+  if (!models?.length) return '—';
+  return `${models.length} engine${models.length === 1 ? '' : 's'}`;
 }
 
 interface Issue {

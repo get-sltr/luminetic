@@ -1,22 +1,8 @@
 import type { Metadata } from "next";
-import { Orbitron, Outfit } from "next/font/google";
 import Script from "next/script";
 import AmbientHud from "@/components/AmbientHud";
 import "./globals.css";
-
-const orbitron = Orbitron({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-orbitron",
-  display: "swap",
-});
-
-const outfit = Outfit({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
-  variable: "--font-outfit",
-  display: "swap",
-});
+import { SCAN_PACKS } from "@/lib/scan-packs";
 
 export const metadata: Metadata = {
   title: {
@@ -101,22 +87,22 @@ const jsonLd = {
   offers: [
     {
       "@type": "Offer",
-      name: "Starter",
-      price: "15.00",
+      name: SCAN_PACKS[0].name,
+      price: (SCAN_PACKS[0].priceInCents / 100).toFixed(2),
       priceCurrency: "USD",
       description: "1 scan with dual-model AI analysis",
     },
     {
       "@type": "Offer",
-      name: "Pro",
-      price: "40.00",
+      name: SCAN_PACKS[1].name,
+      price: (SCAN_PACKS[1].priceInCents / 100).toFixed(2),
       priceCurrency: "USD",
       description: "3 scans with Maestro & Detox test generation",
     },
     {
       "@type": "Offer",
-      name: "Agency",
-      price: "119.00",
+      name: SCAN_PACKS[2].name,
+      price: (SCAN_PACKS[2].priceInCents / 100).toFixed(2),
       priceCurrency: "USD",
       description: "10 scans with multi-app support and priority queue",
     },
@@ -136,6 +122,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
         <Script
           src="https://cdn.consentmanager.net/delivery/autoblocking/f2cd906b925a9.js"
           data-cmp-ab="1"
@@ -161,7 +151,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body className={`${orbitron.variable} ${outfit.variable} font-outfit antialiased`}>
+      <body className="font-outfit antialiased">
         <AmbientHud />
         <div className="relative z-10 min-h-screen">{children}</div>
       </body>

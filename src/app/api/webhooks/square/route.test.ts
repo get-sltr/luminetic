@@ -22,13 +22,10 @@ vi.mock("@aws-sdk/client-secrets-manager", () => ({
 }));
 
 vi.mock("@aws-sdk/lib-dynamodb", () => ({
-  UpdateCommand: class {
-    constructor(public input: unknown) {}
-  },
   GetCommand: class {
     constructor(public input: unknown) {}
   },
-  PutCommand: class {
+  TransactWriteCommand: class {
     constructor(public input: unknown) {}
   },
 }));
@@ -158,22 +155,22 @@ describe("POST /api/webhooks/square", () => {
   it("grants scan credits for completed starter payment", async () => {
     const res = await POST(makeWebhookRequest(completedPaymentEvent()));
     expect(res.status).toBe(200);
-    // 3 DB calls: check idempotency → update user credits → mark event processed
-    expect(dbSend).toHaveBeenCalledTimes(3);
+    // 2 DB calls: check idempotency → atomic credit grant + event marker
+    expect(dbSend).toHaveBeenCalledTimes(2);
   });
 
   it("grants scan credits for completed pro payment (3 scans)", async () => {
     const event = completedPaymentEvent({ packId: "pro", scans: "3" });
     const res = await POST(makeWebhookRequest(event));
     expect(res.status).toBe(200);
-    expect(dbSend).toHaveBeenCalledTimes(3);
+    expect(dbSend).toHaveBeenCalledTimes(2);
   });
 
   it("grants scan credits for completed agency payment (10 scans)", async () => {
     const event = completedPaymentEvent({ packId: "agency", scans: "10" });
     const res = await POST(makeWebhookRequest(event));
     expect(res.status).toBe(200);
-    expect(dbSend).toHaveBeenCalledTimes(3);
+    expect(dbSend).toHaveBeenCalledTimes(2);
   });
 
   it("grants credits when webhook has only orderId (fetches Order metadata via Square API)", async () => {
@@ -205,7 +202,7 @@ describe("POST /api/webhooks/square", () => {
     const res = await POST(makeWebhookRequest(event));
     expect(res.status).toBe(200);
     expect(getSquareClientMock).toHaveBeenCalled();
-    expect(dbSend).toHaveBeenCalledTimes(3);
+    expect(dbSend).toHaveBeenCalledTimes(2);
   });
 
   it("handles payment.updated event type the same as payment.created", async () => {
@@ -213,7 +210,7 @@ describe("POST /api/webhooks/square", () => {
     event.type = "payment.updated";
     const res = await POST(makeWebhookRequest(event));
     expect(res.status).toBe(200);
-    expect(dbSend).toHaveBeenCalledTimes(3);
+    expect(dbSend).toHaveBeenCalledTimes(2);
   });
 
   // ── Metadata validation (guards against tampered webhooks) ─
