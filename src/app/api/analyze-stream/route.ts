@@ -3,6 +3,8 @@
 // Phase 2: Gemini 2.5 Pro → Claude Sonnet → Claude Opus
 // Phase 3: Generate Maestro + Detox tests
 
+export const maxDuration = 120; // 2 minutes — 3 sequential AI model calls need more than the 30s default
+
 import { NextRequest } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyToken } from "@/lib/auth";
