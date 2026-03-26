@@ -57,6 +57,13 @@ describe("POST /api/auth/login", () => {
     expect(res.status).toBe(400);
   });
 
+  it("allows 8-char passwords to reach Cognito auth", async () => {
+    vi.mocked(signIn).mockRejectedValue(new Error("NotAuthorizedException: Incorrect username or password"));
+    const res = await POST(makeRequest({ email: "test@test.com", password: "Passw0rd" }));
+    expect(res.status).toBe(401);
+    expect(signIn).toHaveBeenCalledWith("test@test.com", "Passw0rd");
+  });
+
   it("returns 429 when rate limited", async () => {
     vi.mocked(authLimiter.check).mockReturnValue({ allowed: false, retryAfterMs: 5000 });
     const res = await POST(makeRequest({ email: "test@test.com", password: "password12345" }));
