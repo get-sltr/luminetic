@@ -406,7 +406,8 @@ export default function AnalyzePage() {
                   Secure Upload
                 </div>
                 <p style={{ fontFamily: 'var(--body)', fontSize: '0.78rem', color: 'var(--text-dim)', lineHeight: 1.6, margin: 0 }}>
-                  Your IPA file is uploaded to a secure server with AES-256 encryption and strict access controls. Only you and the Luminetic analysis engine have access. Your IPA will be automatically deleted within 7 days after you submit your app for review.
+                  Your IPA file is uploaded to a secure server with AES-256 encryption and strict access controls. Only you and the Luminetic analysis engine have access. Your IPA will be automatically deleted within 7 days. Questions? Reach us at{' '}
+                  <a href="mailto:hello@luminetic.io" style={{ color: 'var(--orange)', textDecoration: 'none', fontWeight: 600 }}>hello@luminetic.io</a>
                 </p>
               </div>
             </div>
