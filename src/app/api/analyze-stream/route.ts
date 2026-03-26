@@ -404,81 +404,80 @@ export async function POST(request: NextRequest) {
           contextForAI = (parsed.feedback || parsed.email || parsed.text)!.trim().slice(0, 10000);
         }
 
-        // PHASE 2: AI Analysis
+        // PHASE 2: AI Analysis — Gemini + Sonnet run in parallel, then Opus reconciles
 
-        // Model 1: Gemini 2.5 Pro
-        sendEvent(controller, "status", { step: "gemini", message: "Scanning with Gemini 2.5 Pro..." });
+        sendEvent(controller, "status", { step: "gemini", message: "Scanning with Gemini 2.5 Pro & Claude Sonnet..." });
 
-        let geminiData: Record<string, unknown> | null = null;
-        let geminiLatency = 0;
-        let geminiSuccess = false;
+        // Run Gemini and Sonnet in parallel (both analyze metadata independently)
+        const geminiPromise = (async () => {
+          const start = Date.now();
+          try {
+            const apiKey = await getGeminiKey();
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro", generationConfig: { temperature: 0.2, maxOutputTokens: 8192 } });
+            const prompt = isIpaFlow
+              ? `Analyze this iOS app's metadata for App Store Review compliance:\n\n${contextForAI}`
+              : `Analyze this App Store review feedback:\n\n${contextForAI}`;
+            const result = await model.generateContent([
+              { text: GEMINI_SYSTEM_PROMPT },
+              { text: prompt },
+            ]);
+            const raw = result.response.text();
+            const cleaned = raw.replace(/```json\s*|```/g, "").trim();
+            return { data: JSON.parse(cleaned) as Record<string, unknown>, success: true, latency: Date.now() - start };
+          } catch (err) {
+            console.error("[Gemini error]", err);
+            return { data: null, success: false, latency: Date.now() - start };
+          }
+        })();
 
-        const gStart = Date.now();
-        try {
-          const apiKey = await getGeminiKey();
-          const genAI = new GoogleGenerativeAI(apiKey);
-          const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro", generationConfig: { temperature: 0.2, maxOutputTokens: 8192 } });
-          const prompt = isIpaFlow
-            ? `Analyze this iOS app's metadata for App Store Review compliance:\n\n${contextForAI}`
-            : `Analyze this App Store review feedback:\n\n${contextForAI}`;
-          const result = await model.generateContent([
-            { text: GEMINI_SYSTEM_PROMPT },
-            { text: prompt },
-          ]);
-          const raw = result.response.text();
-          const cleaned = raw.replace(/```json\s*|```/g, "").trim();
-          geminiData = JSON.parse(cleaned);
-          geminiSuccess = true;
-        } catch (err) {
-          console.error("[Gemini error]", err);
-        }
-        geminiLatency = Date.now() - gStart;
+        const sonnetPromise = (async () => {
+          const start = Date.now();
+          try {
+            const userMessage = isIpaFlow
+              ? `APP METADATA:\n${contextForAI}\n\nAnalyze this iOS app's metadata for App Store Review compliance. Identify issues, validate privacy configurations, check framework-specific requirements, and verify all preflight checks.`
+              : `FEEDBACK:\n${contextForAI}\n\nAnalyze this App Store review feedback for compliance issues.`;
+
+            const payload = {
+              anthropic_version: "bedrock-2023-05-31",
+              max_tokens: 4096,
+              temperature: 0.2,
+              system: CLAUDE_SONNET_PROMPT,
+              messages: [{ role: "user", content: userMessage }],
+            };
+
+            const command = new InvokeModelCommand({
+              modelId: "us.anthropic.claude-sonnet-4-20250514-v1:0",
+              contentType: "application/json",
+              accept: "application/json",
+              body: JSON.stringify(payload),
+            });
+
+            const response = await bedrock.send(command);
+            const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+            const raw = responseBody?.content?.[0]?.text;
+            if (!raw) throw new Error("Empty response from Sonnet");
+            const cleaned = raw.replace(/```json\s*|```/g, "").trim();
+            return { data: JSON.parse(cleaned) as Record<string, unknown>, success: true, latency: Date.now() - start };
+          } catch (err) {
+            console.error("[Sonnet error]", err);
+            return { data: null, success: false, latency: Date.now() - start };
+          }
+        })();
+
+        const [geminiResult, sonnetResult] = await Promise.all([geminiPromise, sonnetPromise]);
+
+        const geminiData = geminiResult.data;
+        const geminiLatency = geminiResult.latency;
+        const geminiSuccess = geminiResult.success;
+        const sonnetData = sonnetResult.data;
+        const sonnetLatency = sonnetResult.latency;
+        const sonnetSuccess = sonnetResult.success;
 
         sendEvent(controller, "status", { step: "gemini_done", success: geminiSuccess, latency: geminiLatency });
-
-        // Model 2: Claude Sonnet (validation layer)
-        sendEvent(controller, "status", { step: "claude-sonnet", message: "Validating with Claude Sonnet..." });
-
-        let sonnetData: Record<string, unknown> | null = null;
-        let sonnetLatency = 0;
-        let sonnetSuccess = false;
-        const sStart = Date.now();
-
-        try {
-          const userMessage = isIpaFlow
-            ? `APP METADATA:\n${contextForAI}\n\nGEMINI ANALYSIS:\n${JSON.stringify(geminiData, null, 2)}\n\nValidate and enhance the analysis.`
-            : `FEEDBACK:\n${contextForAI}\n\nGEMINI ANALYSIS:\n${JSON.stringify(geminiData, null, 2)}\n\nValidate and enhance.`;
-
-          const payload = {
-            anthropic_version: "bedrock-2023-05-31",
-            max_tokens: 4096,
-            temperature: 0.2,
-            system: CLAUDE_SONNET_PROMPT,
-            messages: [{ role: "user", content: userMessage }],
-          };
-
-          const command = new InvokeModelCommand({
-            modelId: "us.anthropic.claude-sonnet-4-20250514-v1:0",
-            contentType: "application/json",
-            accept: "application/json",
-            body: JSON.stringify(payload),
-          });
-
-          const response = await bedrock.send(command);
-          const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-          const raw = responseBody?.content?.[0]?.text;
-          if (!raw) throw new Error("Empty response from Sonnet");
-          const cleaned = raw.replace(/```json\s*|```/g, "").trim();
-          sonnetData = JSON.parse(cleaned);
-          sonnetSuccess = true;
-        } catch (err) {
-          console.error("[Sonnet error]", err);
-        }
-        sonnetLatency = Date.now() - sStart;
-
         sendEvent(controller, "status", { step: "sonnet_done", success: sonnetSuccess, latency: sonnetLatency });
 
-        // Model 3: Claude Opus (deep reconciliation)
+        // Model 3: Claude Opus (reconciles Gemini + Sonnet findings)
         sendEvent(controller, "status", { step: "claude-opus", message: "Deep analysis with Claude Opus..." });
 
         let opusData: Record<string, unknown> | null = null;
@@ -488,7 +487,7 @@ export async function POST(request: NextRequest) {
 
         try {
           const contextLabel = isIpaFlow ? "APP METADATA" : "FEEDBACK";
-          const userMessage = `${contextLabel}:\n${contextForAI}\n\nGEMINI ANALYSIS:\n${JSON.stringify(geminiData, null, 2)}\n\nCLAUDE SONNET VALIDATION:\n${JSON.stringify(sonnetData, null, 2)}\n\nReconcile all findings and produce the final assessment.`;
+          const userMessage = `${contextLabel}:\n${contextForAI}\n\nGEMINI ANALYSIS:\n${JSON.stringify(geminiData, null, 2)}\n\nCLAUDE SONNET ANALYSIS:\n${JSON.stringify(sonnetData, null, 2)}\n\nReconcile all findings and produce the final assessment.`;
 
           const payload = {
             anthropic_version: "bedrock-2023-05-31",
