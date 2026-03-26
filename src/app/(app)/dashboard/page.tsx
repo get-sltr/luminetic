@@ -389,7 +389,7 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
             <table className="tbl-brutalist">
               <tbody>
                 {recentScans.map((scan, i) => (
-                  <tr key={scan.scanId} onClick={() => {}} style={{ cursor: 'pointer' }}>
+                  <tr key={scan.scanId} style={{ cursor: 'pointer' }}>
                     <td>
                       <Link href={`/history/${scan.scanId}`} className="no-underline" style={{ fontFamily: 'var(--mono)', color: 'var(--orange)', fontWeight: 700, fontSize: '0.72rem' }}>
                         #{String(i + 1).padStart(2, '0')}
