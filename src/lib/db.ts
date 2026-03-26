@@ -169,7 +169,10 @@ export async function getAllScansWithIssues(userId: string) {
 }
 
 export async function getScan(userId: string, scanId: string) {
-  // Query by GSI to find by scanId
+  // Fetch by direct key lookup using GetCommand for efficiency
+  // SK format: SCAN#<timestamp>#<scanId> — since we don't know the timestamp,
+  // query all scans and filter. Do NOT use Limit with FilterExpression
+  // (Limit applies before filter, causing missed results).
   const res = await db.send(new QueryCommand({
     TableName: TABLE,
     KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
@@ -179,7 +182,6 @@ export async function getScan(userId: string, scanId: string) {
       ":prefix": "SCAN#",
       ":sid": scanId,
     },
-    Limit: 1,
   }));
   return res.Items?.[0] || null;
 }
