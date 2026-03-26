@@ -15,6 +15,12 @@ const SEVERITY_COLORS: Record<string, string> = {
   minor:    '#facc15',
 };
 
+const SEVERITY_BG: Record<string, string> = {
+  critical: 'rgba(248,113,113,0.06)',
+  major:    'rgba(251,146,60,0.06)',
+  minor:    'rgba(250,204,21,0.04)',
+};
+
 const CONFIDENCE_COLORS: Record<string, string> = {
   high:   '#4ade80',
   medium: '#facc15',
@@ -83,130 +89,189 @@ interface MergedResult {
   };
 }
 
-function ScoreGauge({ score }: { score: number }) {
-  const color = score >= 80 ? '#4ade80' : score >= 60 ? '#facc15' : '#f87171';
-  const radius = 58;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-
-  return (
-    <div className="relative w-[148px] h-[148px] flex items-center justify-center">
-      <svg width="148" height="148" className="absolute -rotate-90">
-        <circle cx="74" cy="74" r={radius} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
-        <circle
-          cx="74" cy="74" r={radius} fill="none"
-          stroke={color}
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={offset}
-          style={{
-            transition: 'stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1)',
-            filter: `drop-shadow(0 0 8px ${color}66)`,
-          }}
-        />
-      </svg>
-      <div className="text-center z-10">
-        <span className="text-3xl font-bold" style={{ fontFamily: "var(--font-heading)", color }}>{score}</span>
-        <div className="text-[9px] tracking-[2px] uppercase" style={{ color: 'var(--gray)' }}>/ 100</div>
-      </div>
-    </div>
-  );
-}
-
 export default function AnalysisResults({ result }: { result: MergedResult }) {
   const { guidelines, issues, action_plan, assessment, meta } = result;
 
+  const scorePct = Math.max(1, assessment.score);
+
   return (
-    <div className="flex flex-col gap-6 animate-fade-in-up">
-      {/* Header row: score + meta */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 48 }}>
+
+      {/* ── Score + Assessment ── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '220px 1fr',
+        gap: 0,
+        border: '1px solid var(--border)',
+        position: 'relative',
+      }}>
+        {/* Gradient border */}
+        <div style={{
+          position: 'absolute', inset: -1,
+          border: '1px solid transparent',
+          background: 'linear-gradient(135deg, rgba(255,106,0,0.2), transparent 30%, transparent 70%, rgba(255,106,0,0.1)) border-box',
+          WebkitMask: 'linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0)',
+          WebkitMaskComposite: 'xor', maskComposite: 'exclude',
+          pointerEvents: 'none',
+        }} />
+
         {/* Score */}
-        <div className="glass-card rounded-2xl p-6 flex flex-col items-center justify-center relative overflow-hidden">
-          <div className="glow-line" />
-          <div className="text-[10px] tracking-[3px] uppercase mb-4" style={{ color: 'var(--gray)' }}>Readiness Score</div>
-          <ScoreGauge score={assessment.score} />
+        <div className="stat-card-brutalist" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: '0.56rem', letterSpacing: 2.5, textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span className="blink-dot" /> Readiness Score
+          </div>
+          <div className="score-block-brutalist">
+            <div className="num">{assessment.score}</div>
+            <div className="corner-bl" />
+          </div>
+          <div style={{ width: '100%', marginTop: 20 }}>
+            <div style={{ fontFamily: 'var(--mono)', fontSize: '0.5rem', color: 'var(--text-dim)', letterSpacing: 1, marginBottom: 4 }}>
+              SCORE {assessment.score}/100
+            </div>
+            <div className="score-bar-bg">
+              <div className="score-bar-fill" style={{ width: `${scorePct}%` }} />
+            </div>
+          </div>
         </div>
 
-        {/* Summary */}
-        <div className="glass-card rounded-2xl md:col-span-2 p-6 relative overflow-hidden">
-          <div className="glow-line" />
-          <div className="text-[10px] tracking-[3px] uppercase mb-3" style={{ color: 'var(--gray)' }}>Assessment</div>
-          <p className="text-[14px] leading-relaxed mb-4" style={{ color: 'rgba(255,255,255,0.8)' }}>
+        {/* Assessment */}
+        <div style={{ padding: '32px 36px', borderLeft: '1px solid var(--border)' }}>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: '0.56rem', letterSpacing: 2.5, textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: 16 }}>
+            // Assessment
+          </div>
+          <p style={{
+            fontFamily: 'var(--body)',
+            fontSize: '0.92rem',
+            lineHeight: 1.7,
+            color: 'var(--text-mid)',
+            margin: '0 0 20px',
+          }}>
             {assessment.summary}
           </p>
-          <div className="flex flex-wrap gap-2">
-            <span
-              className="badge"
-              style={{ color: CONFIDENCE_COLORS[assessment.confidence] || 'var(--gray)', borderColor: `${CONFIDENCE_COLORS[assessment.confidence] || 'var(--gray)'}66` }}
-            >
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <span style={{
+              fontFamily: 'var(--mono)', fontSize: '0.6rem', letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 700,
+              padding: '6px 14px',
+              color: CONFIDENCE_COLORS[assessment.confidence] || 'var(--text-dim)',
+              border: `1px solid ${CONFIDENCE_COLORS[assessment.confidence] || 'var(--border)'}33`,
+              background: `${CONFIDENCE_COLORS[assessment.confidence] || 'var(--border)'}0a`,
+            }}>
               {assessment.confidence} confidence
             </span>
-            <span className="badge" style={{ color: 'var(--gray)', borderColor: 'var(--border)' }}>
+            <span style={{
+              fontFamily: 'var(--mono)', fontSize: '0.6rem', letterSpacing: 1.5, textTransform: 'uppercase',
+              padding: '6px 14px',
+              color: 'var(--text-dim)',
+              border: '1px solid var(--border)',
+            }}>
               {assessment.agreement_level.replace('_', ' ')} agreement
             </span>
-            <span
-              className="badge badge-metric"
-              style={{ color: 'var(--gray)', borderColor: 'var(--border)' }}
-              title="Total analysis time and models that responded"
-            >
+            <span style={{
+              fontFamily: 'var(--mono)', fontSize: '0.6rem', letterSpacing: 1.5, textTransform: 'uppercase',
+              padding: '6px 14px',
+              color: 'var(--text-dim)',
+              border: '1px solid var(--border)',
+            }}>
               {formatDurationMs(meta.total_latency_ms)} · {formatModelsUsed(meta.models_used)}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Guidelines */}
+      {/* ── Guidelines ── */}
       {guidelines.length > 0 && (
-        <div className="glass-card rounded-2xl p-6 relative overflow-hidden">
-          <div className="glow-line" />
-          <div className="text-[10px] tracking-[3px] uppercase mb-4" style={{ color: 'var(--gray)' }}>Guidelines Referenced</div>
-          <div className="flex flex-wrap gap-3">
+        <div>
+          <div style={{
+            fontFamily: 'var(--mono)', fontSize: '0.58rem', letterSpacing: 2.5, textTransform: 'uppercase',
+            color: 'var(--text-dim)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <span className="blink-dot" style={{ background: 'var(--orange)', boxShadow: '0 0 4px rgba(255,106,0,0.5)' }} />
+            // Guidelines Referenced
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {(guidelines as Guideline[]).map((g) => (
-              <div key={g.section} className="badge rounded-lg" style={{ background: 'rgba(255,106,0,0.04)', borderColor: 'var(--orange-dim)', padding: '8px 12px' }}>
+              <div key={g.section} style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 14px',
+                border: '1px solid var(--orange-dim)',
+                background: 'rgba(255,106,0,0.03)',
+                fontFamily: 'var(--mono)', fontSize: '0.62rem',
+              }}>
                 <IconShield width={12} height={12} style={{ color: 'var(--orange)', opacity: 0.6 }} />
-                <span className="text-[11px] font-medium" style={{ color: 'var(--orange)', fontFamily: "var(--font-heading)" }}>
-                  &sect;{g.section}
-                </span>
-                <span className="text-[12px]" style={{ color: 'rgba(255,255,255,0.7)' }}>{g.name}</span>
+                <span style={{ color: 'var(--orange)', fontWeight: 700 }}>&sect;{g.section}</span>
+                <span style={{ color: 'var(--text-mid)' }}>{g.name}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Issues */}
+      {/* ── Issues ── */}
       {issues.length > 0 && (
         <div>
-          <div className="section-label mb-3" style={{ letterSpacing: '3px' }}>
-            Issues Identified ({issues.length})
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '14px 0', borderBottom: '2px solid var(--orange)', marginBottom: 20,
+          }}>
+            <div style={{
+              fontFamily: 'var(--mono)', fontSize: '0.58rem', letterSpacing: 2.5, textTransform: 'uppercase',
+              color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <span className="blink-dot" style={{ background: 'var(--red)', boxShadow: '0 0 4px rgba(248,113,113,0.5)' }} />
+              // Issues Identified
+            </div>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '0.6rem', color: 'var(--orange)', fontWeight: 700 }}>
+              {issues.length} FOUND
+            </span>
           </div>
-          <div className="flex flex-col gap-3">
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {(issues as Issue[]).map((issue, i) => (
               <div
                 key={i}
-                className="glass-card rounded-2xl px-5 py-4 relative overflow-hidden"
-                style={{ borderLeft: `3px solid ${SEVERITY_COLORS[issue.severity] || 'var(--border)'}` }}
+                style={{
+                  padding: '24px 28px',
+                  border: '1px solid var(--border)',
+                  borderLeft: `3px solid ${SEVERITY_COLORS[issue.severity] || 'var(--border)'}`,
+                  background: SEVERITY_BG[issue.severity] || 'transparent',
+                  transition: 'border-color 0.2s',
+                }}
               >
-                <div className="glow-line" />
-                <div className="flex items-start justify-between gap-4 mb-2">
-                  <span className="text-[14px]" style={{ color: 'rgba(255,255,255,0.9)' }}>{issue.issue}</span>
-                  <div className="flex items-center gap-2 shrink-0">
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: issue.evidence ? 12 : 0 }}>
+                  <span style={{ fontFamily: 'var(--body)', fontSize: '0.88rem', fontWeight: 600, color: 'var(--text)', lineHeight: 1.5 }}>
+                    {issue.issue}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                     {issue.source && SOURCE_LABELS[issue.source] && (
-                      <span className="badge rounded-full" style={{ color: SOURCE_LABELS[issue.source].color, borderColor: `${SOURCE_LABELS[issue.source].color}44` }}>
+                      <span style={{
+                        fontFamily: 'var(--mono)', fontSize: '0.56rem', letterSpacing: 1.5, textTransform: 'uppercase',
+                        padding: '4px 10px', fontWeight: 700,
+                        color: SOURCE_LABELS[issue.source].color,
+                        border: `1px solid ${SOURCE_LABELS[issue.source].color}33`,
+                      }}>
                         {SOURCE_LABELS[issue.source].label}
                       </span>
                     )}
-                    <span className="badge rounded-full" style={{ color: SEVERITY_COLORS[issue.severity], borderColor: `${SEVERITY_COLORS[issue.severity]}44` }}>
+                    <span style={{
+                      fontFamily: 'var(--mono)', fontSize: '0.56rem', letterSpacing: 1.5, textTransform: 'uppercase',
+                      padding: '4px 10px', fontWeight: 700,
+                      color: SEVERITY_COLORS[issue.severity],
+                      border: `1px solid ${SEVERITY_COLORS[issue.severity]}33`,
+                      background: `${SEVERITY_COLORS[issue.severity]}0a`,
+                    }}>
                       {issue.severity}
                     </span>
                   </div>
                 </div>
                 {issue.evidence && (
-                  <p className="text-[12px]" style={{ color: 'var(--gray)' }}>{issue.evidence}</p>
+                  <p style={{ fontFamily: 'var(--mono)', fontSize: '0.72rem', color: 'var(--text-dim)', lineHeight: 1.6, margin: 0 }}>
+                    {issue.evidence}
+                  </p>
                 )}
                 {issue.guideline_section && (
-                  <span className="text-[11px] mt-1 inline-block" style={{ color: 'var(--orange)' }}>&sect;{issue.guideline_section}</span>
+                  <span style={{ display: 'inline-block', marginTop: 8, fontFamily: 'var(--mono)', fontSize: '0.62rem', color: 'var(--orange)', fontWeight: 700 }}>
+                    &sect;{issue.guideline_section}
+                  </span>
                 )}
               </div>
             ))}
@@ -214,70 +279,116 @@ export default function AnalysisResults({ result }: { result: MergedResult }) {
         </div>
       )}
 
-      {/* Action Plan */}
+      {/* ── Action Plan ── */}
       {action_plan.length > 0 && (
         <div>
-          <div className="section-label mb-3" style={{ letterSpacing: '3px' }}>
-            Action Plan ({action_plan.length} steps)
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '14px 0', borderBottom: '2px solid var(--orange)', marginBottom: 20,
+          }}>
+            <div style={{
+              fontFamily: 'var(--mono)', fontSize: '0.58rem', letterSpacing: 2.5, textTransform: 'uppercase',
+              color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <span className="blink-dot" style={{ background: 'var(--green)', boxShadow: '0 0 4px rgba(34,197,94,0.5)' }} />
+              // Action Plan
+            </div>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '0.6rem', color: 'var(--orange)', fontWeight: 700 }}>
+              {action_plan.length} STEPS
+            </span>
           </div>
-          <div className="relative">
-            {/* Vertical connecting line */}
-            <div
-              className="absolute left-[19px] top-8 bottom-8 w-[1px]"
-              style={{ background: 'linear-gradient(180deg, var(--orange-dim), var(--border))' }}
-            />
-            <div className="flex flex-col gap-3">
-              {(action_plan as Action[]).map((action, i) => (
-                <div
-                  key={i}
-                  className="glass-card rounded-2xl px-5 py-5 relative overflow-hidden"
-                >
-                  <div className="glow-line" />
-                  <div className="flex items-start gap-4">
-                    <span
-                      className="shrink-0 w-10 h-10 flex items-center justify-center text-[13px] font-bold rounded-full relative z-10"
-                      style={{ background: 'rgba(255,106,0,0.1)', border: '1px solid var(--orange-dim)', color: 'var(--orange)', fontFamily: "var(--font-heading)" }}
-                    >
-                      {action.priority}
-                    </span>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between gap-3 mb-1.5">
-                        <span className="text-[14px] font-medium" style={{ color: 'rgba(255,255,255,0.9)' }}>{action.action}</span>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {action.source && SOURCE_LABELS[action.source] && (
-                            <span className="badge rounded-full" style={{ color: SOURCE_LABELS[action.source].color, borderColor: `${SOURCE_LABELS[action.source].color}44` }}>
-                              {SOURCE_LABELS[action.source].label}
-                            </span>
-                          )}
-                          {action.confidence && (
-                            <span className="badge rounded-full" style={{ color: CONFIDENCE_COLORS[action.confidence], borderColor: `${CONFIDENCE_COLORS[action.confidence]}44` }}>
-                              {action.confidence}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <p className="text-[13px] mb-2 leading-relaxed" style={{ color: 'var(--gray)' }}>{action.details}</p>
-                      <span className="text-[11px] flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg>
-                        {action.estimated_effort}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, position: 'relative' }}>
+            {/* Vertical line */}
+            <div style={{
+              position: 'absolute', left: 23, top: 40, bottom: 40, width: 1,
+              background: 'linear-gradient(180deg, var(--orange-dim), var(--border))',
+            }} />
+
+            {(action_plan as Action[]).map((action, i) => (
+              <div
+                key={i}
+                style={{
+                  padding: '24px 28px 24px 72px',
+                  border: '1px solid var(--border)',
+                  position: 'relative',
+                  transition: 'border-color 0.2s',
+                }}
+              >
+                {/* Priority number */}
+                <div style={{
+                  position: 'absolute', left: 12, top: 22,
+                  width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: 'var(--display)', fontSize: '1rem', color: 'var(--orange)',
+                  background: 'rgba(255,106,0,0.08)', border: '1px solid var(--orange-dim)',
+                  zIndex: 1,
+                }}>
+                  {action.priority}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 8 }}>
+                  <span style={{ fontFamily: 'var(--body)', fontSize: '0.88rem', fontWeight: 600, color: 'var(--text)', lineHeight: 1.4 }}>
+                    {action.action}
+                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                    {action.source && SOURCE_LABELS[action.source] && (
+                      <span style={{
+                        fontFamily: 'var(--mono)', fontSize: '0.56rem', letterSpacing: 1.5, textTransform: 'uppercase',
+                        padding: '4px 10px', fontWeight: 700,
+                        color: SOURCE_LABELS[action.source].color,
+                        border: `1px solid ${SOURCE_LABELS[action.source].color}33`,
+                      }}>
+                        {SOURCE_LABELS[action.source].label}
                       </span>
-                    </div>
+                    )}
+                    {action.confidence && (
+                      <span style={{
+                        fontFamily: 'var(--mono)', fontSize: '0.56rem', letterSpacing: 1.5, textTransform: 'uppercase',
+                        padding: '4px 10px', fontWeight: 700,
+                        color: CONFIDENCE_COLORS[action.confidence],
+                        border: `1px solid ${CONFIDENCE_COLORS[action.confidence]}33`,
+                      }}>
+                        {action.confidence}
+                      </span>
+                    )}
                   </div>
                 </div>
-              ))}
-            </div>
+
+                <p style={{ fontFamily: 'var(--body)', fontSize: '0.82rem', color: 'var(--text-dim)', lineHeight: 1.6, margin: '0 0 10px' }}>
+                  {action.details}
+                </p>
+
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  fontFamily: 'var(--mono)', fontSize: '0.6rem', color: 'var(--text-dim)', letterSpacing: 1,
+                }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg>
+                  {action.estimated_effort}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       )}
 
-      {/* Risk Factors */}
+      {/* ── Risk Factors ── */}
       {assessment.risk_factors?.length > 0 && (
-        <div className="glass-card rounded-2xl p-6 relative overflow-hidden" style={{ borderColor: 'rgba(251,191,36,0.2)' }}>
-          <div className="glow-line" style={{ background: 'linear-gradient(90deg, transparent, rgba(251,191,36,0.3), transparent)' }} />
-          <div className="text-[10px] tracking-[3px] uppercase mb-3 font-medium" style={{ color: 'var(--amber)' }}>Remaining Risk Factors</div>
-          <ul className="flex flex-col gap-2.5 list-none p-0">
+        <div style={{
+          padding: '28px 32px',
+          border: '1px solid rgba(251,191,36,0.2)',
+          borderLeft: '3px solid var(--amber)',
+          background: 'rgba(251,191,36,0.03)',
+        }}>
+          <div style={{
+            fontFamily: 'var(--mono)', fontSize: '0.58rem', letterSpacing: 2.5, textTransform: 'uppercase',
+            color: 'var(--amber)', fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <span style={{ animation: 'blink 1.5s step-end infinite' }}>!!</span>
+            Remaining Risk Factors
+          </div>
+          <ul style={{ display: 'flex', flexDirection: 'column', gap: 12, listStyle: 'none', padding: 0, margin: 0 }}>
             {assessment.risk_factors.map((risk, i) => (
-              <li key={i} className="flex items-start gap-2.5 text-[13px]" style={{ color: 'rgba(255,255,255,0.7)' }}>
+              <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontFamily: 'var(--body)', fontSize: '0.82rem', color: 'var(--text-mid)', lineHeight: 1.5 }}>
                 <IconWarning width={14} height={14} className="shrink-0 mt-0.5" style={{ color: 'var(--amber)' }} />
                 {risk}
               </li>

@@ -58,26 +58,45 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
   }
 
   return (
-    <div className="mt-8">
-      <div className="text-[10px] tracking-[3px] uppercase mb-4" style={{ color: 'var(--gray)' }}>
-        Test Generation
+    <div style={{ marginTop: 48 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '14px 0', borderBottom: '2px solid var(--orange)', marginBottom: 24,
+      }}>
+        <div style={{
+          fontFamily: 'var(--mono)', fontSize: '0.58rem', letterSpacing: 2.5, textTransform: 'uppercase',
+          color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span className="blink-dot" style={{ background: 'var(--blue)', boxShadow: '0 0 4px rgba(96,165,250,0.5)' }} />
+          // Test Generation
+        </div>
       </div>
 
       {status === 'idle' || status === 'error' ? (
-        <div className="glass-card p-6 relative overflow-hidden rounded-2xl">
-          <div className="glow-line" />
-          <div className="mb-5">
-            <h3 className="text-[16px] font-medium mb-1" style={{ fontFamily: "var(--font-heading)" }}>
-              Generate Maestro &amp; Detox Test Suite
-            </h3>
-            <p className="text-[13px]" style={{ color: 'var(--gray)' }}>
-              AI-generated test scripts targeting each issue found in your analysis.
-            </p>
-          </div>
+        <div style={{
+          padding: '32px 36px',
+          border: '1px solid var(--border)',
+          background: 'rgba(255,255,255,0.015)',
+        }}>
+          <h3 style={{
+            fontFamily: 'var(--display)', fontSize: '1.4rem', letterSpacing: 2,
+            color: 'var(--text)', margin: '0 0 8px',
+          }}>
+            GENERATE TEST SUITE
+          </h3>
+          <p style={{
+            fontFamily: 'var(--body)', fontSize: '0.82rem', color: 'var(--text-dim)',
+            margin: '0 0 28px', lineHeight: 1.6,
+          }}>
+            AI-generated Maestro &amp; Detox test scripts targeting each issue found in your analysis.
+          </p>
 
-          <div className="flex flex-col gap-3 mb-5">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28 }}>
             <div>
-              <label className="block text-[11px] tracking-[2px] uppercase mb-1.5" style={{ color: 'var(--gray)' }}>
+              <label style={{
+                display: 'block', fontFamily: 'var(--mono)', fontSize: '0.58rem',
+                letterSpacing: 2, textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: 8,
+              }}>
                 Bundle ID (optional)
               </label>
               <input
@@ -85,106 +104,154 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
                 value={appId}
                 onChange={(e) => setAppId(e.target.value)}
                 placeholder="com.yourcompany.yourapp"
-                className="input-field max-w-[360px]"
+                style={{
+                  width: '100%', maxWidth: 360,
+                  background: 'rgba(255,255,255,0.02)',
+                  border: '1px solid var(--border)',
+                  padding: '12px 16px',
+                  color: 'var(--white)',
+                  fontFamily: 'var(--mono)',
+                  fontSize: '0.78rem',
+                  outline: 'none',
+                }}
               />
             </div>
 
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
               <input
                 type="checkbox"
                 checked={includeDetox}
                 onChange={(e) => setIncludeDetox(e.target.checked)}
                 className="accent-[#ff6a00]"
               />
-              <span className="text-[12px]" style={{ color: 'var(--gray)' }}>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: '0.72rem', color: 'var(--text-mid)' }}>
                 Include Detox tests (React Native)
               </span>
             </label>
           </div>
 
           {error && (
-            <div className="glass-card text-[13px] px-4 py-3 mb-4 rounded-xl"
-              style={{ color: 'var(--red)', background: 'rgba(248,113,113,0.05)', borderColor: 'rgba(248,113,113,0.15)' }}>
+            <div style={{
+              padding: '14px 18px', marginBottom: 20,
+              background: 'rgba(248,113,113,0.04)',
+              border: '1px solid rgba(248,113,113,0.15)',
+              borderLeft: '3px solid var(--red)',
+              fontFamily: 'var(--mono)', fontSize: '0.72rem', color: 'var(--red)',
+            }}>
               {error}
             </div>
           )}
 
-          <button onClick={handleGenerate} className="btn-primary px-6 py-3 text-[12px] tracking-[2px] uppercase">
-            Generate Test Suite &rarr;
+          <button onClick={handleGenerate} className="btn-primary" style={{ padding: '14px 32px' }}>
+            GENERATE TEST SUITE
           </button>
         </div>
       ) : status === 'generating' ? (
-        <div className="glass-card p-8 flex flex-col items-center justify-center gap-3 rounded-2xl" style={{ minHeight: '160px' }}>
-          <div className="flex items-center gap-3">
-            <span className="w-3 h-3 rounded-full animate-pulse" style={{ background: 'var(--orange)' }} />
-            <span className="text-[13px]">Generating test scripts...</span>
+        <div style={{
+          padding: '48px 36px',
+          border: '1px solid var(--border)',
+          background: 'rgba(255,255,255,0.015)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16,
+          minHeight: 180,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className="blink-dot" style={{ width: 8, height: 8, background: 'var(--orange)', boxShadow: '0 0 12px rgba(255,106,0,0.4)' }} />
+            <span style={{ fontFamily: 'var(--mono)', fontSize: '0.78rem', color: 'var(--text)', letterSpacing: 1 }}>
+              Generating test scripts...
+            </span>
           </div>
-          <p className="text-[12px]" style={{ color: 'var(--gray)' }}>
-            AI is customizing Maestro{includeDetox ? ' & Detox' : ''} templates for your issues
+          <p style={{ fontFamily: 'var(--mono)', fontSize: '0.68rem', color: 'var(--text-dim)', margin: 0 }}>
+            Customizing Maestro{includeDetox ? ' & Detox' : ''} templates for your issues
           </p>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* Download bar */}
-          <div className="glass-card glass-card-glow p-5 flex items-center justify-between relative overflow-hidden rounded-2xl">
-            <div className="glow-line" />
+          <div style={{
+            padding: '24px 28px',
+            border: '1px solid var(--orange-dim)',
+            background: 'rgba(255,106,0,0.03)',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          }}>
             <div>
-              <div className="text-[14px] font-medium mb-0.5" style={{ fontFamily: "var(--font-heading)" }}>
-                {tests.length} test {tests.length === 1 ? 'file' : 'files'} generated
+              <div style={{
+                fontFamily: 'var(--display)', fontSize: '1.1rem', letterSpacing: 2,
+                color: 'var(--text)', marginBottom: 4,
+              }}>
+                {tests.length} TEST {tests.length === 1 ? 'FILE' : 'FILES'} GENERATED
               </div>
               {expiresAt && (
-                <div className="text-[11px]" style={{ color: 'var(--gray)' }}>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: '0.62rem', color: 'var(--text-dim)', letterSpacing: 1 }}>
                   Download expires {new Date(expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                 </div>
               )}
             </div>
             {downloadUrl && (
-              <a href={downloadUrl} className="btn-primary inline-flex items-center gap-2 px-5 py-2.5 text-[12px] tracking-[2px] uppercase no-underline">
+              <a href={downloadUrl} className="btn-primary no-underline" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, padding: '12px 28px' }}>
                 <IconDownload width={14} height={14} />
-                Download ZIP
+                DOWNLOAD ZIP
               </a>
             )}
           </div>
 
           {/* File list */}
-          <div className="flex flex-col gap-1">
-            {tests.map((test) => (
-              <div key={test.filename}>
+          <div style={{ border: '1px solid var(--border)' }}>
+            {tests.map((test, i) => (
+              <div key={test.filename} style={{ borderTop: i > 0 ? '1px solid var(--border)' : 'none' }}>
                 <button
                   onClick={() => setPreviewFile(previewFile === test.filename ? null : test.filename)}
-                  className="w-full flex items-center justify-between px-5 py-3 text-left glass-card hover-bg cursor-pointer rounded-xl"
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '16px 20px', textAlign: 'left',
+                    background: 'transparent', border: 'none', cursor: 'pointer',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,106,0,0.03)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-[13px] text-white font-mono">{test.filename}</span>
-                    <span className="badge"
-                      style={{
-                        color: test.format === 'maestro' ? 'var(--blue)' : 'var(--purple)',
-                        borderColor: test.format === 'maestro' ? 'rgba(96,165,250,0.25)' : 'rgba(167,139,250,0.25)',
-                      }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: '0.76rem', color: 'var(--text)' }}>
+                      {test.filename}
+                    </span>
+                    <span style={{
+                      fontFamily: 'var(--mono)', fontSize: '0.56rem', letterSpacing: 1.5, textTransform: 'uppercase',
+                      padding: '3px 10px', fontWeight: 700,
+                      color: test.format === 'maestro' ? 'var(--blue)' : 'var(--purple)',
+                      border: `1px solid ${test.format === 'maestro' ? 'rgba(96,165,250,0.25)' : 'rgba(167,139,250,0.25)'}`,
+                    }}>
                       {test.format}
                     </span>
                   </div>
-                  <span className="text-[11px]" style={{ color: 'var(--gray)' }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: '0.68rem', color: 'var(--text-dim)' }}>
                     {previewFile === test.filename ? '▼' : '▶'}
                   </span>
                 </button>
 
                 {previewFile === test.filename && (
-                  <div className="px-5 pb-3 pt-1">
-                    <div className="text-[11px]" style={{ color: 'var(--gray)' }}>
+                  <div style={{
+                    padding: '12px 20px 16px',
+                    borderTop: '1px solid var(--border)',
+                    background: 'rgba(255,255,255,0.01)',
+                  }}>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: '0.68rem', color: 'var(--text-dim)', lineHeight: 1.5 }}>
                       {test.issueDescription}
-                    </div>
+                    </span>
                   </div>
                 )}
               </div>
             ))}
           </div>
 
-          <div className="text-center">
+          <div style={{ textAlign: 'center', paddingTop: 8 }}>
             <button
               onClick={() => { setStatus('idle'); setTests([]); setDownloadUrl(null); }}
-              className="text-[11px] tracking-[1.5px] uppercase bg-transparent border-none cursor-pointer hover-text"
-              style={{ color: 'var(--gray)' }}
+              style={{
+                fontFamily: 'var(--mono)', fontSize: '0.62rem', letterSpacing: 1.5, textTransform: 'uppercase',
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                color: 'var(--text-dim)', transition: 'color 0.2s',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.color = 'var(--orange)'}
+              onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-dim)'}
             >
               Regenerate with different options
             </button>
