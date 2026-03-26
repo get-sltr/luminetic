@@ -66,6 +66,7 @@ export default function AnalyzePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [showIpaGuide, setShowIpaGuide] = useState(false);
 
   const canSubmit = synopsis.trim() && s3Key && !uploading && step === 'idle';
 
@@ -386,6 +387,91 @@ export default function AnalyzePage() {
                       <IconX width={16} height={16} />
                     </button>
                   )}
+                </div>
+              )}
+            </div>
+
+            {/* Secure Upload notice */}
+            <div style={{
+              padding: '20px 24px',
+              border: '1px solid rgba(255,106,0,0.15)',
+              background: 'rgba(255,106,0,0.03)',
+              display: 'flex', alignItems: 'flex-start', gap: 14,
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--orange)', flexShrink: 0, marginTop: 2 }}>
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
+              </svg>
+              <div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: '0.62rem', letterSpacing: 2, textTransform: 'uppercase', color: 'var(--orange)', fontWeight: 700, marginBottom: 6 }}>
+                  Secure Upload
+                </div>
+                <p style={{ fontFamily: 'var(--body)', fontSize: '0.78rem', color: 'var(--text-dim)', lineHeight: 1.6, margin: 0 }}>
+                  Your IPA file is uploaded to a secure server with AES-256 encryption and strict access controls. Only you and the Luminetic analysis engine have access. Your IPA will be automatically deleted within 7 days after you submit your app for review.
+                </p>
+              </div>
+            </div>
+
+            {/* IPA generation guide */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowIpaGuide(!showIpaGuide)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                  background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                  fontFamily: 'var(--mono)', fontSize: '0.62rem', letterSpacing: 2, textTransform: 'uppercase',
+                  color: 'var(--orange)', transition: 'opacity 0.2s',
+                }}
+              >
+                <span style={{ fontSize: '0.72rem', transition: 'transform 0.2s', transform: showIpaGuide ? 'rotate(0deg)' : 'rotate(-90deg)' }}>▼</span>
+                {showIpaGuide ? 'Hide' : 'Show'} instructions for generating .ipa file
+              </button>
+
+              {showIpaGuide && (
+                <div style={{
+                  marginTop: 16, padding: '28px 32px',
+                  border: '1px solid var(--border)',
+                  background: 'rgba(255,255,255,0.015)',
+                }}>
+                  <h3 style={{ fontFamily: 'var(--display)', fontSize: '1.3rem', letterSpacing: 2, color: 'var(--text)', margin: '0 0 20px' }}>
+                    HOW TO GENERATE .IPA FILE IN XCODE
+                  </h3>
+                  <ol style={{ fontFamily: 'var(--body)', fontSize: '0.82rem', color: 'var(--text-mid)', lineHeight: 2.2, margin: 0, paddingLeft: 24, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <li>Open your project folder in Xcode</li>
+                    <li>In Xcode, select your project name in the left sidebar</li>
+                    <li>Select the <span style={{ fontFamily: 'var(--mono)', color: 'var(--orange)', fontSize: '0.78rem' }}>&quot;Your App Name&quot;</span> target under &quot;TARGETS&quot;</li>
+                    <li>Go to <span style={{ fontFamily: 'var(--mono)', color: 'var(--text)', fontWeight: 700 }}>Signing &amp; Capabilities</span> tab</li>
+                    <li>Under Team, select your developer account</li>
+                    <li>Make sure &quot;Automatically manage signing&quot; is checked</li>
+                    <li style={{ marginTop: 4 }}>
+                      In the top bar, change the destination from &quot;iPhone Simulator&quot; to Any iOS Device (arm64)
+                      <ul style={{ listStyle: 'disc', paddingLeft: 20, marginTop: 4, lineHeight: 1.8 }}>
+                        <li style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>Click where it says &quot;Your App Name &gt; iPhone 15 Pro&quot;</li>
+                        <li style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>Select <span style={{ fontFamily: 'var(--mono)', color: 'var(--text)', fontWeight: 700 }}>Any iOS Device (arm64)</span> from the dropdown</li>
+                      </ul>
+                    </li>
+                    <li>Go to menu: <span style={{ fontFamily: 'var(--mono)', color: 'var(--text)', fontWeight: 700 }}>Product → Archive</span></li>
+                    <li>Wait for it to build (you&apos;ll see progress in the top bar)</li>
+                    <li>In the Organizer, select your archive</li>
+                    <li>Click <span style={{ fontFamily: 'var(--mono)', color: 'var(--text)', fontWeight: 700 }}>Distribute App</span> button on the right</li>
+                    <li style={{ marginTop: 4 }}>
+                      You&apos;ll see these options:
+                      <ul style={{ listStyle: 'disc', paddingLeft: 20, marginTop: 4, lineHeight: 1.8 }}>
+                        <li style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>App Store Connect</li>
+                        <li style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>TestFlight Internal Only</li>
+                        <li style={{ fontSize: '0.78rem', color: 'var(--orange)', fontWeight: 700 }}>Release Testing ← SELECT THIS ONE</li>
+                        <li style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>Debugging</li>
+                        <li style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>Enterprise</li>
+                        <li style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>Custom</li>
+                      </ul>
+                    </li>
+                    <li>Click &quot;Release Testing&quot; → Click &quot;Distribute&quot;</li>
+                    <li>The build should take a few minutes</li>
+                    <li>Once it is ready click <span style={{ fontFamily: 'var(--mono)', color: 'var(--text)', fontWeight: 700 }}>Export</span></li>
+                    <li>Save it somewhere so you can access it later</li>
+                    <li>Now it will have <span style={{ fontFamily: 'var(--mono)', color: 'var(--orange)', fontWeight: 700 }}>appname.ipa</span></li>
+                    <li>Upload that .ipa file using the upload area above</li>
+                  </ol>
                 </div>
               )}
             </div>
