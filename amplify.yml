@@ -25,3 +25,5 @@ frontend:
     paths:
       - node_modules/**/*
       - .next/cache/**/*
+  computeConfig:
+    timeout: 120
