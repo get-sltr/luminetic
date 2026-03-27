@@ -18,6 +18,8 @@ const secretsClient = new SecretsManagerClient({
 let cachedGeminiKey: string | null = null;
 
 async function getGeminiKey(): Promise<string> {
+  const envKey = process.env.GEMINI_API_KEY;
+  if (envKey) return envKey;
   if (cachedGeminiKey) return cachedGeminiKey;
   const response = await secretsClient.send(
     new GetSecretValueCommand({ SecretId: "luminetic/gemini-api-key" })
@@ -25,7 +27,7 @@ async function getGeminiKey(): Promise<string> {
   const key = response.SecretString
     ? JSON.parse(response.SecretString).GEMINI_API_KEY
     : null;
-  if (!key) throw new Error("Gemini API key not found in Secrets Manager");
+  if (!key) throw new Error("Gemini API key not found (set GEMINI_API_KEY or luminetic/gemini-api-key in Secrets Manager)");
   cachedGeminiKey = key;
   return key;
 }

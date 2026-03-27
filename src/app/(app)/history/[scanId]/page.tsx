@@ -17,24 +17,103 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ sca
   const hasIssues = (mergedResult?.issues?.length || 0) > 0;
 
   return (
-    <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-12">
-      <div className="flex items-center gap-4 mb-10">
-        <Link href="/history" className="text-[12px] no-underline hover-text" style={{ color: 'var(--gray)' }}>
-          &larr; History
-        </Link>
-        <div className="w-px h-4" style={{ background: 'var(--border)' }} />
-        <div>
-          <div className="section-label mb-0.5">
-            Scan Result
-          </div>
-          <div className="text-[13px]" style={{ color: 'var(--gray)' }}>
-            {new Date(scan.createdAt as string).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-          </div>
-        </div>
-      </div>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 48px 80px' }}>
 
-      <AnalysisResults result={mergedResult} />
-      <TestDownloader scanId={scanId} hasIssues={hasIssues} />
+        {/* Hero */}
+        <div style={{ padding: '60px 0 20px', position: 'relative', overflow: 'hidden' }}>
+
+          {/* Back link */}
+          <Link
+            href="/history"
+            className="no-underline"
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: '0.6rem',
+              letterSpacing: 2,
+              textTransform: 'uppercase',
+              color: 'var(--text-dim)',
+              display: 'inline-block',
+              marginBottom: 28,
+              transition: 'color 0.2s',
+            }}
+            onMouseEnter={undefined}
+          >
+            ← HISTORY
+          </Link>
+
+          {/* Mono label */}
+          <div style={{
+            fontFamily: 'var(--mono)',
+            fontSize: '0.6rem',
+            letterSpacing: 2,
+            textTransform: 'uppercase',
+            color: 'var(--text-dim)',
+            marginBottom: 12,
+          }}>
+            <span style={{ color: 'var(--orange)', opacity: 0.5 }}>// </span>
+            scan result
+          </div>
+
+          {/* Heading */}
+          <h1 style={{
+            fontFamily: 'var(--display)',
+            fontSize: '5.5rem',
+            letterSpacing: 3,
+            lineHeight: 0.9,
+            margin: 0,
+            color: 'var(--text)',
+          }}>
+            SCAN REPORT
+          </h1>
+
+          {/* Date */}
+          <p style={{
+            fontFamily: 'var(--mono)',
+            fontSize: '0.68rem',
+            color: 'var(--text-dim)',
+            letterSpacing: 2,
+            textTransform: 'uppercase',
+            marginTop: 16,
+            marginBottom: 0,
+          }}>
+            <span style={{ color: 'var(--orange)', opacity: 0.5 }}>{'> '}</span>
+            {new Date(scan.createdAt as string).toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </p>
+
+          {/* Decorative orange gradient line */}
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            right: 0,
+            width: '40%',
+            height: 1,
+            background: 'linear-gradient(90deg, transparent, var(--orange), transparent)',
+            animation: 'pulse 4s ease-in-out infinite',
+            opacity: 0.3,
+          }} />
+        </div>
+
+        {/* Divider */}
+        <div style={{
+          height: 1,
+          background: 'var(--border)',
+          margin: '32px 0 48px',
+        }} />
+
+        {/* Results */}
+        <AnalysisResults result={mergedResult} />
+
+        {/* Downloads */}
+        <TestDownloader scanId={scanId} hasIssues={hasIssues} />
+      </div>
     </div>
   );
 }

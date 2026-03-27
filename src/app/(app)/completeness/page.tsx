@@ -47,21 +47,21 @@ const CHECKLIST_ITEMS: Omit<CheckItem, 'checked'>[] = [
 ];
 
 function ScoreGauge({ score }: { score: number }) {
-  const color = score >= 80 ? 'var(--green)' : score >= 50 ? 'var(--amber)' : 'var(--red)';
+  const color = score >= 80 ? 'var(--green)' : score >= 50 ? 'var(--warning)' : 'var(--red)';
   const rawColor = score >= 80 ? '#34d399' : score >= 50 ? '#fbbf24' : '#f87171';
   const radius = 58;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
 
   return (
-    <div className="relative w-[148px] h-[148px] flex items-center justify-center">
-      <svg width="148" height="148" className="absolute -rotate-90">
+    <div style={{ position: 'relative', width: 148, height: 148, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <svg width="148" height="148" style={{ position: 'absolute', transform: 'rotate(-90deg)' }}>
         <circle cx="74" cy="74" r={radius} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
         <circle
           cx="74" cy="74" r={radius} fill="none"
           stroke={rawColor}
           strokeWidth="8"
-          strokeLinecap="round"
+          strokeLinecap="square"
           strokeDasharray={circumference}
           strokeDashoffset={offset}
           style={{
@@ -70,9 +70,13 @@ function ScoreGauge({ score }: { score: number }) {
           }}
         />
       </svg>
-      <div className="text-center z-10">
-        <div className="text-3xl font-bold" style={{ fontFamily: "var(--font-heading)", color }}>{score}</div>
-        <div className="text-[10px] tracking-[2px] uppercase" style={{ color: 'var(--gray)' }}>/ 100</div>
+      <div style={{ textAlign: 'center', zIndex: 1 }}>
+        <div style={{ fontFamily: 'var(--display)', fontSize: '2.8rem', letterSpacing: 2, color, lineHeight: 1 }}>
+          {score}
+        </div>
+        <div style={{ fontFamily: 'var(--mono)', fontSize: '0.5rem', letterSpacing: 2, textTransform: 'uppercase', color: 'var(--text-dim)' }}>
+          / 100
+        </div>
       </div>
     </div>
   );
@@ -93,7 +97,7 @@ export default function CompletenessPage() {
 
   function getReadiness(): { label: string; color: string } {
     if (score >= 90) return { label: 'Ready to submit', color: 'var(--green)' };
-    if (score >= 70) return { label: 'Almost ready', color: 'var(--amber)' };
+    if (score >= 70) return { label: 'Almost ready', color: 'var(--warning)' };
     if (score >= 40) return { label: 'Needs work', color: '#fb923c' };
     return { label: 'Not ready', color: 'var(--red)' };
   }
@@ -101,109 +105,255 @@ export default function CompletenessPage() {
   const readiness = getReadiness();
 
   return (
-    <div className="max-w-[1100px] mx-auto px-6 md:px-10 py-12">
-      <div className="mb-10">
-        <div className="section-label mb-3">Pre-Flight Check</div>
-        <h1 className="page-title" style={{ fontFamily: "var(--font-heading)" }}>
-          Submission Readiness
-        </h1>
-      </div>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 48px 80px' }}>
 
-      {/* Score header */}
-      <div className="glass-card rounded-2xl p-8 mb-10 flex flex-col sm:flex-row items-center gap-8 relative overflow-hidden">
-        <div className="glow-line" />
-        <ScoreGauge score={score} />
-        <div className="text-center sm:text-left">
-          <div className="text-[22px] font-semibold mb-1" style={{ fontFamily: "var(--font-heading)" }}>
-            {checkedCount} / {items.length} checks passed
+        {/* Hero header */}
+        <div style={{ padding: '60px 0 20px', position: 'relative', overflow: 'hidden' }}>
+          <div style={{
+            fontFamily: 'var(--mono)',
+            fontSize: '0.5rem',
+            letterSpacing: 3,
+            textTransform: 'uppercase',
+            color: 'var(--orange)',
+            marginBottom: 12,
+          }}>
+            // pre-flight check
           </div>
-          <div className="text-[14px] mb-3" style={{ color: 'var(--gray)' }}>
-            Check off each item as you verify it in your app.
-          </div>
-          <span
-            className="badge"
-            style={{ color: readiness.color, borderColor: readiness.color }}
-          >
-            {readiness.label}
-          </span>
+          <h1 style={{
+            fontFamily: 'var(--display)',
+            fontSize: '5rem',
+            letterSpacing: 3,
+            lineHeight: 0.95,
+            margin: 0,
+            color: 'var(--text)',
+          }}>
+            SUBMISSION
+            <span style={{
+              display: 'block',
+              fontSize: '5.5rem',
+              color: 'var(--orange)',
+              textShadow: '0 0 40px rgba(255,106,0,0.2), 0 0 80px rgba(255,106,0,0.1)',
+            }}>
+              READINESS
+            </span>
+          </h1>
+
+          {/* Decorative orange gradient line */}
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            right: 0,
+            width: '40%',
+            height: 1,
+            background: 'linear-gradient(90deg, transparent, var(--orange), transparent)',
+            animation: 'pulse 4s ease-in-out infinite',
+            opacity: 0.3,
+          }} />
         </div>
-      </div>
 
-      {/* Checklist by category */}
-      <div className="flex flex-col gap-10">
-        {categories.map((category) => {
-          const catItems = items.filter((i) => i.category === category);
-          const catDone = catItems.filter((i) => i.checked).length;
-          const catProgress = Math.round((catDone / catItems.length) * 100);
+        {/* Score header card */}
+        <div style={{
+          border: '1px solid var(--border)',
+          background: 'rgba(255,255,255,0.02)',
+          padding: '40px 44px',
+          marginBottom: 52,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 44,
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          {/* Top accent line */}
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 2,
+            background: 'linear-gradient(90deg, var(--orange), transparent)',
+          }} />
 
-          return (
-            <div key={category}>
-              <div className="flex items-center justify-between mb-3">
-                <div className="section-label" style={{ letterSpacing: '3px' }}>
-                  {category}
+          <ScoreGauge score={score} />
+
+          <div>
+            <div style={{
+              fontFamily: 'var(--display)',
+              fontSize: '2rem',
+              letterSpacing: 2,
+              color: 'var(--text)',
+              marginBottom: 6,
+            }}>
+              {checkedCount} / {items.length} CHECKS PASSED
+            </div>
+            <div style={{
+              fontFamily: 'var(--body)',
+              fontSize: '0.84rem',
+              color: 'var(--text-dim)',
+              marginBottom: 16,
+            }}>
+              Check off each item as you verify it in your app.
+            </div>
+            <span style={{
+              fontFamily: 'var(--mono)',
+              fontSize: '0.58rem',
+              letterSpacing: 2,
+              textTransform: 'uppercase',
+              padding: '6px 16px',
+              color: readiness.color,
+              border: `1px solid ${readiness.color}`,
+              background: 'transparent',
+            }}>
+              {readiness.label}
+            </span>
+          </div>
+        </div>
+
+        {/* Checklist by category */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 52 }}>
+          {categories.map((category) => {
+            const catItems = items.filter((i) => i.category === category);
+            const catDone = catItems.filter((i) => i.checked).length;
+            const catProgress = Math.round((catDone / catItems.length) * 100);
+
+            return (
+              <div key={category}>
+                {/* Category header */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingBottom: 14,
+                  borderBottom: '2px solid var(--orange)',
+                  marginBottom: 16,
+                }}>
+                  <div style={{
+                    fontFamily: 'var(--mono)',
+                    fontSize: '0.5rem',
+                    letterSpacing: 3,
+                    textTransform: 'uppercase',
+                    color: 'var(--orange)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}>
+                    <span className="blink-dot" style={{ background: catProgress === 100 ? 'var(--green)' : 'var(--orange)', boxShadow: catProgress === 100 ? '0 0 4px rgba(34,197,94,0.5)' : '0 0 4px rgba(255,106,0,0.4)' }} />
+                    // {category}
+                  </div>
+                  <div style={{
+                    fontFamily: 'var(--mono)',
+                    fontSize: '0.58rem',
+                    letterSpacing: 1,
+                    color: catProgress === 100 ? 'var(--green)' : 'var(--text-dim)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    {catDone} / {catItems.length}
+                  </div>
                 </div>
-                <div className="text-[11px] tracking-[1px] tabular-nums" style={{ color: 'var(--gray)' }}>
-                  {catDone} / {catItems.length}
-                </div>
-              </div>
 
-              {/* Category progress bar */}
-              <div className="h-1 rounded-full mb-4 overflow-hidden" style={{ background: 'var(--surface-2)' }}>
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
+                {/* Category progress bar */}
+                <div style={{
+                  height: 2,
+                  marginBottom: 20,
+                  overflow: 'hidden',
+                  background: 'var(--border)',
+                }}>
+                  <div style={{
+                    height: '100%',
                     width: `${catProgress}%`,
-                    background: catProgress === 100 ? 'var(--green)' : 'var(--gradient-accent)',
-                  }}
-                />
-              </div>
+                    background: catProgress === 100 ? 'var(--green)' : 'var(--orange)',
+                    transition: 'width 0.5s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }} />
+                </div>
 
-              <div className="flex flex-col gap-2">
-                {catItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => toggle(item.id)}
-                    className={`glass-card rounded-xl w-full flex items-start gap-4 p-5 text-left cursor-pointer transition-all duration-200 ${item.checked ? '' : 'hover-bg'}`}
-                    style={{
-                      background: item.checked ? 'rgba(52,211,153,0.03)' : undefined,
-                      borderColor: item.checked ? 'rgba(52,211,153,0.15)' : undefined,
-                    }}
-                  >
-                    <div
-                      className="w-5 h-5 rounded-md shrink-0 flex items-center justify-center mt-0.5 transition-all duration-200"
+                {/* Checklist items */}
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {catItems.map((item, idx) => (
+                    <button
+                      key={item.id}
+                      onClick={() => toggle(item.id)}
                       style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 18,
+                        padding: '20px 24px',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        width: '100%',
+                        border: '1px solid var(--border)',
+                        marginTop: idx === 0 ? 0 : -1,
+                        background: item.checked ? 'rgba(52,211,153,0.02)' : 'rgba(255,255,255,0.02)',
+                        transition: 'background 0.2s',
+                        fontFamily: 'inherit',
+                        color: 'inherit',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!item.checked) e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = item.checked ? 'rgba(52,211,153,0.02)' : 'rgba(255,255,255,0.02)';
+                      }}
+                    >
+                      {/* Checkbox — sharp square, no rounding */}
+                      <div style={{
+                        width: 20,
+                        height: 20,
+                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginTop: 2,
                         background: item.checked ? 'var(--green)' : 'transparent',
                         border: item.checked ? '1px solid var(--green)' : '1px solid var(--border)',
                         boxShadow: item.checked ? '0 0 8px rgba(52,211,153,0.3)' : 'none',
-                      }}
-                    >
-                      {item.checked && <IconCheck width={12} height={12} style={{ color: '#000' }} />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-1">
-                        <span
-                          className="text-[14px] font-medium transition-all duration-200"
-                          style={{
-                            color: item.checked ? 'var(--gray)' : 'var(--white)',
-                            textDecoration: item.checked ? 'line-through' : 'none',
-                          }}
-                        >
-                          {item.label}
-                        </span>
-                        <span className="badge rounded-md shrink-0" style={{ color: 'var(--gray)', borderColor: 'var(--border)', padding: '2px 6px', fontSize: '9px' }}>
-                          {item.guidelineRef}
-                        </span>
+                        transition: 'all 0.2s',
+                      }}>
+                        {item.checked && <IconCheck width={12} height={12} style={{ color: '#000' }} />}
                       </div>
-                      <p className="text-[12px] leading-relaxed" style={{ color: 'var(--gray)' }}>
-                        {item.description}
-                      </p>
-                    </div>
-                  </button>
-                ))}
+
+                      {/* Content */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+                          <span style={{
+                            fontFamily: 'var(--body)',
+                            fontSize: '0.88rem',
+                            fontWeight: 500,
+                            color: item.checked ? 'var(--text-dim)' : 'var(--text)',
+                            textDecoration: item.checked ? 'line-through' : 'none',
+                            transition: 'all 0.2s',
+                          }}>
+                            {item.label}
+                          </span>
+                          <span style={{
+                            fontFamily: 'var(--mono)',
+                            fontSize: '0.48rem',
+                            letterSpacing: 1.5,
+                            padding: '3px 8px',
+                            color: 'var(--text-dim)',
+                            border: '1px solid var(--border)',
+                            background: 'transparent',
+                            flexShrink: 0,
+                          }}>
+                            {item.guidelineRef}
+                          </span>
+                        </div>
+                        <p style={{
+                          fontFamily: 'var(--body)',
+                          fontSize: '0.78rem',
+                          lineHeight: 1.6,
+                          color: 'var(--text-dim)',
+                          margin: 0,
+                        }}>
+                          {item.description}
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

@@ -117,20 +117,58 @@ function generatePacketText(data: PacketData): string {
   return lines.join('\n');
 }
 
+/* ── Shared inline style objects ── */
+
+const sectionLabel: React.CSSProperties = {
+  fontFamily: 'var(--mono)',
+  fontSize: '0.5rem',
+  letterSpacing: 3,
+  textTransform: 'uppercase',
+  color: 'var(--orange)',
+  marginBottom: 20,
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid var(--border)',
+  borderRadius: 0,
+  padding: '14px 18px',
+  color: 'var(--white)',
+  fontFamily: 'var(--mono)',
+  fontSize: '0.78rem',
+  outline: 'none',
+};
+
+const fieldLabel: React.CSSProperties = {
+  fontFamily: 'var(--mono)',
+  fontSize: '0.5rem',
+  letterSpacing: 3,
+  textTransform: 'uppercase',
+  color: 'var(--text-dim)',
+  marginBottom: 8,
+  display: 'block',
+};
+
+const cardStyle: React.CSSProperties = {
+  border: '1px solid var(--border)',
+  padding: '28px 32px',
+};
+
+/* ── Sub-components ── */
+
 function InputField({ label, value, onChange, placeholder, type = 'text' }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
 }) {
   return (
     <div>
-      <label className="block text-[11px] tracking-[2px] uppercase mb-2" style={{ color: 'var(--gray)' }}>
-        {label}
-      </label>
+      <label style={fieldLabel}>{label}</label>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="input-field"
+        style={inputStyle}
       />
     </div>
   );
@@ -141,15 +179,13 @@ function TextAreaField({ label, value, onChange, placeholder, rows = 4 }: {
 }) {
   return (
     <div>
-      <label className="block text-[11px] tracking-[2px] uppercase mb-2" style={{ color: 'var(--gray)' }}>
-        {label}
-      </label>
+      <label style={fieldLabel}>{label}</label>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={rows}
-        className="input-field resize-none leading-relaxed"
+        style={{ ...inputStyle, resize: 'none', lineHeight: 1.7 }}
       />
     </div>
   );
@@ -157,23 +193,48 @@ function TextAreaField({ label, value, onChange, placeholder, rows = 4 }: {
 
 function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <label className="flex items-center gap-3 cursor-pointer py-2">
+    <label
+      style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', padding: '6px 0' }}
+      onClick={() => onChange(!checked)}
+    >
+      {/* Sharp rectangular toggle track */}
       <div
-        className="w-9 h-5 rounded-full relative transition-all duration-200 cursor-pointer"
-        style={{ background: checked ? 'var(--orange)' : 'var(--border)' }}
-        onClick={() => onChange(!checked)}
+        style={{
+          width: 36,
+          height: 18,
+          background: checked ? 'var(--orange)' : 'var(--border)',
+          position: 'relative',
+          flexShrink: 0,
+          transition: 'background 0.15s',
+        }}
       >
+        {/* Sharp rectangular toggle thumb */}
         <div
-          className="w-3.5 h-3.5 rounded-full bg-white absolute top-[3px] transition-all duration-200"
-          style={{ left: checked ? '18px' : '3px' }}
+          style={{
+            width: 12,
+            height: 12,
+            background: 'var(--white)',
+            position: 'absolute',
+            top: 3,
+            left: checked ? 20 : 4,
+            transition: 'left 0.15s',
+          }}
         />
       </div>
-      <span className="text-[13px]" style={{ color: checked ? 'var(--white)' : 'var(--gray)' }}>
+      <span
+        style={{
+          fontFamily: 'var(--body)',
+          fontSize: '0.82rem',
+          color: checked ? 'var(--white)' : 'var(--text-dim)',
+        }}
+      >
         {label}
       </span>
     </label>
   );
 }
+
+/* ── Page ── */
 
 export default function ReviewPacketPage() {
   const [data, setData] = useState<PacketData>(INITIAL);
@@ -198,60 +259,91 @@ export default function ReviewPacketPage() {
   }
 
   return (
-    <div className="w-full px-6 md:px-12 lg:px-20 pt-28 pb-20">
-      <div className="mb-10">
-        <div className="text-[11px] font-medium tracking-[5px] uppercase mb-2" style={{ color: 'var(--orange)' }}>
-          Review Packet
+    <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 48px 80px' }}>
+      {/* ── Hero header ── */}
+      <div style={{ paddingTop: 120, marginBottom: 56 }}>
+        <div
+          style={{
+            fontFamily: 'var(--mono)',
+            fontSize: '0.5rem',
+            letterSpacing: 3,
+            textTransform: 'uppercase',
+            color: 'var(--orange)',
+            marginBottom: 10,
+          }}
+        >
+          // review packet
         </div>
-        <h1 className="text-[11px] font-medium tracking-[5px] uppercase" style={{ color: 'var(--white)' }}>
-          Generate Review Notes
+        <h1
+          style={{
+            fontFamily: 'var(--display)',
+            fontSize: 'clamp(3rem, 6vw, 5rem)',
+            color: 'var(--text)',
+            lineHeight: 0.95,
+            margin: 0,
+            letterSpacing: 2,
+          }}
+        >
+          REVIEW PACKET
         </h1>
-        <p className="text-[14px] mt-2" style={{ color: 'var(--gray)' }}>
+        <p
+          style={{
+            fontFamily: 'var(--body)',
+            fontSize: '1rem',
+            color: 'var(--text-mid)',
+            marginTop: 16,
+            maxWidth: 520,
+            lineHeight: 1.6,
+          }}
+        >
           Build a formatted review packet ready to paste into App Store Connect.
         </p>
       </div>
 
       {!generated ? (
-        <div className="flex flex-col gap-8">
-          {/* App Info */}
-          <div
-            className="glass-card p-6 relative overflow-hidden"
-          >
-            <div className="glow-line" />
-            <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--orange)' }}>App Info</div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
+          {/* ── App Info ── */}
+          <div style={cardStyle}>
+            <div style={sectionLabel}>// app info</div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: 20,
+              }}
+            >
               <InputField label="App Name" value={data.appName} onChange={(v) => update('appName', v)} placeholder="My App" />
               <InputField label="Bundle ID" value={data.bundleId} onChange={(v) => update('bundleId', v)} placeholder="com.company.app" />
               <InputField label="Version" value={data.version} onChange={(v) => update('version', v)} placeholder="1.0.0" />
             </div>
           </div>
 
-          {/* Demo Credentials */}
-          <div
-            className="glass-card p-6 relative overflow-hidden"
-          >
-            <div className="glow-line" />
-            <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--orange)' }}>Demo Credentials</div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* ── Demo Credentials ── */}
+          <div style={cardStyle}>
+            <div style={sectionLabel}>// demo credentials</div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: 20,
+              }}
+            >
               <InputField label="Demo Email" value={data.demoEmail} onChange={(v) => update('demoEmail', v)} placeholder="demo@example.com" />
               <InputField label="Demo Password" value={data.demoPassword} onChange={(v) => update('demoPassword', v)} placeholder="testPassword123" type="text" />
             </div>
           </div>
 
-          {/* Testing Steps */}
-          <div
-            className="glass-card p-6 relative overflow-hidden"
-          >
-            <div className="glow-line" />
-            <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--orange)' }}>Testing Instructions</div>
-            <TextAreaField
-              label="Testing Steps (one per line)"
-              value={data.testingSteps}
-              onChange={(v) => update('testingSteps', v)}
-              placeholder={"Launch the app\nTap Sign In\nEnter demo credentials\nNavigate to main feed\nTest all tab bar items"}
-              rows={6}
-            />
-            <div className="mt-4">
+          {/* ── Testing Instructions ── */}
+          <div style={cardStyle}>
+            <div style={sectionLabel}>// testing instructions</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+              <TextAreaField
+                label="Testing Steps (one per line)"
+                value={data.testingSteps}
+                onChange={(v) => update('testingSteps', v)}
+                placeholder={"Launch the app\nTap Sign In\nEnter demo credentials\nNavigate to main feed\nTest all tab bar items"}
+                rows={6}
+              />
               <TextAreaField
                 label="Special Instructions"
                 value={data.specialInstructions}
@@ -262,14 +354,10 @@ export default function ReviewPacketPage() {
             </div>
           </div>
 
-          {/* Feature Toggles */}
-          <div
-            className="glass-card p-6 relative overflow-hidden"
-          >
-            <div className="glow-line" />
-            <div className="text-[10px] tracking-[3px] uppercase mb-5" style={{ color: 'var(--orange)' }}>Features</div>
-
-            <div className="flex flex-col gap-3">
+          {/* ── Features ── */}
+          <div style={cardStyle}>
+            <div style={sectionLabel}>// features</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <Toggle label="In-App Purchases" checked={data.hasIAP} onChange={(v) => update('hasIAP', v)} />
               {data.hasIAP && (
                 <TextAreaField label="IAP Testing Instructions" value={data.iapInstructions} onChange={(v) => update('iapInstructions', v)} placeholder="How to test IAP in sandbox..." rows={2} />
@@ -292,53 +380,105 @@ export default function ReviewPacketPage() {
             </div>
           </div>
 
-          {/* Generate */}
-          <div className="flex justify-end">
+          {/* ── Generate button ── */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
             <button
               onClick={handleGenerate}
               disabled={!data.appName.trim()}
-              className="btn-primary px-8 py-3.5 text-[12px] tracking-[2px] uppercase cursor-pointer"
+              className="btn-primary"
+              style={{
+                padding: '14px 36px',
+                fontFamily: 'var(--mono)',
+                fontSize: '0.65rem',
+                letterSpacing: 2,
+                textTransform: 'uppercase',
+                cursor: data.appName.trim() ? 'pointer' : 'not-allowed',
+                borderRadius: 0,
+              }}
             >
               Generate Packet
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-6">
-          {/* Output */}
-          <div className="glass-card relative overflow-hidden">
-            <div className="glow-line" />
-            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-              <div className="text-[11px] tracking-[3px] uppercase" style={{ color: 'var(--orange)' }}>
-                Generated Packet
-              </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 40 }}>
+          {/* ── Output ── */}
+          <div style={{ border: '1px solid var(--border)' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '16px 32px',
+                borderBottom: '1px solid var(--border)',
+              }}
+            >
+              <div style={sectionLabel}>// generated packet</div>
               <button
                 onClick={handleCopy}
-                className="btn-secondary px-4 py-2 text-[11px] tracking-[1.5px] uppercase cursor-pointer"
-                style={{ color: copied ? '#34d399' : undefined }}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  padding: '8px 18px',
+                  fontFamily: 'var(--mono)',
+                  fontSize: '0.55rem',
+                  letterSpacing: 2,
+                  textTransform: 'uppercase',
+                  color: copied ? 'var(--green)' : 'var(--text-mid)',
+                  cursor: 'pointer',
+                  borderRadius: 0,
+                }}
               >
                 {copied ? 'Copied!' : 'Copy to Clipboard'}
               </button>
             </div>
             <pre
-              className="px-6 py-5 text-[13px] leading-relaxed overflow-x-auto whitespace-pre-wrap"
-              style={{ color: 'rgba(255,255,255,0.8)', fontFamily: "'SF Mono', 'Fira Code', monospace" }}
+              style={{
+                padding: '28px 32px',
+                fontFamily: 'var(--mono)',
+                fontSize: '0.78rem',
+                lineHeight: 1.7,
+                color: 'rgba(255,255,255,0.8)',
+                whiteSpace: 'pre-wrap',
+                overflowX: 'auto',
+                margin: 0,
+              }}
             >
               {packetText}
             </pre>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-4 justify-center">
+          {/* ── Actions ── */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'center' }}>
             <button
               onClick={() => setGenerated(false)}
-              className="btn-secondary px-6 py-3 text-[12px] tracking-[2px] uppercase cursor-pointer"
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border)',
+                padding: '14px 32px',
+                fontFamily: 'var(--mono)',
+                fontSize: '0.65rem',
+                letterSpacing: 2,
+                textTransform: 'uppercase',
+                color: 'var(--text-mid)',
+                cursor: 'pointer',
+                borderRadius: 0,
+              }}
             >
               Edit
             </button>
             <button
               onClick={handleCopy}
-              className="btn-primary px-6 py-3 text-[12px] tracking-[2px] uppercase cursor-pointer"
+              className="btn-primary"
+              style={{
+                padding: '14px 32px',
+                fontFamily: 'var(--mono)',
+                fontSize: '0.65rem',
+                letterSpacing: 2,
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                borderRadius: 0,
+              }}
             >
               {copied ? 'Copied!' : 'Copy for App Store Connect'}
             </button>

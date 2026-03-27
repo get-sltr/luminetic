@@ -88,7 +88,7 @@ export default function TestDownloader({ scanId, hasIssues }: { scanId: string; 
             fontFamily: 'var(--body)', fontSize: '0.82rem', color: 'var(--text-dim)',
             margin: '0 0 28px', lineHeight: 1.6,
           }}>
-            AI-generated Maestro &amp; Detox test scripts targeting each issue found in your analysis.
+            AI-generated test scripts targeting each issue found in your analysis.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28 }}>

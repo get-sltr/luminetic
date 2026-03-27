@@ -79,133 +79,399 @@ export default async function MemoryPage() {
   const hasData = scans.length > 0;
   const avgScore = hasData ? Math.round(scoreTimeline.reduce((a, b) => a + b.score, 0) / scoreTimeline.length) : 0;
   const trend = scoreTimeline.length >= 2 ? scoreTimeline[scoreTimeline.length - 1].score - scoreTimeline[0].score : 0;
+  const maxBarCount = topGuidelines.length > 0 ? topGuidelines[0][1].count : 1;
 
   return (
-    <div className="w-full px-6 md:px-12 lg:px-20 pt-28 pb-20">
-      <div className="mb-10">
-        <div className="text-[11px] font-medium tracking-[5px] uppercase mb-2" style={{ color: 'var(--orange)' }}>Build Memory</div>
-        <h1 className="text-[11px] font-medium tracking-[5px] uppercase" style={{ color: 'var(--white)' }}>Submission Intelligence</h1>
-        <p className="text-[14px] mt-2" style={{ color: 'var(--gray)' }}>
-          Patterns and trends across all your scans.
-        </p>
-      </div>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 48px 80px' }}>
 
-      {!hasData ? (
-        <div className="glass-card p-12 text-center relative overflow-hidden">
-          <div className="glow-line" />
-          <div className="w-14 h-14 flex items-center justify-center mx-auto mb-5" style={{ background: 'var(--surface-2)' }}>
-            <IconAnalyze width={24} height={24} style={{ color: 'var(--orange)', opacity: 0.4 }} />
+        {/* Hero */}
+        <div style={{ padding: '60px 0 20px', position: 'relative', overflow: 'hidden' }}>
+          <div style={{
+            fontFamily: 'var(--mono)',
+            fontSize: '0.58rem',
+            letterSpacing: 3,
+            textTransform: 'uppercase',
+            color: 'var(--orange)',
+            marginBottom: 12,
+          }}>
+            // build memory
           </div>
-          <div className="text-[15px] mb-2" style={{ color: 'var(--gray)' }}>No scan data yet.</div>
-          <Link href="/analyze" className="text-[12px] tracking-[2px] uppercase no-underline hover-text" style={{ color: 'var(--orange)' }}>
-            Run your first analysis &rarr;
-          </Link>
+          <h1 style={{
+            fontFamily: 'var(--display)',
+            fontSize: '5.5rem',
+            letterSpacing: 3,
+            lineHeight: 0.9,
+            margin: 0,
+            color: 'var(--text)',
+          }}>
+            SUBMISSION
+            <span style={{
+              display: 'block',
+              fontSize: '6.5rem',
+              color: 'var(--orange)',
+              textShadow: '0 0 40px rgba(255,106,0,0.2), 0 0 80px rgba(255,106,0,0.1)',
+            }}>
+              INTELLIGENCE
+            </span>
+          </h1>
+          <p style={{
+            fontFamily: 'var(--body)',
+            fontSize: '0.84rem',
+            color: 'var(--text-mid)',
+            marginTop: 16,
+          }}>
+            Patterns and trends across all your scans.
+          </p>
+
+          {/* Decorative line */}
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            right: 0,
+            width: '40%',
+            height: 1,
+            background: 'linear-gradient(90deg, transparent, var(--orange), transparent)',
+            animation: 'pulse 4s ease-in-out infinite',
+            opacity: 0.3,
+          }} />
         </div>
-      ) : (
-        <div className="flex flex-col gap-6">
-          {/* Overview Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: 'Total Scans', value: scans.length.toString(), icon: <IconTarget width={18} height={18} /> },
-              { label: 'Avg Score', value: avgScore.toString(), icon: <IconTarget width={18} height={18} /> },
-              { label: 'Score Trend', value: trend >= 0 ? `+${trend}` : `${trend}`, color: trend >= 0 ? 'var(--green)' : 'var(--red)', icon: <IconTrendUp width={18} height={18} /> },
-              { label: 'Recurring Issues', value: recurring.length.toString(), color: recurring.length > 0 ? 'var(--amber)' : 'var(--green)', icon: <IconWarning width={18} height={18} /> },
-            ].map((stat) => (
-              <div key={stat.label} className="glass-card p-5 relative overflow-hidden">
-                <div className="glow-line" />
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-[10px] tracking-[3px] uppercase" style={{ color: 'var(--gray)' }}>{stat.label}</div>
-                  <span style={{ color: stat.color || 'var(--orange)', opacity: 0.4 }}>{stat.icon}</span>
-                </div>
-                <div className="text-[28px] font-bold" style={{ color: stat.color || 'var(--white)' }}>
-                  {stat.value}
-                </div>
-              </div>
-            ))}
-          </div>
 
-          {/* Score Timeline */}
-          {scoreTimeline.length > 1 && (
-            <div className="glass-card p-6 relative overflow-hidden">
-              <div className="glow-line" />
-              <div className="text-[10px] tracking-[3px] uppercase font-medium mb-5" style={{ color: 'var(--orange)' }}>Score Over Time</div>
-              <div className="flex items-end gap-2 h-[120px]">
-                {scoreTimeline.map((point) => (
-                  <div key={point.scanId} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="text-[10px] tabular-nums" style={{ color: 'var(--gray)' }}>{point.score}</div>
-                    <div
-                      className="w-full transition-all duration-300"
-                      style={{
+        {!hasData ? (
+          <div style={{
+            border: '1px solid var(--border)',
+            padding: '64px 32px',
+            textAlign: 'center',
+            position: 'relative',
+          }}>
+            <div style={{
+              width: 56,
+              height: 56,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px',
+              border: '1px solid var(--border)',
+              background: 'rgba(255,255,255,0.02)',
+            }}>
+              <IconAnalyze width={24} height={24} style={{ color: 'var(--orange)', opacity: 0.4 }} />
+            </div>
+            <div style={{ fontFamily: 'var(--body)', fontSize: '0.88rem', color: 'var(--text-mid)', marginBottom: 12 }}>
+              No scan data yet.
+            </div>
+            <Link
+              href="/analyze"
+              className="no-underline"
+              style={{
+                fontFamily: 'var(--mono)',
+                fontSize: '0.62rem',
+                letterSpacing: 2,
+                textTransform: 'uppercase',
+                color: 'var(--orange)',
+              }}
+            >
+              Run your first analysis &rarr;
+            </Link>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+
+            {/* Overview Stats */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 0,
+              border: '1px solid var(--border)',
+              marginBottom: 52,
+            }}>
+              {[
+                { label: 'Total Scans', value: scans.length.toString(), icon: <IconTarget width={18} height={18} />, color: undefined },
+                { label: 'Avg Score', value: avgScore.toString(), icon: <IconTarget width={18} height={18} />, color: undefined },
+                { label: 'Score Trend', value: trend >= 0 ? `+${trend}` : `${trend}`, color: trend >= 0 ? 'var(--green)' : 'var(--red)', icon: <IconTrendUp width={18} height={18} /> },
+                { label: 'Recurring Issues', value: recurring.length.toString(), color: recurring.length > 0 ? 'var(--amber)' : 'var(--green)', icon: <IconWarning width={18} height={18} /> },
+              ].map((stat, i) => (
+                <div key={stat.label} style={{
+                  padding: '28px 32px',
+                  borderRight: i < 3 ? '1px solid var(--border)' : 'none',
+                  position: 'relative',
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: 16,
+                  }}>
+                    <div style={{
+                      fontFamily: 'var(--mono)',
+                      fontSize: '0.5rem',
+                      letterSpacing: 3,
+                      textTransform: 'uppercase',
+                      color: 'var(--orange)',
+                    }}>
+                      // {stat.label}
+                    </div>
+                    <span style={{ color: stat.color || 'var(--orange)', opacity: 0.4 }}>{stat.icon}</span>
+                  </div>
+                  <div style={{
+                    fontFamily: 'var(--display)',
+                    fontSize: '2.8rem',
+                    letterSpacing: 2,
+                    lineHeight: 1,
+                    color: stat.color || 'var(--text)',
+                  }}>
+                    {stat.value}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Score Timeline */}
+            {scoreTimeline.length > 1 && (
+              <div style={{
+                border: '1px solid var(--border)',
+                padding: '28px 32px',
+                marginBottom: 52,
+                position: 'relative',
+              }}>
+                <div style={{
+                  fontFamily: 'var(--mono)',
+                  fontSize: '0.5rem',
+                  letterSpacing: 3,
+                  textTransform: 'uppercase',
+                  color: 'var(--orange)',
+                  marginBottom: 24,
+                }}>
+                  // Score Over Time
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  gap: 6,
+                  height: 120,
+                }}>
+                  {scoreTimeline.map((point) => (
+                    <div key={point.scanId} style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}>
+                      <div style={{
+                        fontFamily: 'var(--mono)',
+                        fontSize: '0.58rem',
+                        color: 'var(--text-dim)',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}>
+                        {point.score}
+                      </div>
+                      <div style={{
+                        width: '100%',
                         height: `${Math.max(point.score, 4)}%`,
                         background: point.score >= 70 ? 'var(--green)' : point.score >= 40 ? 'var(--amber)' : 'var(--red)',
-                        opacity: 0.8,
-                      }}
-                    />
-                    <div className="text-[8px] truncate max-w-full" style={{ color: 'var(--gray)' }}>
-                      {new Date(point.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        opacity: 0.85,
+                        transition: 'height 0.3s ease',
+                      }} />
+                      <div style={{
+                        fontFamily: 'var(--mono)',
+                        fontSize: '0.48rem',
+                        color: 'var(--text-dim)',
+                        letterSpacing: 0.5,
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {new Date(point.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Recurring Issues */}
-          {recurring.length > 0 && (
-            <div className="glass-card p-6 relative overflow-hidden" style={{ borderColor: 'rgba(251,191,36,0.12)' }}>
-              <div className="glow-line" style={{ background: 'linear-gradient(90deg, transparent, rgba(251,191,36,0.3), transparent)' }} />
-              <div className="text-[10px] tracking-[3px] uppercase font-medium mb-5" style={{ color: 'var(--amber)' }}>
-                Recurring Issues — Action Required
-              </div>
-              <div className="flex flex-col gap-3">
-                {recurring.map(([issue, data]) => (
-                  <div key={issue} className="glass-card flex items-start justify-between p-4" style={{ borderColor: 'rgba(251,191,36,0.08)' }}>
-                    <div className="flex-1">
-                      <div className="text-[13px] font-medium mb-1">{issue}</div>
-                      <div className="flex items-center gap-3">
-                        <span className="badge" style={{
-                          color: data.severity === 'critical' ? 'var(--red)' : data.severity === 'major' ? 'var(--amber)' : 'var(--gray)',
-                          borderColor: data.severity === 'critical' ? 'rgba(248,113,113,0.25)' : data.severity === 'major' ? 'rgba(251,191,36,0.25)' : 'var(--border)',
+            {/* Recurring Issues */}
+            {recurring.length > 0 && (
+              <div style={{
+                border: '1px solid var(--border)',
+                padding: '28px 32px',
+                marginBottom: 52,
+                position: 'relative',
+              }}>
+                {/* Top accent line */}
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: 2,
+                  background: 'var(--amber)',
+                  opacity: 0.6,
+                }} />
+                <div style={{
+                  fontFamily: 'var(--mono)',
+                  fontSize: '0.5rem',
+                  letterSpacing: 3,
+                  textTransform: 'uppercase',
+                  color: 'var(--amber)',
+                  marginBottom: 24,
+                }}>
+                  // Recurring Issues — Action Required
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  {recurring.map(([issue, data]) => (
+                    <div key={issue} style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      justifyContent: 'space-between',
+                      padding: '16px 0',
+                      borderBottom: '1px solid var(--border)',
+                      borderLeft: `3px solid ${
+                        data.severity === 'critical' ? 'var(--red)' : data.severity === 'major' ? 'var(--amber)' : 'var(--text-dim)'
+                      }`,
+                      paddingLeft: 16,
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{
+                          fontFamily: 'var(--body)',
+                          fontSize: '0.84rem',
+                          fontWeight: 600,
+                          color: 'var(--text)',
+                          marginBottom: 6,
                         }}>
-                          {data.severity}
-                        </span>
-                        {data.guideline && (
-                          <span className="text-[10px]" style={{ color: 'var(--gray)' }}>&sect;{data.guideline}</span>
-                        )}
+                          {issue}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <span style={{
+                            fontFamily: 'var(--mono)',
+                            fontSize: '0.52rem',
+                            letterSpacing: 2,
+                            textTransform: 'uppercase',
+                            padding: '3px 10px',
+                            border: `1px solid ${
+                              data.severity === 'critical' ? 'rgba(248,113,113,0.25)' : data.severity === 'major' ? 'rgba(251,191,36,0.25)' : 'var(--border)'
+                            }`,
+                            color: data.severity === 'critical' ? 'var(--red)' : data.severity === 'major' ? 'var(--amber)' : 'var(--text-dim)',
+                          }}>
+                            {data.severity}
+                          </span>
+                          {data.guideline && (
+                            <span style={{
+                              fontFamily: 'var(--mono)',
+                              fontSize: '0.56rem',
+                              color: 'var(--text-dim)',
+                            }}>
+                              &sect;{data.guideline}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right', flexShrink: 0, marginLeft: 24 }}>
+                        <div style={{
+                          fontFamily: 'var(--display)',
+                          fontSize: '1.8rem',
+                          letterSpacing: 1,
+                          lineHeight: 1,
+                          color: 'var(--amber)',
+                        }}>
+                          {data.count}x
+                        </div>
+                        <div style={{
+                          fontFamily: 'var(--mono)',
+                          fontSize: '0.48rem',
+                          letterSpacing: 2,
+                          textTransform: 'uppercase',
+                          color: 'var(--text-dim)',
+                          marginTop: 4,
+                        }}>
+                          occurrences
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right shrink-0 ml-4">
-                      <div className="text-[20px] font-bold" style={{ color: 'var(--amber)' }}>
-                        {data.count}x
-                      </div>
-                      <div className="text-[10px]" style={{ color: 'var(--gray)' }}>occurrences</div>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Most Cited Guidelines */}
-          {topGuidelines.length > 0 && (
-            <div className="glass-card p-6 relative overflow-hidden">
-              <div className="glow-line" />
-              <div className="text-[10px] tracking-[3px] uppercase font-medium mb-5" style={{ color: 'var(--orange)' }}>Most Cited Guidelines</div>
-              <div className="flex flex-col gap-2">
-                {topGuidelines.map(([section, data]) => (
-                  <div key={section} className="flex items-center gap-4 py-2.5 border-b" style={{ borderColor: 'var(--border)' }}>
-                    <span className="text-[12px] font-mono shrink-0 w-12" style={{ color: 'var(--orange)' }}>&sect;{section}</span>
-                    <span className="text-[13px] flex-1" style={{ color: 'var(--gray)' }}>{data.name}</span>
-                    <span className="text-[13px] font-medium shrink-0 tabular-nums">
-                      {data.count} {data.count === 1 ? 'scan' : 'scans'}
-                    </span>
-                  </div>
-                ))}
+            {/* Most Cited Guidelines */}
+            {topGuidelines.length > 0 && (
+              <div style={{
+                border: '1px solid var(--border)',
+                padding: '28px 32px',
+                position: 'relative',
+              }}>
+                <div style={{
+                  fontFamily: 'var(--mono)',
+                  fontSize: '0.5rem',
+                  letterSpacing: 3,
+                  textTransform: 'uppercase',
+                  color: 'var(--orange)',
+                  marginBottom: 24,
+                }}>
+                  // Most Cited Guidelines
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  {topGuidelines.map(([section, data]) => (
+                    <div key={section} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 20,
+                      padding: '12px 0',
+                      borderBottom: '1px solid var(--border)',
+                    }}>
+                      <span style={{
+                        fontFamily: 'var(--mono)',
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        color: 'var(--orange)',
+                        flexShrink: 0,
+                        width: 52,
+                      }}>
+                        &sect;{section}
+                      </span>
+                      <span style={{
+                        fontFamily: 'var(--body)',
+                        fontSize: '0.82rem',
+                        color: 'var(--text-mid)',
+                        flex: 1,
+                      }}>
+                        {data.name}
+                      </span>
+                      {/* Bar */}
+                      <div style={{
+                        width: 120,
+                        height: 6,
+                        background: 'var(--border)',
+                        flexShrink: 0,
+                        position: 'relative',
+                      }}>
+                        <div style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          height: '100%',
+                          width: `${(data.count / maxBarCount) * 100}%`,
+                          background: 'var(--orange)',
+                          opacity: 0.7,
+                        }} />
+                      </div>
+                      <span style={{
+                        fontFamily: 'var(--mono)',
+                        fontSize: '0.68rem',
+                        fontWeight: 600,
+                        color: 'var(--text)',
+                        flexShrink: 0,
+                        fontVariantNumeric: 'tabular-nums',
+                        textAlign: 'right',
+                        width: 64,
+                      }}>
+                        {data.count} {data.count === 1 ? 'scan' : 'scans'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
