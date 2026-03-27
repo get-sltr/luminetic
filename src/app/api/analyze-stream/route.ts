@@ -503,7 +503,7 @@ export async function POST(request: NextRequest) {
             };
 
             const command = new InvokeModelCommand({
-              modelId: "us.deepseek.deepseek-v3-2-0324-v1:0",
+              modelId: "deepseek.v3.2",
               contentType: "application/json",
               accept: "application/json",
               body: JSON.stringify(payload),
@@ -539,7 +539,7 @@ export async function POST(request: NextRequest) {
             };
 
             const command = new InvokeModelCommand({
-              modelId: "us.anthropic.claude-sonnet-4-6-20250514-v1:0",
+              modelId: "us.anthropic.claude-sonnet-4-6-v1",
               contentType: "application/json",
               accept: "application/json",
               body: JSON.stringify(payload),
@@ -594,7 +594,7 @@ export async function POST(request: NextRequest) {
           };
 
           const command = new InvokeModelCommand({
-            modelId: "us.anthropic.claude-opus-4-6-20250514-v1:0",
+            modelId: "us.anthropic.claude-opus-4-6-v1",
             contentType: "application/json",
             accept: "application/json",
             body: JSON.stringify(payload),
