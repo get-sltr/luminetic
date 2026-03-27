@@ -62,6 +62,7 @@ export default function AnalyzePage() {
   const [result, setResult] = useState<MergedResult | null>(null);
   const [scanId, setScanId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [downloadingPdf, setDownloadingPdf] = useState<'preflight' | 'review-packet' | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
@@ -257,6 +258,51 @@ export default function AnalyzePage() {
   }
 
   function handleReset() { setStep('idle'); setResult(null); setScanId(null); setError(''); }
+
+  const handleDownloadPdf = useCallback(async (kind: 'preflight' | 'review-packet') => {
+    if (!scanId) return;
+
+    setError('');
+    setDownloadingPdf(kind);
+
+    try {
+      const endpoint =
+        kind === 'preflight'
+          ? '/api/generate-preflight-pdf'
+          : '/api/generate-review-pdf';
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scanId }),
+      });
+
+      if (!res.ok) {
+        let message = 'Failed to generate PDF. Please try again.';
+        try {
+          const data = await res.json();
+          if (data?.error) message = data.error;
+        } catch {
+          // Ignore malformed error body and keep default message.
+        }
+        throw new Error(message);
+      }
+
+      const pdfBlob = await res.blob();
+      const objectUrl = URL.createObjectURL(pdfBlob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = `${kind}-${scanId.slice(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to download PDF.');
+    } finally {
+      setDownloadingPdf(null);
+    }
+  }, [scanId]);
 
   const inputStyle = {
     width: '100%',
@@ -592,31 +638,51 @@ export default function AnalyzePage() {
             {scanId && <TestDownloader scanId={scanId} hasIssues={result.issues.length > 0} />}
 
             <div style={{ marginTop: 52, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {error && (
+                <div style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 12, padding: '18px 22px',
+                  background: 'rgba(248,113,113,0.04)',
+                  border: '1px solid rgba(248,113,113,0.15)',
+                  borderLeft: '3px solid var(--red)',
+                }}>
+                  <IconWarning width={16} height={16} className="shrink-0 mt-0.5" style={{ color: 'var(--red)' }} />
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: '0.76rem', color: 'var(--red)' }}>{error}</span>
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <a
-                  href={scanId ? `/api/pdf/pre-flight?scanId=${scanId}` : '#'}
-                  className="no-underline"
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPdf('preflight')}
+                  disabled={!scanId || downloadingPdf !== null}
                   style={{
-                    display: 'block', textAlign: 'center',
+                    display: 'block', width: '100%', textAlign: 'center',
                     fontFamily: 'var(--mono)', fontSize: '0.62rem', letterSpacing: 2, textTransform: 'uppercase',
                     color: 'var(--text)', padding: '18px',
                     border: '1px solid var(--border)', transition: 'all 0.2s',
+                    background: 'transparent',
+                    opacity: !scanId || downloadingPdf !== null ? 0.5 : 1,
+                    cursor: !scanId || downloadingPdf !== null ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  Download Pre-Flight PDF
-                </a>
-                <a
-                  href={scanId ? `/api/pdf/review-packet?scanId=${scanId}` : '#'}
-                  className="no-underline"
+                  {downloadingPdf === 'preflight' ? 'Generating Pre-Flight PDF...' : 'Download Pre-Flight PDF'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPdf('review-packet')}
+                  disabled={!scanId || downloadingPdf !== null}
                   style={{
-                    display: 'block', textAlign: 'center',
+                    display: 'block', width: '100%', textAlign: 'center',
                     fontFamily: 'var(--mono)', fontSize: '0.62rem', letterSpacing: 2, textTransform: 'uppercase',
                     color: 'var(--text)', padding: '18px',
                     border: '1px solid var(--border)', transition: 'all 0.2s',
+                    background: 'transparent',
+                    opacity: !scanId || downloadingPdf !== null ? 0.5 : 1,
+                    cursor: !scanId || downloadingPdf !== null ? 'not-allowed' : 'pointer',
                   }}
                 >
-                  Download Review Packet PDF
-                </a>
+                  {downloadingPdf === 'review-packet' ? 'Generating Review Packet PDF...' : 'Download Review Packet PDF'}
+                </button>
               </div>
 
               <button
