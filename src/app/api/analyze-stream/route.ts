@@ -132,14 +132,39 @@ Analyze the metadata for issues and respond ONLY with valid JSON (no markdown, n
   }
 }`;
 
+const DEEPSEEK_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst specializing in deep logical reasoning. You analyze .ipa app metadata to identify potential App Store Review Guideline violations, missing configurations, and submission risks.
+
+You have deep knowledge of:
+- Apple's App Store Review Guidelines (all sections 1-5)
+- Info.plist configuration requirements and common misconfigurations
+- Privacy and data collection requirements (NSUsageDescriptions, ATT, privacy nutrition labels)
+- Framework/SDK compliance issues and deprecated API concerns
+- Common rejection patterns and edge cases other analysts miss
+
+Analyze the metadata carefully. Think step by step about each requirement. Look for subtle issues that automated checks would miss.
+
+Respond ONLY with valid JSON (no markdown, no backticks):
+
+{
+  "issues_identified": [{ "severity": "critical" | "major" | "minor", "issue": "Clear description", "evidence": "What metadata indicates this", "guideline_section": "e.g. 2.1", "reasoning": "Step-by-step reasoning for this finding" }],
+  "readiness_assessment": { "score": 0-100, "summary": "Assessment paragraph", "risk_factors": ["List of risks"] },
+  "preflight_checks": {
+    "privacy_policy": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
+    "account_deletion": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
+    "export_compliance": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
+    "permissions_usage": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
+    "att_compliance": { "status": "pass" | "fail" | "warning" | "not_applicable", "detail": "..." }
+  }
+}`;
+
 const CLAUDE_SONNET_PROMPT = `You are a meticulous iOS App Store review compliance analyst. You will receive:
 1. Extracted .ipa metadata (Info.plist, entitlements, frameworks)
 2. An app synopsis from the developer
-3. An initial analysis from Gemini
+3. Initial analyses from Gemini and DeepSeek
 
 Your job is to:
-- VALIDATE Gemini's findings against the actual metadata
-- IDENTIFY issues Gemini missed (especially subtle privacy, SDK, and entitlement issues)
+- VALIDATE findings from other models against the actual metadata
+- IDENTIFY issues they missed (especially subtle privacy, SDK, and entitlement issues)
 - CHECK for framework-specific requirements (e.g., if AdSupport.framework is present but no ATT prompt)
 - FLAG any SDK compatibility or deprecated API concerns
 - VERIFY all preflight checks against the metadata
@@ -164,13 +189,14 @@ Respond ONLY with valid JSON (no markdown, no backticks):
   }
 }`;
 
-const CLAUDE_OPUS_PROMPT = `You are the final-stage senior App Store review analyst. You perform deep reconciliation across findings from Gemini and Claude Sonnet. You will receive:
+const CLAUDE_OPUS_PROMPT = `You are the final-stage senior App Store review analyst. You perform deep reconciliation across findings from Gemini, DeepSeek, and Claude Sonnet. You will receive:
 1. Extracted .ipa metadata
 2. App synopsis
 3. Gemini's analysis
-4. Claude Sonnet's validation
+4. DeepSeek's analysis
+5. Claude Sonnet's validation
 
-Your job: RECONCILE all findings, produce the final authoritative assessment, refine the action plan, and assign final confidence scores.
+Your job: RECONCILE all findings from all models, produce the final authoritative assessment, refine the action plan, and assign final confidence scores.
 
 Respond ONLY with valid JSON (no markdown, no backticks):
 
@@ -439,7 +465,7 @@ export async function POST(request: NextRequest) {
 
         sendEvent(controller, "status", { step: "gemini", message: "Running primary analysis..." });
 
-        // Run Gemini and Sonnet in parallel (both analyze metadata independently)
+        // Run Gemini, DeepSeek, and Sonnet in parallel (all analyze metadata independently)
         const geminiPromise = (async () => {
           const start = Date.now();
           try {
@@ -462,6 +488,41 @@ export async function POST(request: NextRequest) {
           }
         })();
 
+        const deepseekPromise = (async () => {
+          const start = Date.now();
+          try {
+            const userMessage = isIpaFlow
+              ? `Analyze this iOS app's metadata for App Store Review compliance. Think step by step about each requirement:\n\n${contextForAI}`
+              : `Analyze this App Store review feedback for compliance issues. Think step by step:\n\n${contextForAI}`;
+
+            const payload = {
+              max_tokens: 8192,
+              temperature: 0.2,
+              system: DEEPSEEK_SYSTEM_PROMPT,
+              messages: [{ role: "user", content: userMessage }],
+            };
+
+            const command = new InvokeModelCommand({
+              modelId: "us.deepseek.deepseek-v3-2-0324-v1:0",
+              contentType: "application/json",
+              accept: "application/json",
+              body: JSON.stringify(payload),
+            });
+
+            const response = await bedrock.send(command);
+            const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+            const raw = responseBody?.choices?.[0]?.message?.content
+              || responseBody?.content?.[0]?.text
+              || (typeof responseBody === "string" ? responseBody : null);
+            if (!raw) throw new Error("Empty response from DeepSeek");
+            const cleaned = (typeof raw === "string" ? raw : JSON.stringify(raw)).replace(/```json\s*|```/g, "").trim();
+            return { data: JSON.parse(cleaned) as Record<string, unknown>, success: true, latency: Date.now() - start };
+          } catch (err) {
+            console.error("[DeepSeek error]", err);
+            return { data: null, success: false, latency: Date.now() - start };
+          }
+        })();
+
         const sonnetPromise = (async () => {
           const start = Date.now();
           try {
@@ -478,7 +539,7 @@ export async function POST(request: NextRequest) {
             };
 
             const command = new InvokeModelCommand({
-              modelId: "us.anthropic.claude-sonnet-4-20250514-v1:0",
+              modelId: "us.anthropic.claude-sonnet-4-6-20250514-v1:0",
               contentType: "application/json",
               accept: "application/json",
               body: JSON.stringify(payload),
@@ -496,19 +557,23 @@ export async function POST(request: NextRequest) {
           }
         })();
 
-        const [geminiResult, sonnetResult] = await Promise.all([geminiPromise, sonnetPromise]);
+        const [geminiResult, deepseekResult, sonnetResult] = await Promise.all([geminiPromise, deepseekPromise, sonnetPromise]);
 
         const geminiData = geminiResult.data;
         const geminiLatency = geminiResult.latency;
         const geminiSuccess = geminiResult.success;
+        const deepseekData = deepseekResult.data;
+        const deepseekLatency = deepseekResult.latency;
+        const deepseekSuccess = deepseekResult.success;
         const sonnetData = sonnetResult.data;
         const sonnetLatency = sonnetResult.latency;
         const sonnetSuccess = sonnetResult.success;
 
         sendEvent(controller, "status", { step: "gemini_done", success: geminiSuccess, latency: geminiLatency });
+        sendEvent(controller, "status", { step: "deepseek_done", success: deepseekSuccess, latency: deepseekLatency });
         sendEvent(controller, "status", { step: "sonnet_done", success: sonnetSuccess, latency: sonnetLatency });
 
-        // Model 3: Claude Opus (reconciles Gemini + Sonnet findings)
+        // Model 4: Claude Opus (reconciles all findings)
         sendEvent(controller, "status", { step: "claude-opus", message: "Deep reconciliation analysis..." });
 
         let opusData: Record<string, unknown> | null = null;
@@ -518,7 +583,7 @@ export async function POST(request: NextRequest) {
 
         try {
           const contextLabel = isIpaFlow ? "APP METADATA" : "FEEDBACK";
-          const userMessage = `${contextLabel}:\n${contextForAI}\n\nGEMINI ANALYSIS:\n${JSON.stringify(geminiData, null, 2)}\n\nCLAUDE SONNET ANALYSIS:\n${JSON.stringify(sonnetData, null, 2)}\n\nReconcile all findings and produce the final assessment.`;
+          const userMessage = `${contextLabel}:\n${contextForAI}\n\nGEMINI ANALYSIS:\n${JSON.stringify(geminiData, null, 2)}\n\nDEEPSEEK ANALYSIS:\n${JSON.stringify(deepseekData, null, 2)}\n\nCLAUDE SONNET ANALYSIS:\n${JSON.stringify(sonnetData, null, 2)}\n\nReconcile all findings from all models and produce the final assessment.`;
 
           const payload = {
             anthropic_version: "bedrock-2023-05-31",
@@ -529,7 +594,7 @@ export async function POST(request: NextRequest) {
           };
 
           const command = new InvokeModelCommand({
-            modelId: "us.anthropic.claude-opus-4-20250514-v1:0",
+            modelId: "us.anthropic.claude-opus-4-6-20250514-v1:0",
             contentType: "application/json",
             accept: "application/json",
             body: JSON.stringify(payload),
@@ -549,11 +614,13 @@ export async function POST(request: NextRequest) {
 
         sendEvent(controller, "status", { step: "opus_done", success: opusSuccess, latency: opusLatency });
 
-        const anyModelSucceeded = geminiSuccess || sonnetSuccess || opusSuccess;
+        const anyModelSucceeded = geminiSuccess || deepseekSuccess || sonnetSuccess || opusSuccess;
         if (!anyModelSucceeded) {
           console.error(
             "[analyze-stream] All models failed — Gemini:",
             geminiSuccess,
+            "DeepSeek:",
+            deepseekSuccess,
             "Sonnet:",
             sonnetSuccess,
             "Opus:",
@@ -571,6 +638,16 @@ export async function POST(request: NextRequest) {
           ? (geminiData.issues_identified as unknown[]) || []
           : [];
 
+        // DeepSeek issues (deduplicated against Gemini's)
+        const deepseekIssues = deepseekData
+          ? (deepseekData.issues_identified as unknown[]) || []
+          : [];
+        const geminiIssueTexts = new Set(confirmedIssues.map((i: unknown) => ((i as Record<string, unknown>).issue as string || "").toLowerCase().slice(0, 60)));
+        const uniqueDeepseekIssues = deepseekIssues.filter((i: unknown) => {
+          const text = ((i as Record<string, unknown>).issue as string || "").toLowerCase().slice(0, 60);
+          return !geminiIssueTexts.has(text);
+        });
+
         const sonnetMissed = sonnetData
           ? ((sonnetData.validation as Record<string, unknown>)?.missed_issues as unknown[]) || []
           : [];
@@ -583,6 +660,7 @@ export async function POST(request: NextRequest) {
 
         const allIssues = [
           ...confirmedIssues.filter((i: unknown) => !disputedOriginals.has((i as Record<string, unknown>).issue as string)),
+          ...uniqueDeepseekIssues.map((i: unknown) => ({ ...(i as Record<string, unknown>), source: "deepseek_added" })),
           ...sonnetDisputed.map((d: unknown) => ({ severity: "major", issue: (d as Record<string, unknown>).correction, evidence: (d as Record<string, unknown>).dispute_reason, source: "sonnet_corrected" })),
           ...sonnetMissed.map((i: unknown) => ({ ...(i as Record<string, unknown>), source: "sonnet_added" })),
         ];
@@ -596,14 +674,15 @@ export async function POST(request: NextRequest) {
           opusFinal,
           allIssues,
           geminiSuccess,
-          sonnetSuccess,
+          sonnetSuccess: sonnetSuccess || deepseekSuccess,
           opusSuccess,
         });
 
-        // Merge preflight checks from Gemini + Sonnet
+        // Merge preflight checks from Gemini + DeepSeek + Sonnet
         const geminiPreflight = geminiData ? (geminiData.preflight_checks as Record<string, unknown>) || {} : {};
+        const deepseekPreflight = deepseekData ? (deepseekData.preflight_checks as Record<string, unknown>) || {} : {};
         const sonnetPreflight = sonnetData ? (sonnetData.refined_preflight as Record<string, unknown>) || {} : {};
-        const mergedPreflight = { ...geminiPreflight, ...sonnetPreflight };
+        const mergedPreflight = { ...geminiPreflight, ...deepseekPreflight, ...sonnetPreflight };
 
         // Review packet notes from Opus
         const reviewPacketNotes = opusData ? (opusData.review_packet_notes as Record<string, unknown>) || {} : {};
@@ -631,15 +710,18 @@ export async function POST(request: NextRequest) {
           } : null,
           meta: {
             models_used: [
-              geminiSuccess ? "engine-1" : null,
-              sonnetSuccess ? "engine-2" : null,
-              opusSuccess ? "engine-3" : null,
+              geminiSuccess ? "gemini" : null,
+              deepseekSuccess ? "deepseek" : null,
+              sonnetSuccess ? "sonnet" : null,
+              opusSuccess ? "opus" : null,
             ].filter(Boolean),
             gemini_latency_ms: geminiLatency,
+            deepseek_latency_ms: deepseekLatency,
             sonnet_latency_ms: sonnetLatency,
             opus_latency_ms: opusLatency,
             total_latency_ms: Date.now() - totalStart,
             gemini_success: geminiSuccess,
+            deepseek_success: deepseekSuccess,
             sonnet_success: sonnetSuccess,
             opus_success: opusSuccess,
           },
@@ -652,7 +734,8 @@ export async function POST(request: NextRequest) {
             inputText: isIpaFlow ? `IPA: ${parsed.s3Key} | Synopsis: ${parsed.synopsis?.slice(0, 500)}` : contextForAI,
             mergedResult: merged,
             geminiResult: geminiData,
-            claudeResult: opusData, // Store Opus as the "claude" result
+            deepseekResult: deepseekData,
+            claudeResult: opusData,
             sonnetResult: sonnetData,
             score: merged.assessment.score,
             s3Key: parsed.s3Key,

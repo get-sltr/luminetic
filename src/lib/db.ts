@@ -81,6 +81,7 @@ export async function putScan(userId: string, data: {
   inputText: string;
   mergedResult: unknown;
   geminiResult: unknown;
+  deepseekResult?: unknown;
   claudeResult: unknown;
   sonnetResult?: unknown;
   score: number;
@@ -103,6 +104,7 @@ export async function putScan(userId: string, data: {
       mergedResult: data.mergedResult,
       geminiResult: data.geminiResult,
       claudeResult: data.claudeResult,
+      ...(data.deepseekResult ? { deepseekResult: data.deepseekResult } : {}),
       ...(data.sonnetResult ? { sonnetResult: data.sonnetResult } : {}),
       score: data.score,
       ...(data.s3Key ? { s3Key: data.s3Key } : {}),
