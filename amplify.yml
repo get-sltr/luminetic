@@ -3,10 +3,10 @@ frontend:
   phases:
     preBuild:
       commands:
-        - npm ci
+        - npm ci --cache .npm --prefer-offline
     build:
       commands:
-        - echo "AWS_REGION=$AWS_REGION" >> .env.production
+        - echo "AWS_REGION=us-east-1" >> .env.production
         - echo "COGNITO_USER_POOL_ID=$COGNITO_USER_POOL_ID" >> .env.production
         - echo "COGNITO_CLIENT_ID=$COGNITO_CLIENT_ID" >> .env.production
         - echo "DYNAMODB_TABLE=$DYNAMODB_TABLE" >> .env.production
@@ -23,7 +23,7 @@ frontend:
       - '**/*'
   cache:
     paths:
-      - node_modules/**/*
       - .next/cache/**/*
+      - .npm/**/*
   computeConfig:
     timeout: 120
