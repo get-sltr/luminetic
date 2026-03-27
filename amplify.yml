@@ -4,7 +4,7 @@ frontend:
     preBuild:
       commands:
         - rm -rf .next node_modules/.cache
-        - npm ci
+        - npm install --legacy-peer-deps
     build:
       commands:
         - echo "AWS_REGION=us-east-1" >> .env.production
