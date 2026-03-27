@@ -4,7 +4,7 @@ frontend:
     preBuild:
       commands:
         - rm -rf .next
-        - npm ci --cache .npm --prefer-offline
+        - npm ci
     build:
       commands:
         - echo "AWS_REGION=us-east-1" >> .env.production
