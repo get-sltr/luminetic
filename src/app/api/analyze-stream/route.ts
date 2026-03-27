@@ -300,6 +300,7 @@ const ALL_MODELS_FAILED_MSG =
   "All AI analysis steps failed. Please try again later or contact support if the issue persists.";
 
 export async function POST(request: NextRequest) {
+  try {
   const schema = z.object({
     // New IPA-based flow
     s3Key: z.string().min(1).optional(),
@@ -782,4 +783,11 @@ export async function POST(request: NextRequest) {
       "Transfer-Encoding": "chunked",
     },
   });
+  } catch (err) {
+    console.error("[analyze-stream] Unhandled error:", err);
+    return new Response(
+      JSON.stringify({ error: "Analysis service error. Please try again." }),
+      { status: 500, headers: { "Content-Type": "application/json" } }
+    );
+  }
 }
