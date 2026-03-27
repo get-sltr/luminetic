@@ -32,22 +32,22 @@ export default function Home() {
             style={{
               animationDelay: '3.1s',
               background: 'transparent',
-              border: '1px solid rgba(255, 45, 120, 0.4)',
+              border: '1px solid rgba(255, 106, 0, 0.4)',
               padding: '22px 100px',
               fontSize: '13px',
               fontWeight: 600,
               letterSpacing: '3px',
               textTransform: 'uppercase' as const,
-              boxShadow: '0 0 40px rgba(255, 45, 120, 0.15), 0 0 80px rgba(255, 45, 120, 0.08)',
+              boxShadow: '0 0 40px rgba(255, 106, 0, 0.15), 0 0 80px rgba(255, 106, 0, 0.08)',
               transition: 'all 0.4s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 50px rgba(255, 45, 120, 0.3), 0 0 100px rgba(255, 45, 120, 0.12)';
-              e.currentTarget.style.borderColor = 'rgba(255, 45, 120, 0.7)';
+              e.currentTarget.style.boxShadow = '0 0 50px rgba(255, 106, 0, 0.3), 0 0 100px rgba(255, 106, 0, 0.12)';
+              e.currentTarget.style.borderColor = 'rgba(255, 106, 0, 0.7)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 40px rgba(255, 45, 120, 0.15), 0 0 80px rgba(255, 45, 120, 0.08)';
-              e.currentTarget.style.borderColor = 'rgba(255, 45, 120, 0.4)';
+              e.currentTarget.style.boxShadow = '0 0 40px rgba(255, 106, 0, 0.15), 0 0 80px rgba(255, 106, 0, 0.08)';
+              e.currentTarget.style.borderColor = 'rgba(255, 106, 0, 0.4)';
             }}
           >
             Scan Your App

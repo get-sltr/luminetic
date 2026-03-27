@@ -17,7 +17,7 @@ export default function Header() {
         borderBottom: '1px solid var(--border)',
       }}
     >
-      <div className="flex justify-between items-center py-4 px-6 md:px-10 lg:px-16 max-w-[1200px] mx-auto w-full">
+      <div className="flex justify-between items-center py-4 px-6 md:px-10 lg:px-16 w-full">
         <Link href="/" className="flex items-center gap-2.5 no-underline">
           <div className="w-2 h-2 rounded-full animate-pulse"
             style={{ background: 'var(--orange)', boxShadow: '0 0 12px var(--orange-dim)' }}

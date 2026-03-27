@@ -34,14 +34,14 @@ function HudPanel({
         width: '180px',
         height: '72px',
         padding: '0 20px',
-        background: 'rgba(255, 45, 120, 0.04)',
-        border: '1px solid rgba(255, 45, 120, 0.15)',
+        background: 'rgba(255, 106, 0, 0.04)',
+        border: '1px solid rgba(255, 106, 0, 0.15)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         color: 'var(--gray)',
         opacity: 0,
         animation: `${isLeft ? 'jarvisPanelLeft' : 'jarvisPanelRight'} 0.8s ${delay} cubic-bezier(0.16, 1, 0.3, 1) forwards`,
-        boxShadow: '0 0 20px rgba(255, 45, 120, 0.05)',
+        boxShadow: '0 0 20px rgba(255, 106, 0, 0.05)',
       }}
     >
       <div
