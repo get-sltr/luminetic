@@ -3,7 +3,7 @@ frontend:
   phases:
     preBuild:
       commands:
-        - rm -rf .next
+        - rm -rf .next node_modules/.cache
         - npm ci
     build:
       commands:
@@ -22,8 +22,5 @@ frontend:
     baseDirectory: .next
     files:
       - '**/*'
-  cache:
-    paths:
-      - .npm/**/*
   computeConfig:
     timeout: 120
