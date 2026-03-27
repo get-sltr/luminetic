@@ -205,6 +205,31 @@ describe("POST /api/webhooks/square", () => {
     expect(dbSend).toHaveBeenCalledTimes(2);
   });
 
+  it("returns 503 when order metadata lookup fails so Square can retry", async () => {
+    getSquareClientMock.mockResolvedValue({
+      orders: {
+        get: vi.fn().mockRejectedValue(new Error("temporary square outage")),
+      },
+    });
+    const event = {
+      event_id: "evt-order-fetch-retry-001",
+      type: "payment.created" as string,
+      data: {
+        object: {
+          payment: {
+            status: "COMPLETED",
+            orderId: "order_test_retry",
+          },
+        },
+      },
+    };
+    const res = await POST(makeWebhookRequest(event));
+    expect(res.status).toBe(503);
+    expect((await res.json()).error).toContain("Could not resolve order metadata");
+    // Should only run idempotency check; no credit mutation or processed marker.
+    expect(dbSend).toHaveBeenCalledTimes(1);
+  });
+
   it("handles payment.updated event type the same as payment.created", async () => {
     const event = completedPaymentEvent();
     event.type = "payment.updated";
