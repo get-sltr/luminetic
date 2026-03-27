@@ -197,38 +197,58 @@ export default function AnalyzePage() {
 
       const decoder = new TextDecoder();
       let buffer = '';
+      let eventType = '';
+
+      const processLine = (line: string) => {
+        if (line.startsWith('event: ')) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith('data: ') && eventType) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (eventType === 'status') {
+              const s = data.step;
+              if (s === 'extracting') setStep('extracting');
+              else if (s === 'gemini') setStep('primary');
+              else if (s === 'claude-sonnet') setStep('secondary');
+              else if (s === 'claude-opus') setStep('deep');
+              else if (s === 'generating-tests') setStep('generating-tests');
+            } else if (eventType === 'result') {
+              setResult(data.result); setScanId(data.scanId || null); setStep('done');
+            } else if (eventType === 'error') {
+              setError(data.error || 'Analysis failed.'); setStep('error');
+            }
+          } catch { /* skip malformed */ }
+          eventType = '';
+        }
+      };
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) { clearTimeout(timeout); break; }
+        if (done) {
+          // Process any remaining data in the buffer before exiting
+          if (buffer.trim()) {
+            const remaining = buffer.split('\n');
+            for (const line of remaining) processLine(line);
+          }
+          clearTimeout(timeout);
+          break;
+        }
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
-        let eventType = '';
-        for (const line of lines) {
-          if (line.startsWith('event: ')) { eventType = line.slice(7).trim(); }
-          else if (line.startsWith('data: ') && eventType) {
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (eventType === 'status') {
-                const s = data.step;
-                if (s === 'extracting') setStep('extracting');
-                else if (s === 'gemini') setStep('primary');
-                else if (s === 'claude-sonnet') setStep('secondary');
-                else if (s === 'claude-opus') setStep('deep');
-                else if (s === 'generating-tests') setStep('generating-tests');
-              } else if (eventType === 'result') {
-                setResult(data.result); setScanId(data.scanId || null); setStep('done');
-              } else if (eventType === 'error') {
-                setError(data.error || 'Analysis failed.'); setStep('error');
-              }
-            } catch { /* skip malformed */ }
-            eventType = '';
-          }
-        }
+        for (const line of lines) processLine(line);
       }
+
+      // Safety: if stream ended without result or error, show a message
+      setStep((prev) => {
+        if (prev !== 'done' && prev !== 'error' && prev !== 'idle') {
+          setError('Analysis stream ended unexpectedly. Please try again.');
+          return 'error';
+        }
+        return prev;
+      });
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') setError('Analysis timed out. Please try again.');
       else setError('Something went wrong. Please try again.');
