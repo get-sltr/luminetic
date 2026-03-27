@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
@@ -20,6 +20,7 @@
     "@aws-sdk/lib-dynamodb": "^3.893.0",
     "@aws-sdk/s3-request-presigner": "^3.893.0",
     "@google/generative-ai": "^0.24.1",
+    "aws-amplify": "^6.16.3",
     "bplist-parser": "^0.3.2",
     "jose": "^6.2.1",
     "jspdf": "^4.2.1",
@@ -31,15 +32,21 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@aws-amplify/backend": "^1.22.0",
+    "@aws-amplify/backend-cli": "^1.8.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.0.1",
+    "aws-cdk-lib": "^2.234.1",
+    "constructs": "^10.6.0",
+    "esbuild": "^0.27.4",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
-    "typescript": "^5",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   }
 }
