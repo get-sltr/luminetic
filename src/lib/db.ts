@@ -27,7 +27,7 @@ export async function putUser(userId: string, email: string) {
       plan: "free",
       role: "user",
       scanCount: 0,
-      scanCredits: 0,
+      scanCredits: 1,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },

@@ -13,7 +13,7 @@ const tiers = [
     price: String(SCAN_PACKS[0].priceInCents / 100),
     scans: `${SCAN_PACKS[0].scans} scan`,
     features: [
-      'Dual-model AI analysis',
+      'Tri-engine AI analysis',
       'Pre-flight submission checklist',
       'Review packet generator',
       'Action plan with priorities',
