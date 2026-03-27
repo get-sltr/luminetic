@@ -8,7 +8,7 @@ export const maxDuration = 120; // 2 minutes — 3 sequential AI model calls nee
 import { NextRequest } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyToken } from "@/lib/auth";
-import { putScan, getUser, deductScanCredit, refundScanCredit } from "@/lib/db";
+import { putScan, getUser, deductScanCredit, refundScanCredit, isFreeTierUser, isAppFreeScanned, markFreeScannedApp } from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 import {
@@ -390,13 +390,16 @@ export async function POST(request: NextRequest) {
       try {
         let contextForAI: string;
         let ipaMetadata: IpaMetadata | null = null;
+        let ipaHash: string | null = null;
 
         if (isIpaFlow) {
           // PHASE 1: Extract .ipa metadata
           sendEvent(controller, "status", { step: "extracting", message: "Extracting app metadata from .ipa..." });
 
           try {
-            ipaMetadata = await parseIpa(parsed.s3Key!);
+            const parseResult = await parseIpa(parsed.s3Key!);
+            ipaMetadata = parseResult.metadata;
+            ipaHash = parseResult.sha256;
             contextForAI = buildMetadataContext(ipaMetadata, parsed.synopsis || "No synopsis provided.", parsed.credentials);
             sendEvent(controller, "status", { step: "extracted", metadata: { appName: ipaMetadata.appName, bundleId: ipaMetadata.bundleId, version: ipaMetadata.version } });
           } catch (err) {
@@ -406,6 +409,26 @@ export async function POST(request: NextRequest) {
             cleanup();
             controller.close();
             return;
+          }
+
+          // Anti-abuse: block free-tier users from scanning an IPA that was already free-scanned
+          if (scanCreditCharged) {
+            const freeTier = await isFreeTierUser(authUser.userId);
+            if (freeTier) {
+              const bundleId = ipaMetadata.bundleId || parsed.bundleId;
+              const alreadyScanned = await isAppFreeScanned(ipaHash, bundleId || undefined);
+              if (alreadyScanned) {
+                await refundScanCredit(authUser.userId);
+                scanCreditCharged = false;
+                sendEvent(controller, "error", {
+                  error: "This app has already been analyzed with a free scan. Purchase a scan pack to analyze it again.",
+                  code: "FREE_SCAN_DUPLICATE",
+                });
+                cleanup();
+                controller.close();
+                return;
+              }
+            }
           }
         } else {
           // Legacy text flow
@@ -636,6 +659,18 @@ export async function POST(request: NextRequest) {
             bundleId: ipaMetadata?.bundleId || parsed.bundleId,
           });
           scanId = saved.scanId;
+
+          // Mark IPA as free-scanned so it can't be re-scanned with another free account
+          if (ipaHash && scanCreditCharged) {
+            try {
+              const freeTier = await isFreeTierUser(authUser.userId);
+              if (freeTier) {
+                await markFreeScannedApp(ipaHash, ipaMetadata?.bundleId || parsed.bundleId, authUser.userId);
+              }
+            } catch (markErr) {
+              console.error("[analyze-stream] Failed to mark free-scanned app:", markErr);
+            }
+          }
         } catch (err) {
           console.error("Failed to save scan:", err);
         }

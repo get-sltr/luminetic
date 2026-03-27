@@ -38,7 +38,6 @@ function LoginForm() {
         return;
       }
 
-      // If explicit redirect was passed, use it. Otherwise route by credits.
       const destination = safeRedirect || '/dashboard';
       router.push(destination);
       router.refresh();
@@ -51,80 +50,138 @@ function LoginForm() {
 
   return (
     <>
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-      <div>
-        <label className="block text-[11px] tracking-[2px] uppercase mb-2" style={{ color: 'var(--gray)' }}>
-          Email
-        </label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          autoComplete="email"
-          placeholder="you@company.com"
-          className="input-field"
-        />
-      </div>
-
-      <div>
-        <label className="block text-[11px] tracking-[2px] uppercase mb-2" style={{ color: 'var(--gray)' }}>
-          Password
-        </label>
-        <div className="relative">
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+        {/* Email */}
+        <div>
+          <label style={{
+            display: 'block',
+            fontFamily: 'var(--mono)',
+            fontSize: '0.55rem',
+            letterSpacing: 3,
+            textTransform: 'uppercase',
+            color: 'var(--gray)',
+            marginBottom: 10,
+          }}>
+            Email
+          </label>
           <input
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             required
-            autoComplete="current-password"
-            className="input-field pr-16"
+            autoComplete="email"
+            placeholder="you@company.com"
+            className="input-field"
+            style={{ width: '100%' }}
           />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] tracking-[1px] uppercase bg-transparent border-none cursor-pointer hover-text"
-            style={{ color: 'var(--gray)' }}
-          >
-            {showPassword ? 'Hide' : 'Show'}
-          </button>
         </div>
-      </div>
 
-      {error && (
-        <div className="text-[13px] px-4 py-3" style={{ color: 'var(--red)', background: 'rgba(248,113,113,0.05)', border: '1px solid rgba(248,113,113,0.12)' }}>
-          {error}
+        {/* Password */}
+        <div>
+          <label style={{
+            display: 'block',
+            fontFamily: 'var(--mono)',
+            fontSize: '0.55rem',
+            letterSpacing: 3,
+            textTransform: 'uppercase',
+            color: 'var(--gray)',
+            marginBottom: 10,
+          }}>
+            Password
+          </label>
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              className="input-field"
+              style={{ width: '100%', paddingRight: 64 }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                right: 16,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                fontFamily: 'var(--mono)',
+                fontSize: '0.5rem',
+                letterSpacing: 2,
+                textTransform: 'uppercase',
+                color: 'var(--gray)',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+              }}
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
         </div>
-      )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full text-white text-[12px] tracking-[2px] uppercase font-medium mt-2"
-        style={{
-          background: loading ? 'var(--orange-dim)' : 'var(--orange)',
-          padding: '16px',
-          cursor: loading ? 'not-allowed' : 'pointer',
-          border: 'none',
-          opacity: loading ? 0.6 : 1,
-        }}
-      >
-        {loading ? 'Signing in...' : 'Sign In'}
-      </button>
-    </form>
+        {/* Error */}
+        {error && (
+          <div style={{
+            fontFamily: 'var(--body)',
+            fontSize: '0.8rem',
+            color: 'var(--red)',
+            background: 'rgba(239,68,68,0.04)',
+            border: '1px solid rgba(239,68,68,0.15)',
+            padding: '14px 18px',
+          }}>
+            {error}
+          </div>
+        )}
 
-      {/* Outside <form> so navigation is never swallowed; proxy must allow /forgot-password */}
-      <div className="text-center mt-4 flex flex-col gap-2">
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={loading}
+          style={{
+            width: '100%',
+            padding: '16px 0',
+            fontFamily: 'var(--mono)',
+            fontSize: '0.6rem',
+            letterSpacing: 3,
+            textTransform: 'uppercase',
+            fontWeight: 600,
+            color: 'white',
+            background: loading ? 'rgba(255,106,0,0.4)' : 'var(--orange)',
+            border: '1px solid var(--orange)',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+            transition: 'all 0.2s',
+            marginTop: 4,
+          }}
+        >
+          {loading ? 'Signing in...' : 'Sign In'}
+        </button>
+      </form>
+
+      {/* Links outside form */}
+      <div style={{ textAlign: 'center', marginTop: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Link
           href="/forgot-password"
-          className="text-[13px] no-underline inline-block py-1"
-          style={{ color: 'var(--gray)' }}
+          style={{
+            fontFamily: 'var(--body)',
+            fontSize: '0.8rem',
+            color: 'var(--gray)',
+            textDecoration: 'none',
+          }}
         >
           Forgot password?
         </Link>
-        <p className="text-[13px]" style={{ color: 'var(--gray)' }}>
+        <p style={{
+          fontFamily: 'var(--body)',
+          fontSize: '0.82rem',
+          color: 'var(--gray)',
+          margin: 0,
+        }}>
           No account?{' '}
-          <Link href="/signup" className="text-white hover:underline">
+          <Link href="/signup" style={{ color: 'var(--orange)', textDecoration: 'none' }}>
             Create one
           </Link>
         </p>
@@ -135,19 +192,45 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div style={{ background: 'var(--black)' }}>
+    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
       <div className="grid-bg" />
       <Header />
 
-      <main className="min-h-screen flex items-center justify-center px-6 pt-[100px] pb-[80px]">
-        <div className="w-full max-w-[420px]">
-          <div className="text-[11px] font-medium tracking-[4px] uppercase mb-4" style={{ color: 'var(--orange)' }}>
-            Welcome Back
+      <main style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '120px 24px 80px',
+      }}>
+        <div style={{ width: '100%', maxWidth: 440 }}>
+          {/* Header */}
+          <div style={{ marginBottom: 40 }}>
+            <div style={{
+              fontFamily: 'var(--mono)',
+              fontSize: '0.58rem',
+              letterSpacing: 4,
+              textTransform: 'uppercase',
+              color: 'var(--orange)',
+              marginBottom: 16,
+            }}>
+              // welcome back
+            </div>
+            <h1 style={{
+              fontFamily: 'var(--display)',
+              fontSize: 'clamp(2rem, 5vw, 3rem)',
+              letterSpacing: 2,
+              lineHeight: 1,
+              margin: 0,
+              color: 'var(--text)',
+            }}>
+              SIGN IN
+            </h1>
           </div>
-          <h1 className="text-[32px] font-bold mb-10" style={{ letterSpacing: '-0.5px' }}>
-            Sign in
-          </h1>
-          <Suspense fallback={<div className="text-sm" style={{ color: 'var(--gray)' }}>Loading...</div>}>
+
+          <Suspense fallback={
+            <div style={{ fontFamily: 'var(--mono)', fontSize: '0.6rem', color: 'var(--gray)' }}>Loading...</div>
+          }>
             <LoginForm />
           </Suspense>
         </div>

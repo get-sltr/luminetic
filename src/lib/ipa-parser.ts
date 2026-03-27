@@ -1,6 +1,7 @@
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import JSZip from "jszip";
 import bplist from "bplist-parser";
+import { createHash } from "crypto";
 
 const s3 = new S3Client({ region: process.env.AWS_REGION || "us-east-1" });
 const BUCKET = process.env.S3_BUCKET!;
@@ -191,12 +192,21 @@ function collectPrivacyUsageDescriptions(plist: Record<string, unknown>): Record
 
 // ── Main Parser ────────────────────────────────────────────
 
-export async function parseIpa(s3Key: string): Promise<IpaMetadata> {
+export interface IpaParseResult {
+  metadata: IpaMetadata;
+  sha256: string;
+}
+
+export async function parseIpa(s3Key: string): Promise<IpaParseResult> {
   // 1. Download from S3
   const resp = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: s3Key }));
   if (!resp.Body) throw new Error("Empty response body from S3");
 
   const bodyBytes = await resp.Body.transformToByteArray();
+
+  // Compute SHA-256 hash of the entire IPA binary
+  const sha256 = createHash("sha256").update(bodyBytes).digest("hex");
+
   const zip = await JSZip.loadAsync(bodyBytes);
 
   // 2. Locate Payload/*.app/Info.plist
@@ -268,25 +278,28 @@ export async function parseIpa(s3Key: string): Promise<IpaMetadata> {
   };
 
   return {
-    bundleId: getString("CFBundleIdentifier"),
-    appName: getString("CFBundleDisplayName") || getString("CFBundleName"),
-    version: getString("CFBundleShortVersionString"),
-    buildNumber: getString("CFBundleVersion"),
-    minimumOSVersion: getString("MinimumOSVersion"),
-    exportCompliance: getBool("ITSAppUsesNonExemptEncryption"),
-    supportsIndirectInputEvents: getBool("UIApplicationSupportsIndirectInputEvents"),
-    privacyUsageDescriptions: collectPrivacyUsageDescriptions(plist),
-    requiredDeviceCapabilities: (() => {
-      const caps = plist["UIRequiredDeviceCapabilities"];
-      if (Array.isArray(caps)) return caps.filter((c): c is string => typeof c === "string");
-      if (caps && typeof caps === "object") return Object.keys(caps);
-      return [];
-    })(),
-    backgroundModes: toStringArray(plist["UIBackgroundModes"]),
-    urlSchemes: extractUrlTypes(plist["CFBundleURLTypes"]).flatMap(t => t.schemes || []),
-    urlTypes: extractUrlTypes(plist["CFBundleURLTypes"]),
-    queriesSchemes: toStringArray(plist["LSApplicationQueriesSchemes"]),
-    entitlements,
-    frameworks: frameworks.sort(),
+    metadata: {
+      bundleId: getString("CFBundleIdentifier"),
+      appName: getString("CFBundleDisplayName") || getString("CFBundleName"),
+      version: getString("CFBundleShortVersionString"),
+      buildNumber: getString("CFBundleVersion"),
+      minimumOSVersion: getString("MinimumOSVersion"),
+      exportCompliance: getBool("ITSAppUsesNonExemptEncryption"),
+      supportsIndirectInputEvents: getBool("UIApplicationSupportsIndirectInputEvents"),
+      privacyUsageDescriptions: collectPrivacyUsageDescriptions(plist),
+      requiredDeviceCapabilities: (() => {
+        const caps = plist["UIRequiredDeviceCapabilities"];
+        if (Array.isArray(caps)) return caps.filter((c): c is string => typeof c === "string");
+        if (caps && typeof caps === "object") return Object.keys(caps);
+        return [];
+      })(),
+      backgroundModes: toStringArray(plist["UIBackgroundModes"]),
+      urlSchemes: extractUrlTypes(plist["CFBundleURLTypes"]).flatMap(t => t.schemes || []),
+      urlTypes: extractUrlTypes(plist["CFBundleURLTypes"]),
+      queriesSchemes: toStringArray(plist["LSApplicationQueriesSchemes"]),
+      entitlements,
+      frameworks: frameworks.sort(),
+    },
+    sha256,
   };
 }

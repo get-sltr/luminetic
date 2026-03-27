@@ -27,28 +27,28 @@
   --black: var(--bg);
 
   /* Borders */
-  --border: #1a1a1a;
-  --border-bright: #252525;
+  --border: #222222;
+  --border-bright: #303030;
   --border-hover: rgba(255, 106, 0, 0.14);
   --border-active: rgba(255, 106, 0, 0.35);
 
   /* Glass (orange tint) */
-  --glass: rgba(255, 106, 0, 0.03);
-  --glass-border: rgba(255, 106, 0, 0.12);
-  --glass-hover: rgba(255, 106, 0, 0.06);
+  --glass: rgba(255, 106, 0, 0.04);
+  --glass-border: rgba(255, 106, 0, 0.18);
+  --glass-hover: rgba(255, 106, 0, 0.08);
 
   /* Text */
   --text: #f0f0f0;
   --text-primary: #f0f0f0;
-  --text-dim: #444;
-  --text-mid: #888;
-  --text-secondary: rgba(245, 245, 247, 0.5);
-  --text-tertiary: rgba(245, 245, 247, 0.25);
+  --text-dim: #6b6b6b;
+  --text-mid: #a0a0a0;
+  --text-secondary: rgba(245, 245, 247, 0.6);
+  --text-tertiary: rgba(245, 245, 247, 0.35);
   --text-muted: var(--text-tertiary);
   --white: var(--text-primary);
-  --gray: #a1a1aa;
-  --gray-dim: #3f3f46;
-  --gray-muted: #71717a;
+  --gray: #b4b4bc;
+  --gray-dim: #52525a;
+  --gray-muted: #8a8a94;
 
   /* Semantic */
   --green: #22c55e;
@@ -325,14 +325,14 @@ h1, h2, h3, .page-title {
 
 .btn-secondary {
   background: transparent;
-  color: var(--text-dim);
-  border: 1px solid var(--border);
+  color: var(--gray);
+  border: 1px solid rgba(255,255,255,0.12);
   cursor: pointer;
   font-family: var(--mono);
   font-size: 0.62rem;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  padding: 5px 14px;
+  padding: 7px 16px;
   transition: all 0.15s;
 }
 
@@ -345,11 +345,12 @@ h1, h2, h3, .page-title {
 /* ========== INPUTS ========== */
 .input-field {
   width: 100%;
-  padding: 12px 16px;
+  padding: 14px 18px;
   font-size: 14px;
-  background: var(--glass);
+  font-family: var(--body);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--text-primary);
-  border: 1px solid var(--glass-border);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   outline: none;
   transition: border-color 0.25s ease, box-shadow 0.25s ease;
   font-family: var(--mono);
@@ -439,16 +440,18 @@ h1, h2, h3, .page-title {
 }
 
 .nav-links-brutalist a {
-  color: var(--text-dim);
+  color: var(--gray-muted);
   text-decoration: none;
   font-family: var(--mono);
   font-size: 0.62rem;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  padding: 10px 16px;
+  padding: 10px 18px;
   border-right: 1px solid var(--border);
   transition: all 0.15s;
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .nav-links-brutalist a::before {

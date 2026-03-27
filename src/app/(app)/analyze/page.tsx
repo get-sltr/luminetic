@@ -240,8 +240,8 @@ export default function AnalyzePage() {
 
   const inputStyle = {
     width: '100%',
-    background: 'rgba(255,255,255,0.02)',
-    border: '1px solid var(--border)',
+    background: 'rgba(255,255,255,0.03)',
+    border: '1px solid rgba(255,255,255,0.1)',
     padding: '14px 18px',
     color: 'var(--white)',
     fontFamily: 'var(--mono)',
@@ -328,18 +328,18 @@ export default function AnalyzePage() {
                   onDragLeave={handleDragLeave}
                   style={{
                     height: 140, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    border: dragOver ? '1px dashed var(--orange)' : '1px dashed rgba(255,255,255,0.08)',
+                    border: dragOver ? '1px dashed var(--orange)' : '1px dashed rgba(255,255,255,0.15)',
                     background: dragOver ? 'rgba(255,106,0,0.03)' : 'transparent',
                     cursor: 'pointer', transition: 'all 0.2s',
                   }}
                 >
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: 'var(--text-dim)', opacity: 0.5 }}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: 'var(--gray-muted)' }}>
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: '0.72rem', color: 'var(--text-dim)' }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: '0.72rem', color: 'var(--gray)' }}>
                     Drag &amp; drop .ipa or click to browse
                   </span>
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: '0.6rem', color: 'var(--text-dim)', opacity: 0.5 }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: '0.6rem', color: 'var(--gray-muted)' }}>
                     Max {Math.round(MAX_IPA_BYTES / (1024 * 1024))} MB
                   </span>
                 </div>

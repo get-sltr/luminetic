@@ -93,7 +93,7 @@ export default async function DashboardPage(props: { searchParams: Promise<Recor
 
   return (
     <div style={{ minHeight: '100vh', background: 'transparent' }}>
-      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 32px 80px' }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '0 48px 80px' }}>
 
         {purchasedCredits && (
           <div

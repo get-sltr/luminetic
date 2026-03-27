@@ -70,16 +70,16 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
           }}
         />
 
-        <div className="flex items-center py-3 px-6 lg:px-10 mx-auto w-full max-w-[1400px]">
+        <div className="flex items-center py-3 px-8 lg:px-12 mx-auto w-full max-w-[1400px]">
           {/* Logo */}
-          <Link href="/dashboard" className="no-underline shrink-0">
+          <Link href="/dashboard" className="no-underline shrink-0 flex items-center">
             <span
               style={{
                 fontFamily: "var(--display)",
-                fontSize: '1.8rem',
+                fontSize: '1.6rem',
                 letterSpacing: 4,
                 color: 'var(--orange)',
-                position: 'relative',
+                lineHeight: 1,
               }}
             >
               LUMINETIC
@@ -106,8 +106,8 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
           </nav>
 
           {/* Right side */}
-          <div className="ml-auto flex items-center gap-3">
-            <span className="badge-brutalist hidden sm:inline-block">
+          <div className="ml-auto flex items-center gap-4">
+            <span className="badge-brutalist hidden sm:inline-flex items-center">
               {tier}
             </span>
             <button
@@ -115,7 +115,7 @@ export default function AppNav({ email, plan, role = 'user' }: { email: string; 
               className="btn-secondary hidden md:inline-flex items-center gap-1.5"
               type="button"
             >
-              → Sign out
+              Sign out
             </button>
             <button
               onClick={() => setMobileOpen(true)}

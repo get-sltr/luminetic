@@ -22,25 +22,43 @@ export default function Header() {
           <div className="w-2 h-2 rounded-full animate-pulse"
             style={{ background: 'var(--orange)', boxShadow: '0 0 12px var(--orange-dim)' }}
           />
-          <span className="text-xl font-bold tracking-tight text-white"
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
+          <span style={{
+              fontFamily: 'var(--body)',
+              fontSize: '1.15rem',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              color: 'var(--text)',
+            }}>
             Luminetic
           </span>
         </Link>
 
         {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-8">
-          <Link href="/login" className="hover-text text-[13px] tracking-[1.5px] uppercase no-underline"
-            style={{ color: 'var(--gray)' }}>
+        <nav className="hidden md:flex items-center gap-6">
+          <Link href="/login" className="no-underline"
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: '0.6rem',
+              letterSpacing: 3,
+              textTransform: 'uppercase',
+              color: 'var(--gray)',
+              padding: '10px 16px',
+              transition: 'color 0.2s',
+            }}>
             Log in
           </Link>
           <Link href="/signup"
-            className="no-underline text-white text-[11px] tracking-[2px] uppercase font-medium"
+            className="no-underline"
             style={{
+              fontFamily: 'var(--mono)',
+              fontSize: '0.6rem',
+              letterSpacing: 3,
+              textTransform: 'uppercase',
+              fontWeight: 600,
+              color: 'white',
               background: 'var(--orange)',
               padding: '10px 28px',
-              boxShadow: '0 0 20px rgba(255, 45, 120, 0.15)',
+              border: '1px solid var(--orange)',
             }}>
             Get Started
           </Link>

@@ -186,6 +186,69 @@ export async function getScan(userId: string, scanId: string) {
   return res.Items?.[0] || null;
 }
 
+// ── Free-scan abuse prevention ────────────────────────────
+
+/** Check if an IPA (by SHA-256 hash or bundle ID) has already been scanned with a free credit. */
+export async function isAppFreeScanned(ipaHash: string, bundleId?: string): Promise<boolean> {
+  // Check by hash
+  const hashCheck = await db.send(new GetCommand({
+    TableName: TABLE,
+    Key: { PK: `FREE_SCAN#${ipaHash}`, SK: "HASH" },
+  }));
+  if (hashCheck.Item) return true;
+
+  // Check by bundle ID
+  if (bundleId) {
+    const bundleCheck = await db.send(new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `FREE_SCAN#${bundleId}`, SK: "BUNDLE" },
+    }));
+    if (bundleCheck.Item) return true;
+  }
+
+  return false;
+}
+
+/** Record that an IPA was scanned using a free credit. */
+export async function markFreeScannedApp(ipaHash: string, bundleId: string | undefined, userId: string): Promise<void> {
+  const now = new Date().toISOString();
+
+  // Record hash
+  await db.send(new PutCommand({
+    TableName: TABLE,
+    Item: {
+      PK: `FREE_SCAN#${ipaHash}`,
+      SK: "HASH",
+      userId,
+      bundleId: bundleId || "unknown",
+      createdAt: now,
+    },
+  }));
+
+  // Record bundle ID
+  if (bundleId) {
+    await db.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: `FREE_SCAN#${bundleId}`,
+        SK: "BUNDLE",
+        userId,
+        ipaHash,
+        createdAt: now,
+      },
+    }));
+  }
+}
+
+/** Check if a user's credits are from signup (never purchased). */
+export async function isFreeTierUser(userId: string): Promise<boolean> {
+  const user = await getUser(userId);
+  if (!user) return false;
+  // User has exactly 1 credit, has never completed a scan, and has no purchase history
+  // Simplification: if scanCount is 0 and credits <= 1, they're on the free tier
+  return (user.scanCount === 0 || user.scanCount === undefined) && (user.scanCredits as number) <= 1;
+}
+
 // ── Admin ──────────────────────────────────────────────────
 
 export async function listUsers() {
