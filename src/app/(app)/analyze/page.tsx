@@ -169,9 +169,12 @@ export default function AnalyzePage() {
 
     setError(''); setResult(null); setStep('extracting');
 
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
+
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 180_000);
+      timeout = setTimeout(() => controller.abort(), 180_000);
 
       const res = await fetch('/api/analyze-stream', {
         method: 'POST',
@@ -192,7 +195,7 @@ export default function AnalyzePage() {
         setError(data.error || 'Analysis failed.'); setStep('error'); return;
       }
 
-      const reader = res.body?.getReader();
+      reader = res.body?.getReader();
       if (!reader) throw new Error('No stream');
 
       const decoder = new TextDecoder();
@@ -200,9 +203,14 @@ export default function AnalyzePage() {
       let eventType = '';
 
       const processLine = (line: string) => {
+        // SSE spec: blank lines delimit events, comments start with ':'
+        if (!line || line.startsWith(':')) {
+          return;
+        }
         if (line.startsWith('event: ')) {
           eventType = line.slice(7).trim();
-        } else if (line.startsWith('data: ') && eventType) {
+        } else if (line.startsWith('data: ')) {
+          if (!eventType) return;
           try {
             const data = JSON.parse(line.slice(6));
             if (eventType === 'status') {
@@ -217,7 +225,9 @@ export default function AnalyzePage() {
             } else if (eventType === 'error') {
               setError(data.error || 'Analysis failed.'); setStep('error');
             }
-          } catch { /* skip malformed */ }
+          } catch {
+            console.warn('[analyze] Skipping malformed SSE data line');
+          }
           eventType = '';
         }
       };
@@ -225,12 +235,13 @@ export default function AnalyzePage() {
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
-          // Process any remaining data in the buffer before exiting
+          // Flush any remaining bytes from the TextDecoder
+          const flushed = decoder.decode(new Uint8Array(), { stream: false });
+          if (flushed) buffer += flushed;
           if (buffer.trim()) {
             const remaining = buffer.split('\n');
             for (const line of remaining) processLine(line);
           }
-          clearTimeout(timeout);
           break;
         }
 
@@ -253,6 +264,9 @@ export default function AnalyzePage() {
       if (err instanceof DOMException && err.name === 'AbortError') setError('Analysis timed out. Please try again.');
       else setError('Something went wrong. Please try again.');
       setStep('error');
+    } finally {
+      if (timeout) clearTimeout(timeout);
+      reader?.cancel().catch(() => {});
     }
   }
 

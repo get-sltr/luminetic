@@ -65,7 +65,7 @@ export default async function middleware(request: NextRequest) {
             httpOnly: true,
             secure: true,
             sameSite: "strict",
-            maxAge: 900,
+            maxAge: 60 * 60, // 1 hour — must match setAuthCookies in lib/auth.ts
             path: "/",
           });
           return response;

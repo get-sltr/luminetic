@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getAuthUser } from '@/lib/auth';
 import { requireAdmin } from '@/lib/admin';
-import { updateUserRole, updateUserCredits, updateUserPlan } from '@/lib/db';
+import { getUser, updateUserRole, updateUserCredits, updateUserPlan } from '@/lib/db';
 
 const patchSchema = z.object({
   role: z.enum(['user', 'admin', 'founder']).optional(),
   plan: z.string().optional(),
-  scanCredits: z.number().int().min(0).optional(),
+  scanCredits: z.number().int().min(0).max(9999).optional(),
 }).refine((data) => data.role !== undefined || data.plan !== undefined || data.scanCredits !== undefined, {
   message: 'At least one field (role, plan, scanCredits) must be provided',
 });
@@ -43,6 +43,19 @@ export async function PATCH(
 
   const { userId } = await params;
   const { role, plan, scanCredits } = parsed.data;
+
+  // Prevent admins from modifying their own account via this endpoint
+  if (userId === auth.userId) {
+    return NextResponse.json({ error: 'Cannot modify your own account' }, { status: 403 });
+  }
+
+  // Only founders can grant the founder role
+  if (role === 'founder') {
+    const callerRecord = await getUser(auth.userId);
+    if (callerRecord?.role !== 'founder') {
+      return NextResponse.json({ error: 'Only founders can grant founder role' }, { status: 403 });
+    }
+  }
 
   if (role !== undefined) {
     await updateUserRole(userId, role);

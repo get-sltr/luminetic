@@ -6,6 +6,8 @@ const schema = z.object({
   refreshToken: z.string().min(1, "No refresh token."),
 });
 
+const isProd = process.env.NODE_ENV === "production";
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -16,7 +18,17 @@ export async function POST(request: NextRequest) {
 
     if (!accessToken) return NextResponse.json({ error: "Refresh failed." }, { status: 401 });
 
-    return NextResponse.json({ accessToken });
+    // Return token in JSON for middleware consumption, AND set httpOnly cookie
+    // so client-side callers also get the cookie set securely
+    const response = NextResponse.json({ accessToken });
+    response.cookies.set("access_token", accessToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "strict",
+      maxAge: 60 * 60, // 1 hour — must match setAuthCookies in lib/auth.ts
+      path: "/",
+    });
+    return response;
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.issues[0]?.message || "Invalid input." }, { status: 400 });

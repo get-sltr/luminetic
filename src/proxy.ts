@@ -74,7 +74,7 @@ export async function proxy(request: NextRequest) {
             httpOnly: true,
             secure: isProd,
             sameSite: "strict",
-            maxAge: 15 * 60,
+            maxAge: 60 * 60, // 1 hour — must match setAuthCookies in lib/auth.ts
             path: "/",
           });
           return response;

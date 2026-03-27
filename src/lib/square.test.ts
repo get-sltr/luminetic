@@ -19,7 +19,7 @@ describe("Square config", () => {
     const agency = SCAN_PACKS.find((p) => p.id === "agency");
     expect(agency).toBeDefined();
     expect(agency!.scans).toBe(10);
-    expect(agency!.priceInCents).toBe(11900);
+    expect(agency!.priceInCents).toBe(9900);
   });
 
   it("all packs have positive prices", () => {

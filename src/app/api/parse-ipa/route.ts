@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { s3Key } = schema.parse(body);
 
-    // Ensure the user can only parse their own uploads
-    if (!s3Key.startsWith(`ipa-uploads/${user.userId}/`)) {
+    // Ensure the user can only parse their own uploads — block path traversal
+    if (s3Key.includes("..") || !s3Key.startsWith(`ipa-uploads/${user.userId}/`)) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 

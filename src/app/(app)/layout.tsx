@@ -19,7 +19,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       redirect('/pricing');
     }
   } catch {
-    // If DB check fails, let them through
+    // DB unavailable — deny access rather than silently bypassing credit check
+    redirect('/pricing');
   }
 
   return (

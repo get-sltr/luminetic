@@ -60,6 +60,7 @@ export async function refundScanCredit(userId: string): Promise<void> {
     TableName: TABLE,
     Key: { PK: `USER#${userId}`, SK: "PROFILE" },
     UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+    ConditionExpression: "attribute_exists(PK)",
     ExpressionAttributeValues: {
       ":one": 1,
       ":now": new Date().toISOString(),

@@ -283,23 +283,17 @@ function resolveFinalReadinessScore(opts: {
     return blended;
   }
 
-  // Both models explicitly returned 0 — only trust if we have strong signal (many issues)
-  if (blended === 0 && gs === 0 && os === 0) {
-    if (allIssues.length >= 3) return heuristicScoreFromIssues(allIssues);
-  }
-
-  if (blended !== null && blended === 0 && (gs === 0 || os === 0)) {
-    if (allIssues.length > 0) return heuristicScoreFromIssues(allIssues);
-    if (anyAiOk) return 65;
-  }
-
-  if (blended === null) {
+  // Both models returned 0 — use heuristic if we have issues, otherwise trust a low score
+  if (blended === 0) {
     if (allIssues.length > 0) return heuristicScoreFromIssues(allIssues);
     if (anyAiOk) return 65;
     return 0;
   }
 
-  return blended;
+  // blended is null — no model returned a valid score
+  if (allIssues.length > 0) return heuristicScoreFromIssues(allIssues);
+  if (anyAiOk) return 65;
+  return 0;
 }
 
 const ALL_MODELS_FAILED_MSG =
@@ -359,6 +353,16 @@ export async function POST(request: NextRequest) {
       JSON.stringify({ error: "Too many requests. Please wait." }),
       { status: 429, headers: { "Content-Type": "application/json", "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
     );
+  }
+
+  // Validate s3Key belongs to this user — prevent cross-user IPA access
+  if (parsed.s3Key) {
+    if (parsed.s3Key.includes("..") || !parsed.s3Key.startsWith(`ipa-uploads/${authUser.userId}/`)) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden: invalid file reference." }),
+        { status: 403, headers: { "Content-Type": "application/json" } }
+      );
+    }
   }
 
   let scanCreditCharged = false;
