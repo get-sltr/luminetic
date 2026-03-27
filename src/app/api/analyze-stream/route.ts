@@ -370,6 +370,13 @@ export async function POST(request: NextRequest) {
     async start(controller) {
       const totalStart = Date.now();
 
+      // Heartbeat to keep CloudFront connection alive (30s timeout)
+      const heartbeat = setInterval(() => {
+        try { controller.enqueue(new TextEncoder().encode(": heartbeat\n\n")); } catch { /* stream closed */ }
+      }, 8000);
+
+      const cleanup = () => clearInterval(heartbeat);
+
       const maybeRefundCredit = async (reason: string) => {
         if (!scanCreditCharged) return;
         try {
@@ -396,6 +403,7 @@ export async function POST(request: NextRequest) {
             console.error("[IPA parse error]", err);
             await maybeRefundCredit("ipa_parse_failed");
             sendEvent(controller, "error", { error: "Failed to parse .ipa file. Please ensure it's a valid iOS app." });
+            cleanup();
             controller.close();
             return;
           }
@@ -637,6 +645,7 @@ export async function POST(request: NextRequest) {
         console.error("Stream error:", err);
         sendEvent(controller, "error", { error: "Analysis failed. Please try again." });
       } finally {
+        cleanup();
         controller.close();
       }
     },
