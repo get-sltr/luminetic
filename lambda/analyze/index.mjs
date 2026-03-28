@@ -22,6 +22,10 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
+import {
+  S3Client,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
 
 const REGION = process.env.AWS_REGION || "us-east-1";
 const TABLE = process.env.DYNAMODB_TABLE || "appready";
@@ -29,6 +33,8 @@ const TABLE = process.env.DYNAMODB_TABLE || "appready";
 const bedrock = new BedrockRuntimeClient({ region: REGION });
 const db = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }));
 const secrets = new SecretsManagerClient({ region: REGION });
+const s3 = new S3Client({ region: REGION });
+const S3_BUCKET = process.env.S3_BUCKET;
 
 let cachedGeminiKey = null;
 
@@ -421,6 +427,16 @@ export const handler = async (event) => {
       UpdateExpression: "ADD scanCount :inc SET updatedAt = :now",
       ExpressionAttributeValues: { ":inc": 1, ":now": new Date().toISOString() },
     }));
+
+    // Delete IPA from S3 — metadata is extracted, original file no longer needed
+    if (s3Key && S3_BUCKET) {
+      try {
+        await s3.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: s3Key }));
+        console.log(`[Cleanup] Deleted s3://${S3_BUCKET}/${s3Key}`);
+      } catch (delErr) {
+        console.warn(`[Cleanup] Failed to delete IPA (non-fatal):`, delErr);
+      }
+    }
 
     console.log(`[Done] scanId=${scanId} score=${merged.assessment.score} total=${Date.now() - totalStart}ms`);
     return { statusCode: 200, body: JSON.stringify({ scanId, score: merged.assessment.score }) };

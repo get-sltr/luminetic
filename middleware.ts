@@ -22,6 +22,7 @@ const PUBLIC_PATHS = [
   "/verify",
   "/forgot-password",
   "/pricing",
+  "/terms",
   "/robots.txt",
   "/sitemap.xml",
 ];

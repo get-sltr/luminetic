@@ -95,6 +95,16 @@ export default function Footer() {
             }}>
               // Company
             </h4>
+            <Link
+              href="/terms"
+              className="no-underline"
+              style={{
+                fontFamily: 'var(--body)', fontSize: '0.78rem', color: 'var(--text-mid)',
+                transition: 'color 0.2s',
+              }}
+            >
+              Terms &amp; Conditions
+            </Link>
             <span style={{ fontFamily: 'var(--body)', fontSize: '0.78rem', color: 'var(--text-mid)' }}>
               SLTR Digital LLC
             </span>

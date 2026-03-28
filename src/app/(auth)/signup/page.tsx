@@ -28,6 +28,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const strength = useMemo(() => getPasswordStrength(password), [password]);
 
@@ -241,10 +242,40 @@ export default function SignupPage() {
               </div>
             )}
 
+            {/* Terms agreement */}
+            <label style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 10,
+              cursor: 'pointer',
+            }}>
+              <input
+                type="checkbox"
+                checked={agreedToTerms}
+                onChange={(e) => setAgreedToTerms(e.target.checked)}
+                style={{
+                  marginTop: 2,
+                  accentColor: 'var(--orange)',
+                  cursor: 'pointer',
+                }}
+              />
+              <span style={{
+                fontFamily: 'var(--body)',
+                fontSize: '0.78rem',
+                color: 'var(--text-mid)',
+                lineHeight: 1.5,
+              }}>
+                I have read and agree to the{' '}
+                <Link href="/terms" target="_blank" style={{ color: 'var(--orange)', textDecoration: 'none' }}>
+                  Terms and Conditions
+                </Link>
+              </span>
+            </label>
+
             {/* Submit */}
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !agreedToTerms}
               style={{
                 width: '100%',
                 padding: '16px 0',
@@ -254,10 +285,10 @@ export default function SignupPage() {
                 textTransform: 'uppercase',
                 fontWeight: 600,
                 color: 'white',
-                background: loading ? 'rgba(255,106,0,0.4)' : 'var(--orange)',
+                background: (loading || !agreedToTerms) ? 'rgba(255,106,0,0.4)' : 'var(--orange)',
                 border: '1px solid var(--orange)',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                opacity: loading ? 0.6 : 1,
+                cursor: (loading || !agreedToTerms) ? 'not-allowed' : 'pointer',
+                opacity: (loading || !agreedToTerms) ? 0.6 : 1,
                 transition: 'all 0.2s',
                 marginTop: 4,
               }}

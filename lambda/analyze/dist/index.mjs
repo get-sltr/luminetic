@@ -1048,11 +1048,17 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand
 } from "@aws-sdk/client-secrets-manager";
+import {
+  S3Client,
+  DeleteObjectCommand
+} from "@aws-sdk/client-s3";
 var REGION = process.env.AWS_REGION || "us-east-1";
 var TABLE = process.env.DYNAMODB_TABLE || "appready";
 var bedrock = new BedrockRuntimeClient({ region: REGION });
 var db = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }));
 var secrets = new SecretsManagerClient({ region: REGION });
+var s3 = new S3Client({ region: REGION });
+var S3_BUCKET = process.env.S3_BUCKET;
 var cachedGeminiKey = null;
 async function getGeminiKey() {
   const envKey = process.env.GEMINI_API_KEY;
@@ -1424,6 +1430,14 @@ var handler = async (event) => {
       UpdateExpression: "ADD scanCount :inc SET updatedAt = :now",
       ExpressionAttributeValues: { ":inc": 1, ":now": (/* @__PURE__ */ new Date()).toISOString() }
     }));
+    if (s3Key && S3_BUCKET) {
+      try {
+        await s3.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: s3Key }));
+        console.log(`[Cleanup] Deleted s3://${S3_BUCKET}/${s3Key}`);
+      } catch (delErr) {
+        console.warn(`[Cleanup] Failed to delete IPA (non-fatal):`, delErr);
+      }
+    }
     console.log(`[Done] scanId=${scanId} score=${merged.assessment.score} total=${Date.now() - totalStart}ms`);
     return { statusCode: 200, body: JSON.stringify({ scanId, score: merged.assessment.score }) };
   } catch (err) {
