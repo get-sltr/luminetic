@@ -169,13 +169,8 @@ export default function AnalyzePage() {
 
     setError(''); setResult(null); setStep('extracting');
 
-    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    const controller = new AbortController();
-
     try {
-      timeout = setTimeout(() => controller.abort(), 180_000);
-
+      // ── Step 1: Submit analysis (SSR validates, deducts credit, invokes Lambda) ──
       const res = await fetch('/api/analyze-stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -187,7 +182,6 @@ export default function AnalyzePage() {
             ? { email: loginEmail.trim(), password: loginPassword.trim() }
             : undefined,
         }),
-        signal: controller.signal,
       });
 
       if (!res.ok) {
@@ -195,78 +189,63 @@ export default function AnalyzePage() {
         setError(data.error || 'Analysis failed.'); setStep('error'); return;
       }
 
-      reader = res.body?.getReader();
-      if (!reader) throw new Error('No stream');
+      const { scanId: newScanId } = await res.json();
+      if (!newScanId) { setError('Failed to start analysis.'); setStep('error'); return; }
 
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let eventType = '';
+      setScanId(newScanId);
+      setStep('primary'); // AI analysis is running
 
-      const processLine = (line: string) => {
-        // SSE spec: blank lines delimit events, comments start with ':'
-        if (!line || line.startsWith(':')) {
+      // ── Step 2: Poll for results ──
+      const POLL_INTERVAL = 3000;
+      const MAX_POLLS = 60; // 3s × 60 = 3 minutes max
+      let polls = 0;
+
+      const poll = async (): Promise<void> => {
+        polls++;
+        if (polls > MAX_POLLS) {
+          setError('Analysis is taking longer than expected. Check your history page for results.');
+          setStep('error');
           return;
         }
-        if (line.startsWith('event: ')) {
-          eventType = line.slice(7).trim();
-        } else if (line.startsWith('data: ')) {
-          if (!eventType) return;
-          try {
-            const data = JSON.parse(line.slice(6));
-            if (eventType === 'status') {
-              const s = data.step;
-              if (s === 'extracting') setStep('extracting');
-              else if (s === 'gemini') setStep('primary');
-              else if (s === 'claude-sonnet') setStep('secondary');
-              else if (s === 'claude-opus') setStep('deep');
-              else if (s === 'generating-tests') setStep('generating-tests');
-            } else if (eventType === 'result') {
-              setResult(data.result); setScanId(data.scanId || null); setStep('done');
-            } else if (eventType === 'error') {
-              setError(data.error || 'Analysis failed.'); setStep('error');
-            }
-          } catch {
-            console.warn('[analyze] Skipping malformed SSE data line');
+
+        try {
+          const statusRes = await fetch(`/api/scans?scanId=${newScanId}`);
+          if (!statusRes.ok) {
+            // Retry on transient errors
+            await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+            return poll();
           }
-          eventType = '';
+
+          const scan = await statusRes.json();
+
+          // Update progress step based on status
+          if (scan.status === 'analyzing') setStep('primary');
+          else if (scan.status === 'reconciling') setStep('deep');
+          else if (scan.status === 'complete') {
+            setResult(scan.mergedResult);
+            setScanId(scan.scanId);
+            setStep('done');
+            return;
+          } else if (scan.status === 'error') {
+            setError(scan.errorMessage || 'Analysis failed. Please try again.');
+            setStep('error');
+            return;
+          }
+
+          // Still processing — wait and poll again
+          await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+          return poll();
+        } catch {
+          // Network error — retry
+          await new Promise((r) => setTimeout(r, POLL_INTERVAL));
+          return poll();
         }
       };
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-          // Flush any remaining bytes from the TextDecoder
-          const flushed = decoder.decode(new Uint8Array(), { stream: false });
-          if (flushed) buffer += flushed;
-          if (buffer.trim()) {
-            const remaining = buffer.split('\n');
-            for (const line of remaining) processLine(line);
-          }
-          break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) processLine(line);
-      }
-
-      // Safety: if stream ended without result or error, show a message
-      setStep((prev) => {
-        if (prev !== 'done' && prev !== 'error' && prev !== 'idle') {
-          setError('Analysis stream ended unexpectedly. Please try again.');
-          return 'error';
-        }
-        return prev;
-      });
+      await poll();
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') setError('Analysis timed out. Please try again.');
-      else setError('Something went wrong. Please try again.');
+      setError('Something went wrong. Please try again.');
       setStep('error');
-    } finally {
-      if (timeout) clearTimeout(timeout);
-      reader?.cancel().catch(() => {});
     }
   }
 

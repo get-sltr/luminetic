@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["@aws-sdk/client-bedrock-runtime", "@aws-sdk/client-secrets-manager"],
+  serverExternalPackages: ["@aws-sdk/client-bedrock-runtime", "@aws-sdk/client-secrets-manager", "@aws-sdk/client-lambda"],
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",
