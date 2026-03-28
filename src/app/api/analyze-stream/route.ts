@@ -189,19 +189,21 @@ Respond ONLY with valid JSON (no markdown, no backticks):
   }
 }`;
 
-const CLAUDE_OPUS_PROMPT = `You are the final-stage senior App Store review analyst. You perform deep reconciliation across findings from Gemini, DeepSeek, and Claude Sonnet. You will receive:
-1. Extracted .ipa metadata
-2. App synopsis
-3. Gemini's analysis
-4. DeepSeek's analysis
-5. Claude Sonnet's validation
+const CLAUDE_OPUS_PROMPT = `You are a senior App Store review analyst performing a deep, independent analysis. You analyze .ipa app metadata to identify potential App Store Review Guideline violations, missing configurations, and submission risks.
 
-Your job: RECONCILE all findings from all models, produce the final authoritative assessment, refine the action plan, and assign final confidence scores.
+You have expert knowledge of:
+- Apple's App Store Review Guidelines (all sections 1-5)
+- Info.plist and entitlements requirements
+- Privacy, ATT, and data collection compliance
+- Framework/SDK issues and deprecated API concerns
+- Common rejection patterns and edge cases
+
+Perform a thorough, independent analysis. Focus on producing an actionable action plan and final assessment.
 
 Respond ONLY with valid JSON (no markdown, no backticks):
 
 {
-  "refined_action_plan": [{ "priority": 1, "action": "...", "details": "...", "estimated_effort": "...", "confidence": "high"|"medium"|"low", "source": "gemini_confirmed"|"sonnet_added"|"opus_refined" }],
+  "refined_action_plan": [{ "priority": 1, "action": "...", "details": "...", "estimated_effort": "...", "confidence": "high"|"medium"|"low", "source": "opus_independent" }],
   "final_assessment": { "score": 0-100, "confidence": "high"|"medium"|"low", "summary": "...", "agreement_level": "full"|"partial"|"significant_disagreement", "risk_factors": ["..."] },
   "review_packet_notes": {
     "testing_steps": ["Step-by-step testing instructions for Apple reviewer"],
@@ -562,7 +564,41 @@ export async function POST(request: NextRequest) {
           }
         })();
 
-        const [geminiResult, deepseekResult, sonnetResult] = await Promise.all([geminiPromise, deepseekPromise, sonnetPromise]);
+        // Model 4: Claude Opus — runs in parallel with the others (independent deep analysis)
+        const opusPromise = (async () => {
+          const start = Date.now();
+          try {
+            const contextLabel = isIpaFlow ? "APP METADATA" : "FEEDBACK";
+            const userMessage = `${contextLabel}:\n${contextForAI}\n\nPerform a thorough independent analysis of this app's metadata for App Store Review compliance.`;
+
+            const payload = {
+              anthropic_version: "bedrock-2023-05-31",
+              max_tokens: 4096,
+              temperature: 0.2,
+              system: CLAUDE_OPUS_PROMPT,
+              messages: [{ role: "user", content: userMessage }],
+            };
+
+            const command = new InvokeModelCommand({
+              modelId: "us.anthropic.claude-opus-4-6-v1",
+              contentType: "application/json",
+              accept: "application/json",
+              body: JSON.stringify(payload),
+            });
+
+            const response = await bedrock.send(command);
+            const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+            const raw = responseBody?.content?.[0]?.text;
+            if (!raw) throw new Error("Empty response from Opus");
+            const cleaned = raw.replace(/```json\s*|```/g, "").trim();
+            return { data: JSON.parse(cleaned) as Record<string, unknown>, success: true, latency: Date.now() - start };
+          } catch (err) {
+            console.error("[Opus error]", err);
+            return { data: null, success: false, latency: Date.now() - start };
+          }
+        })();
+
+        const [geminiResult, deepseekResult, sonnetResult, opusResult] = await Promise.all([geminiPromise, deepseekPromise, sonnetPromise, opusPromise]);
 
         const geminiData = geminiResult.data;
         const geminiLatency = geminiResult.latency;
@@ -573,50 +609,13 @@ export async function POST(request: NextRequest) {
         const sonnetData = sonnetResult.data;
         const sonnetLatency = sonnetResult.latency;
         const sonnetSuccess = sonnetResult.success;
+        const opusData = opusResult.data;
+        const opusLatency = opusResult.latency;
+        const opusSuccess = opusResult.success;
 
         sendEvent(controller, "status", { step: "gemini_done", success: geminiSuccess, latency: geminiLatency });
         sendEvent(controller, "status", { step: "deepseek_done", success: deepseekSuccess, latency: deepseekLatency });
         sendEvent(controller, "status", { step: "sonnet_done", success: sonnetSuccess, latency: sonnetLatency });
-
-        // Model 4: Claude Opus (reconciles all findings)
-        sendEvent(controller, "status", { step: "claude-opus", message: "Deep reconciliation analysis..." });
-
-        let opusData: Record<string, unknown> | null = null;
-        let opusLatency = 0;
-        let opusSuccess = false;
-        const oStart = Date.now();
-
-        try {
-          const contextLabel = isIpaFlow ? "APP METADATA" : "FEEDBACK";
-          const userMessage = `${contextLabel}:\n${contextForAI}\n\nGEMINI ANALYSIS:\n${JSON.stringify(geminiData, null, 2)}\n\nDEEPSEEK ANALYSIS:\n${JSON.stringify(deepseekData, null, 2)}\n\nCLAUDE SONNET ANALYSIS:\n${JSON.stringify(sonnetData, null, 2)}\n\nReconcile all findings from all models and produce the final assessment.`;
-
-          const payload = {
-            anthropic_version: "bedrock-2023-05-31",
-            max_tokens: 4096,
-            temperature: 0.2,
-            system: CLAUDE_OPUS_PROMPT,
-            messages: [{ role: "user", content: userMessage }],
-          };
-
-          const command = new InvokeModelCommand({
-            modelId: "us.anthropic.claude-opus-4-6-v1",
-            contentType: "application/json",
-            accept: "application/json",
-            body: JSON.stringify(payload),
-          });
-
-          const response = await bedrock.send(command);
-          const responseBody = JSON.parse(new TextDecoder().decode(response.body));
-          const raw = responseBody?.content?.[0]?.text;
-          if (!raw) throw new Error("Empty response from Opus");
-          const cleaned = raw.replace(/```json\s*|```/g, "").trim();
-          opusData = JSON.parse(cleaned);
-          opusSuccess = true;
-        } catch (err) {
-          console.error("[Opus error]", err);
-        }
-        opusLatency = Date.now() - oStart;
-
         sendEvent(controller, "status", { step: "opus_done", success: opusSuccess, latency: opusLatency });
 
         const anyModelSucceeded = geminiSuccess || deepseekSuccess || sonnetSuccess || opusSuccess;
