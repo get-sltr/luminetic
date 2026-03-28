@@ -16,7 +16,13 @@ export default function Home() {
         {/* Tagline — positioned higher, independent of phone */}
         <div
           className="text-[11px] font-medium tracking-[5px] uppercase animate-jarvis-flicker"
-          style={{ color: 'var(--orange)', opacity: 0, animationDelay: '0.5s', marginBottom: '60px' }}
+          style={{
+            color: 'var(--orange)',
+            opacity: 0,
+            animationDelay: '0.5s',
+            marginBottom: '60px',
+            textShadow: '0 0 20px rgba(255, 122, 26, 0.3)',
+          }}
         >
           Submission Intelligence
         </div>
@@ -32,26 +38,30 @@ export default function Home() {
             style={{
               animationDelay: '3.1s',
               background: 'transparent',
-              border: '1px solid rgba(255, 106, 0, 0.4)',
+              border: '2px solid rgba(255, 122, 26, 0.5)',
               padding: '22px 100px',
               fontSize: '13px',
-              fontWeight: 600,
-              letterSpacing: '3px',
+              fontWeight: 700,
+              letterSpacing: '4px',
               textTransform: 'uppercase' as const,
-              boxShadow: '0 0 40px rgba(255, 106, 0, 0.15), 0 0 80px rgba(255, 106, 0, 0.08)',
-              transition: 'all 0.4s ease',
+              boxShadow: '0 0 15px rgba(255, 122, 26, 0.3), 0 0 40px rgba(255, 122, 26, 0.15), inset 0 0 15px rgba(255, 122, 26, 0.05)',
+              transition: 'all 0.3s ease',
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 50px rgba(255, 106, 0, 0.3), 0 0 100px rgba(255, 106, 0, 0.12)';
-              e.currentTarget.style.borderColor = 'rgba(255, 106, 0, 0.7)';
+              e.currentTarget.style.background = 'rgba(255, 122, 26, 0.1)';
+              e.currentTarget.style.boxShadow = '0 0 25px rgba(255, 122, 26, 0.5), 0 0 50px rgba(255, 122, 26, 0.2), inset 0 0 25px rgba(255, 122, 26, 0.1)';
+              e.currentTarget.style.borderColor = 'rgba(255, 170, 68, 0.8)';
+              e.currentTarget.style.transform = 'translateY(-2px)';
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = '0 0 40px rgba(255, 106, 0, 0.15), 0 0 80px rgba(255, 106, 0, 0.08)';
-              e.currentTarget.style.borderColor = 'rgba(255, 106, 0, 0.4)';
+              e.currentTarget.style.background = 'transparent';
+              e.currentTarget.style.boxShadow = '0 0 15px rgba(255, 122, 26, 0.3), 0 0 40px rgba(255, 122, 26, 0.15), inset 0 0 15px rgba(255, 122, 26, 0.05)';
+              e.currentTarget.style.borderColor = 'rgba(255, 122, 26, 0.5)';
+              e.currentTarget.style.transform = 'translateY(0)';
             }}
           >
             Scan Your App
-            <span style={{ fontSize: '16px' }}>&rarr;</span>
+            <span style={{ fontSize: '16px', color: 'var(--orange)', transition: 'transform 0.2s' }}>&rarr;</span>
           </a>
         </div>
       </section>

@@ -10,21 +10,21 @@ const SOURCE_LABELS: Record<string, { label: string; color: string }> = {
 };
 
 const SEVERITY_COLORS: Record<string, string> = {
-  critical: '#f87171',
-  major:    '#fb923c',
-  minor:    '#facc15',
+  critical: '#ff5555',
+  major:    '#ff7a1a',
+  minor:    '#64c8ff',
 };
 
 const SEVERITY_BG: Record<string, string> = {
-  critical: 'rgba(248,113,113,0.06)',
-  major:    'rgba(251,146,60,0.06)',
-  minor:    'rgba(250,204,21,0.04)',
+  critical: 'rgba(255,85,85,0.12)',
+  major:    'rgba(255,122,26,0.12)',
+  minor:    'rgba(100,200,255,0.10)',
 };
 
 const CONFIDENCE_COLORS: Record<string, string> = {
-  high:   '#4ade80',
-  medium: '#facc15',
-  low:    '#f87171',
+  high:   '#34d399',
+  medium: '#ffc800',
+  low:    '#ff5555',
 };
 
 function formatDurationMs(ms: number): string {

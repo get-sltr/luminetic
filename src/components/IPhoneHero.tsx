@@ -34,14 +34,14 @@ function HudPanel({
         width: '180px',
         height: '72px',
         padding: '0 20px',
-        background: 'rgba(255, 106, 0, 0.04)',
-        border: '1px solid rgba(255, 106, 0, 0.15)',
+        background: 'rgba(255, 122, 26, 0.06)',
+        border: '1px solid rgba(255, 122, 26, 0.22)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         color: 'var(--gray)',
         opacity: 0,
         animation: `${isLeft ? 'jarvisPanelLeft' : 'jarvisPanelRight'} 0.8s ${delay} cubic-bezier(0.16, 1, 0.3, 1) forwards`,
-        boxShadow: '0 0 20px rgba(255, 106, 0, 0.05)',
+        boxShadow: '0 0 20px rgba(255, 122, 26, 0.10)',
       }}
     >
       <div
@@ -56,7 +56,7 @@ function HudPanel({
       </div>
       <div
         className={`text-[13px] font-normal tracking-normal ${isLeft ? 'text-right' : 'text-left'}`}
-        style={{ color: 'rgba(255,255,255,0.7)' }}
+        style={{ color: 'rgba(255,255,255,0.85)' }}
       >
         {value}
       </div>
@@ -75,10 +75,10 @@ export default function IPhoneHero() {
     >
       {/* Backlight glow */}
       <div
-        className="absolute top-1/2 left-1/2 w-[350px] h-[550px] -z-10 animate-glow-pulse"
+        className="absolute top-1/2 left-1/2 w-[400px] h-[600px] -z-10 animate-glow-pulse"
         style={{
           transform: 'translate(-50%, -50%)',
-          background: 'radial-gradient(ellipse, rgba(255,106,0,0.08) 0%, transparent 70%)',
+          background: 'radial-gradient(ellipse, rgba(255,122,26,0.14) 0%, rgba(255,122,26,0.04) 40%, transparent 70%)',
         }}
       />
 
@@ -94,7 +94,7 @@ export default function IPhoneHero() {
           right: 'calc(50% + 110px)',
           width: '30px',
           top: '25%',
-          background: 'linear-gradient(90deg, rgba(255,106,0,0.2), transparent)',
+          background: 'linear-gradient(90deg, rgba(255,122,26,0.3), transparent)',
           opacity: 0,
           animation: 'fadeIn 0.5s 1.5s forwards',
         }}
@@ -105,7 +105,7 @@ export default function IPhoneHero() {
           left: 'calc(50% + 110px)',
           width: '30px',
           top: '25%',
-          background: 'linear-gradient(90deg, transparent, rgba(255,106,0,0.2))',
+          background: 'linear-gradient(90deg, transparent, rgba(255,122,26,0.3))',
           opacity: 0,
           animation: 'fadeIn 0.5s 1.8s forwards',
         }}
@@ -116,7 +116,7 @@ export default function IPhoneHero() {
           right: 'calc(50% + 110px)',
           width: '30px',
           top: '60%',
-          background: 'linear-gradient(90deg, rgba(255,106,0,0.2), transparent)',
+          background: 'linear-gradient(90deg, rgba(255,122,26,0.3), transparent)',
           opacity: 0,
           animation: 'fadeIn 0.5s 2.1s forwards',
         }}
@@ -127,7 +127,7 @@ export default function IPhoneHero() {
           left: 'calc(50% + 110px)',
           width: '30px',
           top: '60%',
-          background: 'linear-gradient(90deg, transparent, rgba(255,106,0,0.2))',
+          background: 'linear-gradient(90deg, transparent, rgba(255,122,26,0.3))',
           opacity: 0,
           animation: 'fadeIn 0.5s 2.4s forwards',
         }}
@@ -138,9 +138,10 @@ export default function IPhoneHero() {
         className="relative w-[220px] h-[450px] rounded-[36px] overflow-hidden"
         style={{
           background: '#0a0a0a',
-          border: '2px solid rgba(255,255,255,0.06)',
+          border: '1px solid rgba(255, 122, 26, 0.2)',
+          filter: 'brightness(1.1)',
           boxShadow:
-            '0 0 0 1px rgba(255,255,255,0.02), 0 0 60px rgba(255,106,0,0.05), 0 0 120px rgba(255,106,0,0.03), 0 30px 80px rgba(0,0,0,0.8)',
+            '0 0 40px rgba(255, 122, 26, 0.15), 0 0 80px rgba(255, 122, 26, 0.05), 0 30px 80px rgba(0,0,0,0.8)',
         }}
       >
         {/* Notch */}
@@ -156,13 +157,13 @@ export default function IPhoneHero() {
         <div
           className="absolute inset-[8px] rounded-[30px] flex items-center justify-center overflow-hidden"
           style={{
-            background: 'radial-gradient(ellipse at center 30%, rgba(255,106,0,0.04) 0%, rgba(0,0,0,0.9) 60%, #000 100%)',
+            background: 'radial-gradient(ellipse at center 30%, rgba(255,122,26,0.07) 0%, rgba(0,0,0,0.9) 60%, #000 100%)',
           }}
         >
           <div
             className="w-[90px] h-[90px] rounded-full animate-breathe"
             style={{
-              background: 'radial-gradient(circle, rgba(255,106,0,0.12) 0%, transparent 70%)',
+              background: 'radial-gradient(circle, rgba(255,122,26,0.18) 0%, transparent 70%)',
             }}
           />
         </div>

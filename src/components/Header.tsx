@@ -19,15 +19,20 @@ export default function Header() {
     >
       <div className="flex justify-between items-center py-4 px-6 md:px-10 lg:px-16 w-full">
         <Link href="/" className="flex items-center gap-2.5 no-underline">
-          <div className="w-2 h-2 rounded-full animate-pulse"
-            style={{ background: 'var(--orange)', boxShadow: '0 0 12px var(--orange-dim)' }}
+          <div className="w-2 h-2 rounded-full"
+            style={{
+              background: 'var(--orange)',
+              boxShadow: '0 0 8px rgba(255, 122, 26, 0.6)',
+              animation: 'pulse-glow-dot 2s ease-in-out infinite',
+            }}
           />
           <span style={{
               fontFamily: 'var(--body)',
               fontSize: '1.15rem',
               fontWeight: 700,
-              letterSpacing: '-0.02em',
-              color: 'var(--text)',
+              letterSpacing: '0.08em',
+              color: '#ffffff',
+              textShadow: '0 0 10px rgba(255, 255, 255, 0.3), 0 0 20px rgba(255, 255, 255, 0.1)',
             }}>
             Luminetic
           </span>
@@ -41,9 +46,10 @@ export default function Header() {
               fontSize: '0.6rem',
               letterSpacing: 3,
               textTransform: 'uppercase',
-              color: 'var(--gray)',
+              fontWeight: 500,
+              color: '#ffffff',
               padding: '10px 16px',
-              transition: 'color 0.2s',
+              transition: 'color 0.2s, text-shadow 0.2s',
             }}>
             Log in
           </Link>
@@ -54,11 +60,13 @@ export default function Header() {
               fontSize: '0.6rem',
               letterSpacing: 3,
               textTransform: 'uppercase',
-              fontWeight: 600,
-              color: 'white',
+              fontWeight: 700,
+              color: '#000000',
               background: 'var(--orange)',
               padding: '10px 28px',
-              border: '1px solid var(--orange)',
+              border: 'none',
+              boxShadow: '0 0 20px rgba(255, 122, 26, 0.4)',
+              transition: 'all 0.2s ease',
             }}>
             Get Started
           </Link>
