@@ -53,7 +53,7 @@ describe('getPostBySlug', () => {
     const post = getPostBySlug('why-most-apps-fail-app-store-review');
     expect(post).not.toBeNull();
     expect(post!.frontmatter.title).toBe('Why Most Apps Fail in App Store Review');
-    expect(post!.source).toContain('test post');
+    expect(post!.source).toContain('App Store');
   });
 
   it('returns null for a non-existent slug', () => {
