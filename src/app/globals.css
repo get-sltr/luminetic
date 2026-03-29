@@ -1142,3 +1142,83 @@ h1, h2, h3, .page-title {
     display: none;
   }
 }
+
+/* ========== BLOG ========== */
+.blog-card:hover {
+  border-color: var(--border-hover) !important;
+}
+
+.blog-prose {
+  font-family: var(--body);
+  font-size: 1.05rem;
+  line-height: 1.75;
+  color: var(--text-mid);
+}
+.blog-prose h2 {
+  font-family: var(--display);
+  font-size: 1.8rem;
+  letter-spacing: 2px;
+  color: var(--text);
+  margin: 48px 0 16px;
+}
+.blog-prose h3 {
+  font-family: var(--display);
+  font-size: 1.4rem;
+  letter-spacing: 1px;
+  color: var(--text);
+  margin: 36px 0 12px;
+}
+.blog-prose p {
+  margin: 0 0 20px;
+}
+.blog-prose a {
+  color: var(--orange);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.blog-prose a:hover {
+  color: var(--orange-bright);
+}
+.blog-prose ul,
+.blog-prose ol {
+  padding-left: 24px;
+  margin: 0 0 20px;
+}
+.blog-prose li {
+  margin-bottom: 8px;
+}
+.blog-prose code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  background: var(--glass);
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+}
+.blog-prose pre {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  padding: 20px;
+  overflow-x: auto;
+  margin: 0 0 24px;
+}
+.blog-prose pre code {
+  background: none;
+  border: none;
+  padding: 0;
+}
+.blog-prose blockquote {
+  border-left: 3px solid var(--orange);
+  padding: 12px 20px;
+  margin: 24px 0;
+  color: var(--text-dim);
+  font-style: italic;
+}
+.blog-prose strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.blog-prose hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 40px 0;
+}
