@@ -25,7 +25,7 @@ function PostCard({ post, featured = false }: { post: PostMeta; featured?: boole
       href={`/blog/${post.slug}`}
       style={{
         display: 'block',
-        background: 'var(--glass)',
+        background: 'var(--bg-elevated)',
         border: '1px solid var(--border)',
         padding: featured ? '40px 32px' : '24px 20px',
         transition: 'border-color 0.2s, box-shadow 0.2s',
@@ -159,6 +159,19 @@ export default function BlogIndexPage() {
         }}
       >
         <div style={{ marginBottom: 48 }}>
+          {/* Blog brand — liquid glass lime */}
+          <h1
+            className="blog-brand"
+            style={{
+              fontFamily: 'var(--display)',
+              fontSize: 'clamp(3rem, 8vw, 5rem)',
+              letterSpacing: 4,
+              margin: '0 0 12px',
+              lineHeight: 1,
+            }}
+          >
+            Submission Intelligence
+          </h1>
           <span
             style={{
               fontFamily: 'var(--mono)',
@@ -172,17 +185,6 @@ export default function BlogIndexPage() {
           >
             // Blog
           </span>
-          <h1
-            style={{
-              fontFamily: 'var(--display)',
-              fontSize: 'clamp(2.4rem, 6vw, 3.6rem)',
-              letterSpacing: 3,
-              color: 'var(--text)',
-              margin: 0,
-            }}
-          >
-            Submission Intelligence
-          </h1>
           <p
             style={{
               fontFamily: 'var(--body)',
