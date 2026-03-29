@@ -23,6 +23,7 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/pricing",
   "/terms",
+  "/blog",
   "/robots.txt",
   "/sitemap.xml",
 ];
