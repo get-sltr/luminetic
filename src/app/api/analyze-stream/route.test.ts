@@ -1,16 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockVerifyToken = vi.fn();
-const mockGetUser = vi.fn();
-const mockDeductScanCredit = vi.fn();
-const mockRefundScanCredit = vi.fn();
-const mockIsFreeTierUser = vi.fn();
-const mockIsAppFreeScanned = vi.fn();
-const mockMarkFreeScannedApp = vi.fn();
-const mockAnalyzeLimiterCheck = vi.fn();
-const mockDbSend = vi.fn();
-const mockLambdaSend = vi.fn();
+const {
+  mockVerifyToken,
+  mockGetUser,
+  mockDeductScanCredit,
+  mockRefundScanCredit,
+  mockIsFreeTierUser,
+  mockIsAppFreeScanned,
+  mockMarkFreeScannedApp,
+  mockAnalyzeLimiterCheck,
+  mockDbSend,
+  mockLambdaSend,
+} = vi.hoisted(() => ({
+  mockVerifyToken: vi.fn(),
+  mockGetUser: vi.fn(),
+  mockDeductScanCredit: vi.fn(),
+  mockRefundScanCredit: vi.fn(),
+  mockIsFreeTierUser: vi.fn(),
+  mockIsAppFreeScanned: vi.fn(),
+  mockMarkFreeScannedApp: vi.fn(),
+  mockAnalyzeLimiterCheck: vi.fn(),
+  mockDbSend: vi.fn(),
+  mockLambdaSend: vi.fn(),
+}));
 
 vi.mock("@/lib/auth", () => ({
   verifyToken: mockVerifyToken,
