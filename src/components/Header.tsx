@@ -40,6 +40,19 @@ export default function Header() {
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-6">
+          <Link href="/blog" className="no-underline"
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: '0.6rem',
+              letterSpacing: 3,
+              textTransform: 'uppercase',
+              fontWeight: 500,
+              color: '#ffffff',
+              padding: '10px 16px',
+              transition: 'color 0.2s, text-shadow 0.2s',
+            }}>
+            Blog
+          </Link>
           <Link href="/login" className="no-underline"
             style={{
               fontFamily: 'var(--mono)',
@@ -100,6 +113,10 @@ export default function Header() {
             >
               <IconX width={20} height={20} />
             </button>
+            <Link href="/blog" className="hover-text text-[15px] no-underline" style={{ color: 'var(--gray)' }}
+              onClick={() => setMobileOpen(false)}>
+              Blog
+            </Link>
             <Link href="/login" className="hover-text text-[15px] no-underline" style={{ color: 'var(--gray)' }}
               onClick={() => setMobileOpen(false)}>
               Log in
