@@ -1222,3 +1222,8 @@ h1, h2, h3, .page-title {
   border-top: 1px solid var(--border);
   margin: 40px 0;
 }
+.blog-prose img {
+  max-width: 100%;
+  height: auto;
+  margin: 24px 0;
+}

@@ -146,7 +146,7 @@ export default function BlogIndexPage() {
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(blogJsonLd).replace(/</g, '\\u003c') }}
       />
 
       <main
@@ -203,7 +203,7 @@ export default function BlogIndexPage() {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(2, 1fr)',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
               gap: 16,
             }}
           >

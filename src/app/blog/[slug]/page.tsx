@@ -64,7 +64,7 @@ export default async function BlogPostPage({ params }: PageProps) {
     headline: fm.title,
     description: fm.description,
     image: fm.ogImage
-      ? `https://luminetic.io${fm.ogImage}`
+      ? (fm.ogImage.startsWith('http') ? fm.ogImage : `https://luminetic.io${fm.ogImage}`)
       : `https://luminetic.io/blog/${slug}/opengraph-image`,
     datePublished: fm.date,
     author: {
@@ -90,7 +90,7 @@ export default async function BlogPostPage({ params }: PageProps) {
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
       />
 
       <main

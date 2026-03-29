@@ -10,7 +10,7 @@ const styles: Record<string, { borderColor: string; label: string }> = {
 };
 
 export default function Callout({ type = 'tip', children }: CalloutProps) {
-  const { borderColor, label } = styles[type];
+  const { borderColor, label } = styles[type] ?? styles.info;
 
   return (
     <div
