@@ -32,7 +32,7 @@ export function calculateReadTime(content: string): number {
   const stripped = content
     .replace(/^import\s+.*$/gm, '')
     .replace(/<\/?[A-Z][A-Za-z]*[^>]*\/?>/g, '')
-    .replace(/<[a-z][^>]*\/?>/g, '')
+    .replace(/<\/?[a-z][^>]*\/?>/g, '')
     .trim();
   const words = stripped.split(/\s+/).filter(Boolean).length;
   return Math.max(1, Math.ceil(words / 200));
@@ -66,12 +66,19 @@ export function getAllPosts(): PostMeta[] {
 }
 
 export function getPostBySlug(slug: string): Post | null {
+  if (slug.includes('/') || slug.includes('\\') || slug.includes('..')) {
+    return null;
+  }
+
   const filePath = path.join(BLOG_DIR, `${slug}.mdx`);
+  if (!path.resolve(filePath).startsWith(path.resolve(BLOG_DIR))) return null;
   if (!fs.existsSync(filePath)) return null;
 
   const raw = fs.readFileSync(filePath, 'utf-8');
   const { data, content } = matter(raw);
   const frontmatter = data as PostFrontmatter;
+
+  if (frontmatter.draft) return null;
 
   return {
     frontmatter,

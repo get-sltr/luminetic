@@ -60,4 +60,10 @@ describe('getPostBySlug', () => {
     const post = getPostBySlug('does-not-exist');
     expect(post).toBeNull();
   });
+
+  it('returns null for path traversal attempts', () => {
+    expect(getPostBySlug('../../etc/passwd')).toBeNull();
+    expect(getPostBySlug('../src/lib/blog')).toBeNull();
+    expect(getPostBySlug('foo/bar')).toBeNull();
+  });
 });
