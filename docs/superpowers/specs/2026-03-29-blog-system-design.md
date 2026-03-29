@@ -101,6 +101,23 @@ Each post page injects Article schema:
 
 The blog index page injects a `Blog` schema with `blogPost` array referencing all posts.
 
+### Sitemap & robots.txt
+
+- **`next-sitemap`** added as a dev dependency. Generates `sitemap.xml` and `robots.txt` at build time.
+- **`next-sitemap.config.js`** at project root:
+  - `siteUrl: 'https://luminetic.io'`
+  - `generateRobotsTxt: true`
+  - Blog posts are automatically included since they're statically generated routes
+- **Draft posts are safe:** `draft: true` posts are filtered out of `generateStaticParams`, so no route is generated and they never appear in the sitemap. No extra exclusion rules needed.
+- Submit the generated `sitemap.xml` URL to Google Search Console for discovery.
+
+### OG Image Generation
+
+- Use Next.js `ImageResponse` (from `next/og`) to auto-generate OG images at build time
+- Route: `src/app/blog/[slug]/opengraph-image.tsx` — Next.js convention, automatically sets `og:image` meta tag
+- Design: Post title rendered in Bebas Neue over a dark background with the Luminetic orange accent and logo
+- Frontmatter `ogImage` field becomes optional — if omitted, the auto-generated image is used; if provided, it overrides
+
 ### Navigation Changes
 
 - Add "Blog" link to `Header.tsx` desktop nav (between logo and "Log in")
@@ -112,12 +129,25 @@ Minimal set for launch:
 - **`Callout`** — styled tip/warning/info box (orange-accented, fits brutalist theme)
 - **`CTA`** — inline call-to-action block (reuses the bottom-of-post CTA style)
 
+### GA4 Event Tracking
+
+The `BlogCTA` component fires a custom GA4 event on click:
+
+```ts
+gtag('event', 'blog_cta_click', {
+  post_slug: slug,
+  cta_location: 'bottom', // or 'inline' for MDX CTA component
+});
+```
+
+This enables tracking blog-to-signup conversion in GA4 (Blog read → CTA click → Signup). The `gtag` function is already available globally via the existing Google Analytics script in the root layout.
+
 ### Utility: `lib/blog.ts`
 
 Exports:
 - `getAllPosts()` — reads `content/blog/`, parses frontmatter, returns sorted post metadata array
 - `getPostBySlug(slug)` — reads single MDX file, returns frontmatter + raw MDX source
-- `calculateReadTime(content)` — word count / 200, rounded up
+- `calculateReadTime(content)` — strips JSX/component tags and MDX import statements before counting words, then divides by 200 wpm, rounded up. This prevents component syntax from inflating read times.
 
 ## Content Plan
 
@@ -149,13 +179,15 @@ Exports:
 | `src/lib/blog.ts` | Blog utility functions |
 | `src/components/BlogCTA.tsx` | Reusable CTA banner component |
 | `src/components/mdx/Callout.tsx` | MDX callout component |
+| `src/app/blog/[slug]/opengraph-image.tsx` | Auto-generated OG images from post title |
+| `next-sitemap.config.js` | Sitemap & robots.txt generation config |
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
 | `src/components/Header.tsx` | Add "Blog" nav link |
-| `package.json` | Add `next-mdx-remote` dependency |
+| `package.json` | Add `next-mdx-remote`, `next-sitemap` dependencies |
 
 ## Out of Scope
 
@@ -164,4 +196,4 @@ Exports:
 - Comments
 - Cover images (posts use OG images only for social sharing)
 - CMS or admin UI for content
-- Analytics per post (GA already covers page views)
+- Per-post analytics dashboards (GA4 page views + `blog_cta_click` event cover what's needed)
