@@ -1172,8 +1172,14 @@ h1.blog-brand {
   50% { background-position: 0% 0; }
   100% { background-position: 100% 0; }
 }
+.blog-card {
+  cursor: pointer;
+}
 .blog-card:hover {
-  border-color: var(--border-hover) !important;
+  border-color: var(--border-active) !important;
+  box-shadow: 0 0 20px rgba(255, 122, 26, 0.08), 0 4px 16px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+  transition: all 0.2s ease;
 }
 
 .blog-prose {

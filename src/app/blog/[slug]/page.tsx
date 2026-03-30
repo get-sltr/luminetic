@@ -136,7 +136,7 @@ export default async function BlogPostPage({ params }: PageProps) {
               letterSpacing: 1,
             }}
           >
-            {new Date(fm.date).toLocaleDateString('en-US', {
+            {new Date(fm.date + 'T00:00:00').toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'long',
               day: 'numeric',

@@ -104,7 +104,7 @@ function PostCard({ post, featured = false }: { post: PostMeta; featured?: boole
           }}
         >
           {post.readTime} min &middot;{' '}
-          {new Date(post.date).toLocaleDateString('en-US', {
+          {new Date(post.date + 'T00:00:00').toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
             year: 'numeric',
@@ -164,9 +164,9 @@ export default function BlogIndexPage() {
             className="blog-brand"
             style={{
               fontFamily: 'var(--display)',
-              fontSize: 'clamp(3rem, 8vw, 5rem)',
+              fontSize: 'clamp(2rem, 5vw, 3.2rem)',
               letterSpacing: 4,
-              margin: '0 0 12px',
+              margin: '0 0 8px',
               lineHeight: 1,
             }}
           >
