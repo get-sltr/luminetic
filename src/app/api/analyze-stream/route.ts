@@ -21,7 +21,7 @@ import { z } from "zod";
 import { parseIpa, type IpaMetadata } from "@/lib/ipa-parser";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 
 const lambda = new LambdaClient({ region: process.env.AWS_REGION || "us-east-1" });
@@ -189,6 +189,50 @@ export async function POST(request: NextRequest) {
       },
     }));
 
+    // ── Invoke Lambda async (fire-and-forget) ──
+    try {
+      await lambda.send(new InvokeCommand({
+        FunctionName: LAMBDA_NAME,
+        InvocationType: "Event", // async — returns 202 immediately
+        Payload: Buffer.from(JSON.stringify({
+          userId: authUser.userId,
+          scanSK,
+          scanId,
+          contextForAI,
+          ipaMetadata: ipaMetadata ? {
+            appName: ipaMetadata.appName,
+            bundleId: ipaMetadata.bundleId,
+            version: ipaMetadata.version,
+            buildNumber: ipaMetadata.buildNumber,
+            frameworks: ipaMetadata.frameworks,
+            privacyDescriptions: ipaMetadata.privacyUsageDescriptions,
+          } : null,
+          s3Key: parsed.s3Key,
+          bundleId: ipaMetadata?.bundleId || parsed.bundleId,
+        })),
+      }));
+    } catch (invokeErr) {
+      console.error("[analyze-stream] Lambda invoke failed:", invokeErr);
+      await db.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: `USER#${authUser.userId}`, SK: scanSK },
+        UpdateExpression: "SET #s = :s, errorMessage = :msg, updatedAt = :now",
+        ExpressionAttributeNames: { "#s": "status" },
+        ExpressionAttributeValues: {
+          ":s": "error",
+          ":msg": "Analysis failed to start. Please retry.",
+          ":now": new Date().toISOString(),
+        },
+      })).catch(() => {});
+      if (scanCreditCharged) {
+        try { await refundScanCredit(authUser.userId); } catch { /* best effort */ }
+      }
+      return Response.json(
+        { error: "Analysis service is temporarily unavailable. Your credit was not used. Please try again." },
+        { status: 503 }
+      );
+    }
+
     // ── Mark free-scanned app ──
     if (ipaHash && scanCreditCharged) {
       try {
@@ -196,28 +240,6 @@ export async function POST(request: NextRequest) {
         if (freeTier) await markFreeScannedApp(ipaHash, ipaMetadata?.bundleId || parsed.bundleId, authUser.userId);
       } catch { /* best effort */ }
     }
-
-    // ── Invoke Lambda async (fire-and-forget) ──
-    await lambda.send(new InvokeCommand({
-      FunctionName: LAMBDA_NAME,
-      InvocationType: "Event", // async — returns 202 immediately
-      Payload: Buffer.from(JSON.stringify({
-        userId: authUser.userId,
-        scanSK,
-        scanId,
-        contextForAI,
-        ipaMetadata: ipaMetadata ? {
-          appName: ipaMetadata.appName,
-          bundleId: ipaMetadata.bundleId,
-          version: ipaMetadata.version,
-          buildNumber: ipaMetadata.buildNumber,
-          frameworks: ipaMetadata.frameworks,
-          privacyDescriptions: ipaMetadata.privacyUsageDescriptions,
-        } : null,
-        s3Key: parsed.s3Key,
-        bundleId: ipaMetadata?.bundleId || parsed.bundleId,
-      })),
-    }));
 
     return Response.json({ scanId, status: "pending" });
   } catch (err) {
