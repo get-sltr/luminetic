@@ -215,7 +215,7 @@ export default function AnalyzePage() {
 
       // ── Step 2: Poll for results ──
       const POLL_INTERVAL = 3000;
-      const MAX_POLLS = 60; // 3s × 60 = 3 minutes max
+      const MAX_POLLS = 100; // 3s × 100 = 5 minutes max
       let polls = 0;
 
       const poll = async (): Promise<void> => {
