@@ -21,7 +21,7 @@ import { z } from "zod";
 import { parseIpa, type IpaMetadata } from "@/lib/ipa-parser";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 
 const lambda = new LambdaClient({ region: process.env.AWS_REGION || "us-east-1" });
@@ -73,6 +73,39 @@ function buildMetadataContext(
 }
 
 export async function POST(request: NextRequest) {
+  let chargedUserId: string | null = null;
+  let scanCreditCharged = false;
+  let scanRecordKey: { PK: string; SK: string } | null = null;
+
+  const refundCreditIfNeeded = async () => {
+    if (!scanCreditCharged || !chargedUserId) return;
+    try {
+      await refundScanCredit(chargedUserId);
+      scanCreditCharged = false;
+    } catch {
+      // best effort
+    }
+  };
+
+  const markScanAsErrorIfCreated = async (message: string) => {
+    if (!scanRecordKey) return;
+    try {
+      await db.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: scanRecordKey,
+        UpdateExpression: "SET #s = :status, errorMessage = :msg, updatedAt = :now",
+        ExpressionAttributeNames: { "#s": "status" },
+        ExpressionAttributeValues: {
+          ":status": "error",
+          ":msg": message,
+          ":now": new Date().toISOString(),
+        },
+      }));
+    } catch {
+      // best effort
+    }
+  };
+
   try {
     // ── Parse input ──
     const schema = z.object({
@@ -111,7 +144,6 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Credit check + deduct ──
-    let scanCreditCharged = false;
     try {
       const userRecord = await getUser(authUser.userId);
       const isFounder = userRecord?.plan === "founder" || userRecord?.role === "founder" || userRecord?.role === "admin";
@@ -120,6 +152,7 @@ export async function POST(request: NextRequest) {
         if (credits <= 0) return Response.json({ error: "No scan credits remaining." }, { status: 429 });
         const used = await deductScanCredit(authUser.userId);
         if (!used) return Response.json({ error: "No scan credits remaining." }, { status: 429 });
+        chargedUserId = authUser.userId;
         scanCreditCharged = true;
       }
     } catch (err) {
@@ -141,9 +174,7 @@ export async function POST(request: NextRequest) {
         contextForAI = buildMetadataContext(ipaMetadata, parsed.synopsis || "No synopsis provided.", parsed.credentials);
       } catch (err) {
         console.error("[IPA parse error]", err);
-        if (scanCreditCharged) {
-          try { await refundScanCredit(authUser.userId); } catch { /* best effort */ }
-        }
+        await refundCreditIfNeeded();
         return Response.json({ error: "Failed to parse .ipa file." }, { status: 400 });
       }
 
@@ -154,7 +185,7 @@ export async function POST(request: NextRequest) {
           const bundleId = ipaMetadata.bundleId || parsed.bundleId;
           const alreadyScanned = await isAppFreeScanned(ipaHash, bundleId || undefined);
           if (alreadyScanned) {
-            try { await refundScanCredit(authUser.userId); } catch { /* best effort */ }
+            await refundCreditIfNeeded();
             return Response.json({
               error: "This app has already been analyzed with a free scan. Purchase a scan pack to analyze it again.",
               code: "FREE_SCAN_DUPLICATE",
@@ -170,24 +201,31 @@ export async function POST(request: NextRequest) {
     const scanId = randomUUID();
     const timestamp = new Date().toISOString();
     const scanSK = `SCAN#${timestamp}#${scanId}`;
+    scanRecordKey = { PK: `USER#${authUser.userId}`, SK: scanSK };
 
-    await db.send(new PutCommand({
-      TableName: TABLE,
-      Item: {
-        PK: `USER#${authUser.userId}`,
-        SK: scanSK,
-        GSI1PK: `USER#${authUser.userId}`,
-        GSI1SK: `SCAN#${timestamp}`,
-        scanId,
-        userId: authUser.userId,
-        inputText: isIpaFlow ? `IPA: ${parsed.s3Key} | Synopsis: ${parsed.synopsis?.slice(0, 500)}` : contextForAI.slice(0, 500),
-        status: "pending",
-        ...(parsed.s3Key ? { s3Key: parsed.s3Key } : {}),
-        ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      },
-    }));
+    try {
+      await db.send(new PutCommand({
+        TableName: TABLE,
+        Item: {
+          PK: `USER#${authUser.userId}`,
+          SK: scanSK,
+          GSI1PK: `USER#${authUser.userId}`,
+          GSI1SK: `SCAN#${timestamp}`,
+          scanId,
+          userId: authUser.userId,
+          inputText: isIpaFlow ? `IPA: ${parsed.s3Key} | Synopsis: ${parsed.synopsis?.slice(0, 500)}` : contextForAI.slice(0, 500),
+          status: "pending",
+          ...(parsed.s3Key ? { s3Key: parsed.s3Key } : {}),
+          ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      }));
+    } catch (err) {
+      console.error("[analyze-stream] Failed to create pending scan record:", err);
+      await refundCreditIfNeeded();
+      return Response.json({ error: "Analysis service error. Please try again." }, { status: 503 });
+    }
 
     // ── Mark free-scanned app ──
     if (ipaHash && scanCreditCharged) {
@@ -198,30 +236,39 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Invoke Lambda async (fire-and-forget) ──
-    await lambda.send(new InvokeCommand({
-      FunctionName: LAMBDA_NAME,
-      InvocationType: "Event", // async — returns 202 immediately
-      Payload: Buffer.from(JSON.stringify({
-        userId: authUser.userId,
-        scanSK,
-        scanId,
-        contextForAI,
-        ipaMetadata: ipaMetadata ? {
-          appName: ipaMetadata.appName,
-          bundleId: ipaMetadata.bundleId,
-          version: ipaMetadata.version,
-          buildNumber: ipaMetadata.buildNumber,
-          frameworks: ipaMetadata.frameworks,
-          privacyDescriptions: ipaMetadata.privacyUsageDescriptions,
-        } : null,
-        s3Key: parsed.s3Key,
-        bundleId: ipaMetadata?.bundleId || parsed.bundleId,
-      })),
-    }));
+    try {
+      await lambda.send(new InvokeCommand({
+        FunctionName: LAMBDA_NAME,
+        InvocationType: "Event", // async — returns 202 immediately
+        Payload: Buffer.from(JSON.stringify({
+          userId: authUser.userId,
+          scanSK,
+          scanId,
+          contextForAI,
+          ipaMetadata: ipaMetadata ? {
+            appName: ipaMetadata.appName,
+            bundleId: ipaMetadata.bundleId,
+            version: ipaMetadata.version,
+            buildNumber: ipaMetadata.buildNumber,
+            frameworks: ipaMetadata.frameworks,
+            privacyDescriptions: ipaMetadata.privacyUsageDescriptions,
+          } : null,
+          s3Key: parsed.s3Key,
+          bundleId: ipaMetadata?.bundleId || parsed.bundleId,
+        })),
+      }));
+    } catch (err) {
+      console.error("[analyze-stream] Lambda invoke failed:", err);
+      await markScanAsErrorIfCreated("Analysis failed to start. Please try again.");
+      await refundCreditIfNeeded();
+      return Response.json({ error: "Analysis failed to start. Please try again." }, { status: 503 });
+    }
 
     return Response.json({ scanId, status: "pending" });
   } catch (err) {
     console.error("[analyze-stream] Unhandled error:", err);
+    await markScanAsErrorIfCreated("Analysis failed to start. Please try again.");
+    await refundCreditIfNeeded();
     return Response.json({ error: "Analysis service error. Please try again." }, { status: 500 });
   }
 }
