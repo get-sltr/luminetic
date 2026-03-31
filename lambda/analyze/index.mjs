@@ -164,25 +164,34 @@ Respond ONLY with valid JSON (no markdown, no backticks):
 // ── Model callers ──────────────────────────────────────────
 async function callGemini(context) {
   const start = Date.now();
-  try {
-    const apiKey = await getGeminiKey();
-    // Dynamic import — @google/generative-ai is bundled with the Lambda
-    const { GoogleGenerativeAI } = await import("@google/generative-ai");
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-pro",
-      generationConfig: { temperature: 0.2, maxOutputTokens: 8192 },
-    });
-    const result = await model.generateContent([
-      { text: GEMINI_SYSTEM_PROMPT },
-      { text: `Analyze this iOS app's metadata for App Store Review compliance:\n\n${context}` },
-    ]);
-    const raw = result.response.text();
-    const cleaned = raw.replace(/```json\s*|```/g, "").trim();
-    return { data: JSON.parse(cleaned), success: true, latency: Date.now() - start };
-  } catch (err) {
-    console.error("[Gemini error]", err);
-    return { data: null, success: false, latency: Date.now() - start };
+  const MAX_RETRIES = 2;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const apiKey = await getGeminiKey();
+      // Dynamic import — @google/generative-ai is bundled with the Lambda
+      const { GoogleGenerativeAI } = await import("@google/generative-ai");
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-pro",
+        generationConfig: { temperature: 0.2, maxOutputTokens: 8192 },
+      });
+      const result = await model.generateContent([
+        { text: GEMINI_SYSTEM_PROMPT },
+        { text: `Analyze this iOS app's metadata for App Store Review compliance:\n\n${context}` },
+      ]);
+      const raw = result.response.text();
+      const cleaned = raw.replace(/```json\s*|```/g, "").trim();
+      return { data: JSON.parse(cleaned), success: true, latency: Date.now() - start };
+    } catch (err) {
+      const isRetryable = err?.status === 503 || err?.status === 429;
+      if (isRetryable && attempt < MAX_RETRIES) {
+        console.warn(`[Gemini] ${err.status} on attempt ${attempt}, retrying in 3s...`);
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      }
+      console.error("[Gemini error]", err);
+      return { data: null, success: false, latency: Date.now() - start };
+    }
   }
 }
 
