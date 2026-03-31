@@ -162,6 +162,35 @@ Respond ONLY with valid JSON (no markdown, no backticks):
 }`;
 
 // ── Model callers ──────────────────────────────────────────
+async function callMistralLarge(context) {
+  const start = Date.now();
+  try {
+    const payload = {
+      max_tokens: 8192,
+      temperature: 0.2,
+      messages: [
+        { role: "system", content: GEMINI_SYSTEM_PROMPT },
+        { role: "user", content: `Analyze this iOS app's metadata for App Store Review compliance:\n\n${context}` },
+      ],
+    };
+    const cmd = new InvokeModelCommand({
+      modelId: "mistral.mistral-large-3-675b-instruct",
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify(payload),
+    });
+    const response = await bedrock.send(cmd);
+    const body = JSON.parse(new TextDecoder().decode(response.body));
+    const raw = body?.choices?.[0]?.message?.content;
+    if (!raw) throw new Error("Empty response from Mistral Large");
+    const cleaned = raw.replace(/```json\s*|```/g, "").trim();
+    return { data: JSON.parse(cleaned), success: true, latency: Date.now() - start };
+  } catch (err) {
+    console.error("[Mistral Large error]", err);
+    return { data: null, success: false, latency: Date.now() - start };
+  }
+}
+
 async function callGemini(context) {
   const start = Date.now();
   const MAX_RETRIES = 2;
@@ -190,7 +219,9 @@ async function callGemini(context) {
         continue;
       }
       console.error("[Gemini error]", err);
-      return { data: null, success: false, latency: Date.now() - start };
+      // Fallback to Mistral Large 3
+      console.log("[Gemini] Falling back to Mistral Large 3...");
+      return await callMistralLarge(context);
     }
   }
 }
