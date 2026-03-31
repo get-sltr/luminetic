@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthUser } from "@/lib/auth";
-import { getUser } from "@/lib/db";
+import { canUserScan } from "@/lib/db";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { uploadLimiter } from "@/lib/rate-limit";
@@ -69,12 +69,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Credit check before issuing presigned URL
-    let userRecord;
+    // Credit check before issuing presigned URL (allows paid credits OR free scan)
+    let gate;
     try {
-      userRecord = await getUser(user.userId);
+      gate = await canUserScan(user.userId);
     } catch (dbErr) {
-      console.error("[upload-ipa] DynamoDB getUser failed:", dbErr);
+      console.error("[upload-ipa] DynamoDB canUserScan failed:", dbErr);
       return NextResponse.json(
         {
           error: "Could not load your account. Check DYNAMODB_TABLE and IAM permissions.",
@@ -83,15 +83,11 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    const isFounder = userRecord?.plan === "founder" || userRecord?.role === "founder" || userRecord?.role === "admin";
-    if (!isFounder) {
-      const credits = (userRecord?.scanCredits as number) || 0;
-      if (credits <= 0) {
-        return NextResponse.json(
-          { error: "No scan credits remaining. Purchase credits to upload.", code: "NO_CREDITS" },
-          { status: 429 }
-        );
-      }
+    if (!gate.allowed) {
+      return NextResponse.json(
+        { error: "No scan credits remaining. Purchase credits to upload.", code: "NO_CREDITS" },
+        { status: 402 }
+      );
     }
 
     let body: unknown;

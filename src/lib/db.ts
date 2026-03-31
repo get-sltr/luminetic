@@ -189,6 +189,45 @@ export async function getScan(userId: string, scanId: string) {
   return res.Items?.[0] || null;
 }
 
+// ── Scan gating ──────────────────────────────────────────
+
+export interface ScanGateResult {
+  allowed: boolean;
+  reason: string;
+  isPaidScan: boolean;
+  isFreeScan: boolean;
+  credits: number;
+  scanCount: number;
+}
+
+/**
+ * Single source of truth for whether a user can scan.
+ * Priority: founder bypass > paid credits > free scan > blocked.
+ */
+export async function canUserScan(userId: string): Promise<ScanGateResult> {
+  const user = await getUser(userId);
+  if (!user) return { allowed: false, reason: "User not found.", isPaidScan: false, isFreeScan: false, credits: 0, scanCount: 0 };
+
+  const credits = (user.scanCredits as number) || 0;
+  const scanCount = (user.scanCount as number) || 0;
+  const isFounder = user.plan === "founder" || user.role === "founder" || user.role === "admin";
+
+  if (isFounder) {
+    return { allowed: true, reason: "Founder access.", isPaidScan: false, isFreeScan: false, credits, scanCount };
+  }
+
+  if (credits > 0) {
+    return { allowed: true, reason: "Paid credit available.", isPaidScan: true, isFreeScan: false, credits, scanCount };
+  }
+
+  // No credits: check if free scan is available (never scanned before)
+  if (scanCount === 0) {
+    return { allowed: true, reason: "Free scan available.", isPaidScan: false, isFreeScan: true, credits, scanCount };
+  }
+
+  return { allowed: false, reason: "No scan credits remaining.", isPaidScan: false, isFreeScan: false, credits, scanCount };
+}
+
 // ── Free-scan abuse prevention ────────────────────────────
 
 /** Check if an IPA (by SHA-256 hash or bundle ID) has already been scanned with a free credit. */

@@ -6,7 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyToken } from "@/lib/auth";
-import { putScan, getUser, deductScanCredit } from "@/lib/db";
+import { putScan, canUserScan, deductScanCredit } from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 import {
@@ -494,27 +494,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Credit check (founders get unlimited access)
+    // Scan gating: founder > paid credits > free scan > blocked
     {
       try {
-        const userRecord = await getUser(authUser.userId);
-        const isFounder = userRecord?.plan === "founder" || userRecord?.role === "founder" || userRecord?.role === "admin";
-        if (!isFounder) {
-          const credits = (userRecord?.scanCredits as number) || 0;
-          if (credits <= 0) {
-            return NextResponse.json(
-              { error: "No scan credits remaining. Purchase a scan pack to continue." },
-              { status: 429 }
-            );
-          }
+        const gate = await canUserScan(authUser.userId);
+        if (!gate.allowed) {
+          return NextResponse.json(
+            { error: "No scan credits remaining. Purchase a scan pack to continue.", code: "NO_CREDITS" },
+            { status: 402 },
+          );
+        }
+        if (gate.isPaidScan) {
           const used = await deductScanCredit(authUser.userId);
           if (!used) {
             return NextResponse.json(
-              { error: "No scan credits remaining. Purchase a scan pack to continue." },
-              { status: 429 }
+              { error: "No scan credits remaining. Purchase a scan pack to continue.", code: "NO_CREDITS" },
+              { status: 402 },
             );
           }
         }
+        // Free scans: no credit to deduct (credits already 0), just proceed
       } catch (err) {
         console.error("Credit check error:", err);
         return NextResponse.json(

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import AnalysisResults from '@/components/AnalysisResults';
 import TestDownloader from '@/components/TestDownloader';
@@ -63,12 +63,30 @@ export default function AnalyzePage() {
   const [scanId, setScanId] = useState<string | null>(null);
   const [error, setError] = useState('');
 
+  const [scanAllowed, setScanAllowed] = useState(true);
+  const [credits, setCredits] = useState<number | null>(null);
+  const [scanCount, setScanCount] = useState<number | null>(null);
+  const [gateLoading, setGateLoading] = useState(true);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dropZoneRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [showIpaGuide, setShowIpaGuide] = useState(false);
 
-  const canSubmit = synopsis.trim() && s3Key && !uploading && step === 'idle';
+  useEffect(() => {
+    fetch('/api/scan-gate', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        setScanAllowed(data.allowed !== false);
+        if (data.credits !== undefined) setCredits(data.credits);
+        if (data.scanCount !== undefined) setScanCount(data.scanCount);
+      })
+      .catch(() => { /* fail open: allow attempt, server will block if needed */ })
+      .finally(() => setGateLoading(false));
+  }, []);
+
+  const noCredits = !gateLoading && !scanAllowed && credits === 0 && (scanCount ?? 0) > 0;
+  const canSubmit = synopsis.trim() && s3Key && !uploading && step === 'idle' && scanAllowed && !gateLoading;
 
   const handleFileSelect = useCallback(async (selectedFile: File) => {
     if (!selectedFile.name.endsWith('.ipa')) {
@@ -249,7 +267,18 @@ export default function AnalyzePage() {
     }
   }
 
-  function handleReset() { setStep('idle'); setResult(null); setScanId(null); setError(''); }
+  function handleReset() {
+    setStep('idle'); setResult(null); setScanId(null); setError('');
+    // Refresh credit state for next scan
+    fetch('/api/scan-gate', { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => {
+        setScanAllowed(data.allowed !== false);
+        if (data.credits !== undefined) setCredits(data.credits);
+        if (data.scanCount !== undefined) setScanCount(data.scanCount);
+      })
+      .catch(() => {});
+  }
 
   const inputStyle = {
     width: '100%',
@@ -534,6 +563,34 @@ export default function AnalyzePage() {
                 onChange={(e) => { setBundleId(e.target.value); setBundleDetected(false); }}
                 placeholder="com.yourcompany.appname" style={inputStyle} />
             </div>
+
+            {/* No credits warning */}
+            {noCredits && (
+              <div style={{
+                display: 'flex', alignItems: 'flex-start', gap: 12, padding: '18px 22px',
+                background: 'rgba(255,106,0,0.04)',
+                border: '1px solid rgba(255,106,0,0.2)',
+                borderLeft: '3px solid var(--orange)',
+              }}>
+                <IconWarning width={16} height={16} className="shrink-0 mt-0.5" style={{ color: 'var(--orange)' }} />
+                <div>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: '0.76rem', color: 'var(--orange)', display: 'block', marginBottom: 8 }}>
+                    No scan credits remaining.
+                  </span>
+                  <Link
+                    href="/pricing"
+                    style={{
+                      fontFamily: 'var(--mono)', fontSize: '0.68rem', letterSpacing: 1.5, textTransform: 'uppercase',
+                      color: 'var(--text)', textDecoration: 'none', fontWeight: 700,
+                      padding: '10px 20px', border: '1px solid var(--orange)', display: 'inline-block',
+                      background: 'rgba(255,106,0,0.08)', transition: 'all 0.2s',
+                    }}
+                  >
+                    Purchase a Scan Pack
+                  </Link>
+                </div>
+              </div>
+            )}
 
             {/* Error */}
             {error && (

@@ -6,6 +6,7 @@ vi.mock("@/lib/auth", () => ({
 
 vi.mock("@/lib/db", () => ({
   getUser: vi.fn(),
+  canUserScan: vi.fn(),
   deductScanCredit: vi.fn(),
   putScan: vi.fn(),
 }));
@@ -73,7 +74,7 @@ vi.mock("@aws-sdk/client-secrets-manager", () => {
 
 import { POST } from "./route";
 import { verifyToken } from "@/lib/auth";
-import { getUser, deductScanCredit, putScan } from "@/lib/db";
+import { getUser, canUserScan, deductScanCredit, putScan } from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
 import { NextRequest } from "next/server";
 
@@ -92,7 +93,7 @@ describe("POST /api/analyze", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(verifyToken).mockResolvedValue({ userId: "user-1", email: "test@test.com", plan: "free" });
-    vi.mocked(getUser).mockResolvedValue({ plan: "free", scanCredits: 5, scanCount: 2 });
+    vi.mocked(canUserScan).mockResolvedValue({ allowed: true, reason: "Paid credit available.", isPaidScan: true, isFreeScan: false, credits: 5, scanCount: 2 });
     vi.mocked(deductScanCredit).mockResolvedValue(true);
     vi.mocked(putScan).mockResolvedValue({ scanId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" as `${string}-${string}-${string}-${string}-${string}`, timestamp: "2026-01-01T00:00:00Z" });
     vi.mocked(analyzeLimiter.check).mockReturnValue({ allowed: true });
@@ -122,17 +123,16 @@ describe("POST /api/analyze", () => {
     expect(res.status).toBe(429);
   });
 
-  it("returns 429 when no scan credits remaining", async () => {
-    vi.mocked(getUser).mockResolvedValue({ plan: "free", scanCredits: 0, scanCount: 5 });
-    vi.mocked(deductScanCredit).mockResolvedValue(false);
+  it("returns 402 when no scan credits remaining", async () => {
+    vi.mocked(canUserScan).mockResolvedValue({ allowed: false, reason: "No scan credits remaining.", isPaidScan: false, isFreeScan: false, credits: 0, scanCount: 5 });
     const res = await POST(makeRequest({ feedback: "My app was rejected for guideline 2.1" }));
-    expect(res.status).toBe(429);
+    expect(res.status).toBe(402);
     const data = await res.json();
     expect(data.error).toContain("credits");
   });
 
   it("allows founder plan without credits", async () => {
-    vi.mocked(getUser).mockResolvedValue({ plan: "founder", scanCredits: 0, scanCount: 100 });
+    vi.mocked(canUserScan).mockResolvedValue({ allowed: true, reason: "Founder access.", isPaidScan: false, isFreeScan: false, credits: 0, scanCount: 100 });
     const res = await POST(makeRequest({ feedback: "My app was rejected for guideline 2.1" }));
     expect(res.status).toBe(200);
     expect(deductScanCredit).not.toHaveBeenCalled();

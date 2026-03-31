@@ -9,10 +9,9 @@ export const maxDuration = 30;
 import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth";
 import {
-  getUser,
+  canUserScan,
   deductScanCredit,
   refundScanCredit,
-  isFreeTierUser,
   isAppFreeScanned,
   markFreeScannedApp,
 } from "@/lib/db";
@@ -110,17 +109,25 @@ export async function POST(request: NextRequest) {
         return Response.json({ error: "Forbidden: invalid file reference." }, { status: 403 });
     }
 
-    // ── Credit check + deduct ──
+    // ── Scan gating: founder > paid credits > free scan > blocked ──
     let scanCreditCharged = false;
+    let isFreeScan = false;
+    let gate;
     try {
-      const userRecord = await getUser(authUser.userId);
-      const isFounder = userRecord?.plan === "founder" || userRecord?.role === "founder" || userRecord?.role === "admin";
-      if (!isFounder) {
-        const credits = (userRecord?.scanCredits as number) || 0;
-        if (credits <= 0) return Response.json({ error: "No scan credits remaining." }, { status: 429 });
+      gate = await canUserScan(authUser.userId);
+      if (!gate.allowed) {
+        return Response.json(
+          { error: "No scan credits remaining. Purchase a scan pack to continue.", code: "NO_CREDITS" },
+          { status: 402 },
+        );
+      }
+      if (gate.isPaidScan) {
         const used = await deductScanCredit(authUser.userId);
-        if (!used) return Response.json({ error: "No scan credits remaining." }, { status: 429 });
+        if (!used) return Response.json({ error: "No scan credits remaining.", code: "NO_CREDITS" }, { status: 402 });
         scanCreditCharged = true;
+      }
+      if (gate.isFreeScan) {
+        isFreeScan = true;
       }
     } catch (err) {
       console.error("Credit check error:", err);
@@ -147,19 +154,15 @@ export async function POST(request: NextRequest) {
         return Response.json({ error: "Failed to parse .ipa file." }, { status: 400 });
       }
 
-      // Anti-abuse: block free-tier duplicate scans
-      if (scanCreditCharged && ipaHash) {
-        const freeTier = await isFreeTierUser(authUser.userId);
-        if (freeTier) {
-          const bundleId = ipaMetadata.bundleId || parsed.bundleId;
-          const alreadyScanned = await isAppFreeScanned(ipaHash, bundleId || undefined);
-          if (alreadyScanned) {
-            try { await refundScanCredit(authUser.userId); } catch { /* best effort */ }
-            return Response.json({
-              error: "This app has already been analyzed with a free scan. Purchase a scan pack to analyze it again.",
-              code: "FREE_SCAN_DUPLICATE",
-            }, { status: 409 });
-          }
+      // Anti-abuse: block free-tier duplicate scans (paid scans skip this entirely)
+      if (isFreeScan && ipaHash) {
+        const bundleId = ipaMetadata.bundleId || parsed.bundleId;
+        const alreadyScanned = await isAppFreeScanned(ipaHash, bundleId || undefined);
+        if (alreadyScanned) {
+          return Response.json({
+            error: "This app has already been analyzed with a free scan. Purchase a scan pack to analyze it again.",
+            code: "FREE_SCAN_DUPLICATE",
+          }, { status: 409 });
         }
       }
     } else {
@@ -189,11 +192,10 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    // ── Mark free-scanned app ──
-    if (ipaHash && scanCreditCharged) {
+    // ── Mark free-scanned app (only for free scans) ──
+    if (ipaHash && isFreeScan) {
       try {
-        const freeTier = await isFreeTierUser(authUser.userId);
-        if (freeTier) await markFreeScannedApp(ipaHash, ipaMetadata?.bundleId || parsed.bundleId, authUser.userId);
+        await markFreeScannedApp(ipaHash, ipaMetadata?.bundleId || parsed.bundleId, authUser.userId);
       } catch { /* best effort */ }
     }
 
