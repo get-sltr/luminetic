@@ -1,22 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockLambdaSend = vi.fn();
-const mockDbSend = vi.fn();
-
-class MockPutCommand {
-  input: unknown;
-  constructor(input: unknown) {
-    this.input = input;
-  }
-}
-
-class MockUpdateCommand {
-  input: unknown;
-  constructor(input: unknown) {
-    this.input = input;
-  }
-}
+const { mockLambdaSend, mockDbSend } = vi.hoisted(() => ({
+  mockLambdaSend: vi.fn(),
+  mockDbSend: vi.fn(),
+}));
 
 vi.mock("@/lib/auth", () => ({
   verifyToken: vi.fn(),
@@ -60,8 +48,18 @@ vi.mock("@aws-sdk/lib-dynamodb", () => ({
   DynamoDBDocumentClient: {
     from: vi.fn(() => ({ send: mockDbSend })),
   },
-  PutCommand: MockPutCommand,
-  UpdateCommand: MockUpdateCommand,
+  PutCommand: class {
+    input: unknown;
+    constructor(input: unknown) {
+      this.input = input;
+    }
+  },
+  UpdateCommand: class {
+    input: unknown;
+    constructor(input: unknown) {
+      this.input = input;
+    }
+  },
 }));
 
 import { POST } from "./route";
@@ -139,13 +137,15 @@ describe("POST /api/analyze-stream", () => {
     expect(data.error).toContain("failed to start");
     expect(refundScanCredit).toHaveBeenCalledWith("user-1");
 
-    const updateCall = mockDbSend.mock.calls.find(
-      ([command]) => command instanceof MockUpdateCommand
-    );
+    const updateCall = mockDbSend.mock.calls.find(([command]) => {
+      const input = (command as { input?: Record<string, unknown> }).input;
+      return input?.UpdateExpression ===
+        "SET #s = :status, errorMessage = :msg, updatedAt = :now";
+    });
     expect(updateCall).toBeTruthy();
-    const updateInput = (updateCall?.[0] as MockUpdateCommand).input as {
+    const updateInput = (updateCall?.[0] as { input: {
       ExpressionAttributeValues?: Record<string, unknown>;
-    };
+    } }).input;
     expect(updateInput.ExpressionAttributeValues?.[":status"]).toBe("error");
   });
 });
