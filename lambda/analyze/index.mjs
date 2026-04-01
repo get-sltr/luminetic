@@ -69,12 +69,19 @@ async function updateScanStatus(userId, scanSK, status, extra = {}) {
 }
 
 // ── Prompts ────────────────────────────────────────────────
-const GEMINI_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst. You analyze .ipa app metadata to identify potential App Store Review Guideline violations, missing configurations, and submission risks BEFORE the developer submits to Apple.
+const GEMINI_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst. You analyze .ipa app metadata to identify App Store Review Guideline violations, missing configurations, and submission risks BEFORE the developer submits to Apple.
+
+CRITICAL RULES:
+- ONLY flag issues you can PROVE from the provided metadata. Every issue MUST cite specific evidence from the data.
+- Do NOT speculate. Do NOT say "might be an issue" or "could cause rejection" without concrete proof.
+- If you cannot point to a specific field, framework, or configuration that proves the issue, do NOT include it.
+- Assign a confidence score (0.0-1.0) to every finding. Only include findings with confidence >= 0.8.
+- Confidence 1.0 = provable from metadata (missing required key, wrong value). 0.8-0.9 = strongly indicated by metadata patterns.
 
 You have deep knowledge of:
 - Apple's App Store Review Guidelines (all sections 1-5)
 - Info.plist configuration requirements
-- Privacy and data collection requirements (NSUsageDescriptions, ATT)
+- Privacy and data collection requirements (NSUsageDescriptions, ATT, Privacy Manifests)
 - In-App Purchase and StoreKit requirements
 - Entitlements and capabilities
 - Framework/SDK compliance issues
@@ -84,9 +91,10 @@ Analyze the metadata for issues and respond ONLY with valid JSON (no markdown, n
 
 {
   "guidelines_referenced": [{ "section": "e.g. 2.1", "name": "e.g. App Completeness", "description": "Brief description" }],
-  "issues_identified": [{ "severity": "critical" | "major" | "minor", "issue": "Clear description", "evidence": "What metadata indicates this", "guideline_section": "e.g. 2.1" }],
+  "issues_identified": [{ "severity": "critical" | "major" | "minor", "issue": "Clear description", "evidence": "Exact metadata field or value that proves this issue", "guideline_section": "e.g. 2.1", "confidence": 0.8 }],
   "action_plan": [{ "priority": 1, "action": "Specific action", "details": "Step-by-step guidance", "estimated_effort": "e.g. 1-2 hours" }],
   "readiness_assessment": { "score": 0-100, "summary": "Assessment paragraph", "risk_factors": ["List of risks"] },
+  "positive_signals": ["Things the app does correctly, e.g. proper ATS configuration, all icon sizes present"],
   "preflight_checks": {
     "privacy_policy": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
     "account_deletion": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
@@ -103,12 +111,18 @@ Analyze the metadata for issues and respond ONLY with valid JSON (no markdown, n
 
 const DEEPSEEK_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst. You analyze .ipa metadata to find App Store Review Guideline violations.
 
+CRITICAL RULES:
+- ONLY flag issues PROVABLE from the provided metadata. Every issue MUST cite the exact metadata field or value as evidence.
+- Do NOT speculate or guess. If you cannot prove it from the data, do NOT include it.
+- Assign a confidence score (0.0-1.0) to every finding. Only include findings with confidence >= 0.8.
+- Confidence 1.0 = directly provable. 0.8-0.9 = strongly indicated by metadata patterns.
+
 CRITICAL INSTRUCTION: You MUST respond with ONLY a valid JSON object. Do NOT include any text, explanation, or markdown before or after the JSON. Do NOT start with "Let's", "Sure", "Here", or any other word. Your entire response must be parseable by JSON.parse().
 
 Respond with this exact JSON structure:
 
 {
-  "issues_identified": [{ "severity": "critical" | "major" | "minor", "issue": "Clear description", "evidence": "What metadata indicates this", "guideline_section": "e.g. 2.1", "reasoning": "Step-by-step reasoning" }],
+  "issues_identified": [{ "severity": "critical" | "major" | "minor", "issue": "Clear description", "evidence": "Exact metadata field or value that proves this", "guideline_section": "e.g. 2.1", "reasoning": "Step-by-step reasoning", "confidence": 0.8 }],
   "readiness_assessment": { "score": 0-100, "summary": "Assessment paragraph", "risk_factors": ["List of risks"] },
   "preflight_checks": {
     "privacy_policy": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
@@ -121,13 +135,19 @@ Respond with this exact JSON structure:
 
 const SONNET_SYSTEM_PROMPT = `You are a meticulous iOS App Store review compliance analyst. Analyze the provided .ipa metadata independently for App Store Review Guideline compliance.
 
+CRITICAL RULES:
+- ONLY flag issues you can PROVE from the provided metadata. Cite exact fields and values as evidence.
+- Do NOT speculate or include "might" or "could" issues. If it is not provable, omit it.
+- Assign a confidence score (0.0-1.0) to every finding. Only include findings with confidence >= 0.8.
+- For each issue you identify, you MUST include the specific metadata that proves it exists.
+
 Respond ONLY with valid JSON (no markdown, no backticks):
 
 {
   "validation": {
     "confirmed_issues": ["..."],
     "disputed_issues": [{ "original_issue": "...", "dispute_reason": "...", "correction": "..." }],
-    "missed_issues": [{ "severity": "critical"|"major"|"minor", "issue": "...", "guideline_section": "...", "evidence": "...", "action": "..." }]
+    "missed_issues": [{ "severity": "critical"|"major"|"minor", "issue": "...", "guideline_section": "...", "evidence": "Exact metadata proving this", "action": "...", "confidence": 0.8 }]
   },
   "refined_preflight": {
     "privacy_policy": { "status": "pass"|"fail"|"warning"|"unknown", "detail": "..." },
@@ -141,19 +161,28 @@ Respond ONLY with valid JSON (no markdown, no backticks):
   }
 }`;
 
-const OPUS_JUDGE_PROMPT = `You are the final-stage senior App Store review analyst. You reconcile findings from three independent AI analyses (Gemini, DeepSeek, Claude Sonnet) to produce the authoritative final assessment.
+const OPUS_JUDGE_PROMPT = `You are the final-stage senior App Store review analyst. You reconcile findings from three independent AI analyses (Gemini/Mistral, DeepSeek, Claude Sonnet) to produce the authoritative final assessment.
+
+CRITICAL RULES:
+- REMOVE any finding that lacks concrete evidence from the app metadata. If a model flagged something speculative, DROP IT.
+- Only keep findings where at least one model cited specific metadata fields/values as proof.
+- If two models agree on a finding with evidence, confidence = high. If only one model found it but with strong evidence, confidence = medium.
+- If a finding is based on assumptions or "might be" language, EXCLUDE it entirely.
+- Assign a numeric confidence (0.0-1.0) to every finding. Drop anything below 0.8.
 
 Your job:
-- RECONCILE all findings — confirm agreements, resolve disagreements
+- RECONCILE all findings: confirm agreements, resolve disagreements, REMOVE unsubstantiated claims
 - Produce the FINAL action plan with confidence levels
 - Assign the FINAL readiness score (0-100)
 - Generate App Store reviewer notes
+- Include positive signals (things the app does correctly)
 
 Respond ONLY with valid JSON (no markdown, no backticks):
 
 {
-  "refined_action_plan": [{ "priority": 1, "action": "...", "details": "...", "estimated_effort": "...", "confidence": "high"|"medium"|"low", "source": "gemini_confirmed"|"sonnet_added"|"opus_refined"|"deepseek_added" }],
+  "refined_action_plan": [{ "priority": 1, "action": "...", "details": "...", "estimated_effort": "...", "confidence": "high"|"medium"|"low", "numeric_confidence": 0.9, "source": "gemini_confirmed"|"sonnet_added"|"opus_refined"|"deepseek_added", "evidence": "Specific metadata proving this issue" }],
   "final_assessment": { "score": 0-100, "confidence": "high"|"medium"|"low", "summary": "...", "agreement_level": "full"|"partial"|"significant_disagreement", "risk_factors": ["..."] },
+  "positive_signals": ["Things the app does correctly"],
   "review_packet_notes": {
     "testing_steps": ["Step-by-step testing instructions for Apple reviewer"],
     "reviewer_notes": "Notes to include in the App Store Connect reviewer notes field",
