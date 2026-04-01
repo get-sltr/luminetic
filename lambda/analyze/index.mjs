@@ -24,8 +24,17 @@ import {
 } from "@aws-sdk/client-secrets-manager";
 import {
   S3Client,
+  GetObjectCommand,
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
+import {
+  DeviceFarmClient,
+  CreateUploadCommand,
+  GetUploadCommand,
+  ScheduleRunCommand,
+  GetRunCommand,
+  ListArtifactsCommand,
+} from "@aws-sdk/client-device-farm";
 
 const REGION = process.env.AWS_REGION || "us-east-1";
 const TABLE = process.env.DYNAMODB_TABLE || "appready";
@@ -35,6 +44,9 @@ const db = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }));
 const secrets = new SecretsManagerClient({ region: REGION });
 const s3 = new S3Client({ region: REGION });
 const S3_BUCKET = process.env.S3_BUCKET;
+const deviceFarm = new DeviceFarmClient({ region: "us-west-2" });
+const DF_PROJECT_ARN = process.env.DEVICE_FARM_PROJECT_ARN;
+const DF_DEVICE_POOL_ARN = process.env.DEVICE_FARM_DEVICE_POOL_ARN;
 
 let cachedGeminiKey = null;
 
@@ -339,6 +351,166 @@ async function callOpus(context, geminiData, deepseekData, sonnetData) {
   }
 }
 
+// ── Device Farm ───────────────────────────────────────────
+async function uploadToDeviceFarm(s3Key, bucket) {
+  if (!DF_PROJECT_ARN || !DF_DEVICE_POOL_ARN) return null;
+
+  try {
+    const createRes = await deviceFarm.send(new CreateUploadCommand({
+      projectArn: DF_PROJECT_ARN,
+      name: s3Key.split("/").pop() || "app.ipa",
+      type: "IOS_APP",
+    }));
+
+    const uploadArn = createRes.upload?.arn;
+    const uploadUrl = createRes.upload?.url;
+    if (!uploadArn || !uploadUrl) throw new Error("No upload ARN/URL returned");
+
+    const ipaResp = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: s3Key }));
+    const ipaBytes = await ipaResp.Body.transformToByteArray();
+
+    const putRes = await fetch(uploadUrl, {
+      method: "PUT",
+      body: ipaBytes,
+      headers: { "Content-Type": "application/octet-stream" },
+    });
+    if (!putRes.ok) throw new Error(`Upload PUT failed: ${putRes.status}`);
+
+    for (let i = 0; i < 30; i++) {
+      const status = await deviceFarm.send(new GetUploadCommand({ arn: uploadArn }));
+      const st = status.upload?.status;
+      if (st === "SUCCEEDED") return uploadArn;
+      if (st === "FAILED") throw new Error(`Upload processing failed: ${status.upload?.message}`);
+      await new Promise(r => setTimeout(r, 5000));
+    }
+    throw new Error("Upload processing timed out");
+  } catch (err) {
+    console.error("[Device Farm upload error]", err);
+    return null;
+  }
+}
+
+async function scheduleDeviceFarmRun(uploadArn) {
+  try {
+    const res = await deviceFarm.send(new ScheduleRunCommand({
+      projectArn: DF_PROJECT_ARN,
+      appArn: uploadArn,
+      devicePoolArn: DF_DEVICE_POOL_ARN,
+      name: `luminetic-scan-${Date.now()}`,
+      test: { type: "BUILTIN_FUZZ" },
+      executionConfiguration: {
+        jobTimeoutMinutes: 5,
+        accountsCleanup: true,
+        appPackagesCleanup: true,
+      },
+    }));
+    return res.run?.arn || null;
+  } catch (err) {
+    console.error("[Device Farm schedule error]", err);
+    return null;
+  }
+}
+
+async function pollDeviceFarmRun(runArn) {
+  const MAX_POLLS = 200; // 200 * 3s = 10 minutes max
+  for (let i = 0; i < MAX_POLLS; i++) {
+    try {
+      const res = await deviceFarm.send(new GetRunCommand({ arn: runArn }));
+      const status = res.run?.status;
+      if (status === "COMPLETED") return res.run;
+      if (status === "ERRORED" || status === "STOPPED") {
+        console.warn(`[Device Farm] Run ended with status: ${status}`);
+        return res.run;
+      }
+      await new Promise(r => setTimeout(r, 3000));
+    } catch (err) {
+      console.error("[Device Farm poll error]", err);
+      return null;
+    }
+  }
+  console.warn("[Device Farm] Polling timed out");
+  return null;
+}
+
+async function collectDeviceFarmResults(runArn, run) {
+  try {
+    const artifacts = await deviceFarm.send(new ListArtifactsCommand({
+      arn: runArn,
+      type: "FILE",
+    }));
+
+    const screenshots = [];
+    let videoUrl = null;
+    let deviceLogsUrl = null;
+
+    for (const artifact of (artifacts.artifacts || [])) {
+      if (artifact.type === "SCREENSHOT" && artifact.url) screenshots.push(artifact.url);
+      if (artifact.type === "VIDEO" && artifact.url) videoUrl = artifact.url;
+      if (artifact.type === "DEVICE_LOG" && artifact.url) deviceLogsUrl = artifact.url;
+    }
+
+    const counters = run?.counters || {};
+    const crashed = (counters.errored || 0) + (counters.failed || 0);
+    const launchSuccess = run?.result !== "ERRORED" && crashed === 0;
+
+    return {
+      layer: "runtime_analysis",
+      device: run?.device ? {
+        name: run.device.name || "Unknown",
+        os_version: run.device.os || "Unknown",
+        model_id: run.device.model || "Unknown",
+      } : null,
+      results: {
+        launch_success: launchSuccess,
+        crashes: [],
+        crash_count: crashed,
+        test_duration_seconds: Math.round(((run?.deviceMinutes?.total || 0) * 60)),
+        memory_peak_mb: null,
+        cpu_peak_percent: null,
+        screenshots,
+        video_url: videoUrl,
+        device_logs_url: deviceLogsUrl,
+      },
+      fuzz_results: {
+        events_sent: null,
+        ui_elements_discovered: null,
+        unresponsive_periods: null,
+      },
+      skipped: false,
+      skip_reason: null,
+    };
+  } catch (err) {
+    console.error("[Device Farm results error]", err);
+    return null;
+  }
+}
+
+async function runDeviceFarm(s3Key, bucket) {
+  const start = Date.now();
+  if (!DF_PROJECT_ARN || !DF_DEVICE_POOL_ARN || !s3Key) {
+    return { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "Device Farm not configured", latency: Date.now() - start };
+  }
+
+  const uploadArn = await uploadToDeviceFarm(s3Key, bucket);
+  if (!uploadArn) {
+    return { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "IPA upload to Device Farm failed", latency: Date.now() - start };
+  }
+
+  const runArn = await scheduleDeviceFarmRun(uploadArn);
+  if (!runArn) {
+    return { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "Failed to schedule Device Farm run", latency: Date.now() - start };
+  }
+
+  const run = await pollDeviceFarmRun(runArn);
+  if (!run) {
+    return { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "Device Farm run timed out or failed", latency: Date.now() - start };
+  }
+
+  const results = await collectDeviceFarmResults(runArn, run);
+  if (results) results.latency = Date.now() - start;
+  return results || { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "Failed to collect results", latency: Date.now() - start };
+}
+
 // ── Score helpers ──────────────────────────────────────────
 function parseScore(value) {
   if (value === null || value === undefined) return null;
@@ -374,7 +546,7 @@ function resolveScore(geminiAssessment, opusFinal, allIssues, anyOk) {
 }
 
 // ── Merge logic ────────────────────────────────────────────
-function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, layer1, totalStart }) {
+function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, layer1, layer2, totalStart }) {
   const geminiData = gemini.data;
   const deepseekData = deepseek.data;
   const sonnetData = sonnet.data;
@@ -425,6 +597,7 @@ function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, la
     review_packet: reviewPacket,
     layer1_findings: layer1?.findings || [],
     layer1_metadata: layer1?.metadata || null,
+    layer2_runtime: layer2 || null,
     ipa_metadata: ipaMetadata || null,
     meta: {
       models_used: [gemini.success && "gemini", deepseek.success && "deepseek", sonnet.success && "sonnet", opus.success && "opus"].filter(Boolean),
@@ -458,8 +631,10 @@ export const handler = async (event) => {
         JSON.stringify(layer1.metadata, null, 2);
     }
 
-    // ── Stage 1: Gemini + Sonnet + DeepSeek in parallel ──
+    // ── Stage 1: AI models + Device Farm in parallel ──
     await updateScanStatus(userId, scanSK, "analyzing");
+
+    const deviceFarmPromise = runDeviceFarm(s3Key, S3_BUCKET);
 
     const [gemini, sonnet, deepseek] = await Promise.all([
       callGemini(enhancedContext),
@@ -482,8 +657,12 @@ export const handler = async (event) => {
     const opus = await callOpus(contextForAI, gemini.data, deepseek.data, sonnet.data);
     console.log(`[Stage 2] Opus=${opus.success}(${opus.latency}ms)`);
 
+    // ── Collect Device Farm results ──
+    const deviceFarmResult = await deviceFarmPromise;
+    console.log(`[Device Farm] skipped=${deviceFarmResult?.skipped} latency=${deviceFarmResult?.latency}ms`);
+
     // ── Merge + save ──
-    const merged = mergeResults({ gemini, deepseek, sonnet, opus, contextForAI, ipaMetadata, layer1, totalStart });
+    const merged = mergeResults({ gemini, deepseek, sonnet, opus, contextForAI, ipaMetadata, layer1, layer2: deviceFarmResult, totalStart });
 
     await db.send(new UpdateCommand({
       TableName: TABLE,
