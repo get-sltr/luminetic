@@ -16,6 +16,7 @@ import {
   markFreeScannedApp,
 } from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
+import { runStaticAnalysis } from "@/lib/analyzers/orchestrator";
 import { z } from "zod";
 import { parseIpa, type IpaMetadata } from "@/lib/ipa-parser";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
@@ -169,6 +170,9 @@ export async function POST(request: NextRequest) {
       contextForAI = (parsed.feedback || parsed.email || parsed.text)!.trim().slice(0, 10000);
     }
 
+    // ── Layer 1: Deep static analysis (IPA flow only) ──
+    const layer1 = ipaMetadata ? runStaticAnalysis(ipaMetadata) : null;
+
     // ── Create scan record in DynamoDB ──
     const scanId = randomUUID();
     const timestamp = new Date().toISOString();
@@ -208,6 +212,7 @@ export async function POST(request: NextRequest) {
         scanSK,
         scanId,
         contextForAI,
+        layer1,
         ipaMetadata: ipaMetadata ? {
           appName: ipaMetadata.appName,
           bundleId: ipaMetadata.bundleId,

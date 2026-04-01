@@ -374,7 +374,7 @@ function resolveScore(geminiAssessment, opusFinal, allIssues, anyOk) {
 }
 
 // ── Merge logic ────────────────────────────────────────────
-function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, totalStart }) {
+function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, layer1, totalStart }) {
   const geminiData = gemini.data;
   const deepseekData = deepseek.data;
   const sonnetData = sonnet.data;
@@ -423,6 +423,8 @@ function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, to
     },
     preflight: mergedPreflight,
     review_packet: reviewPacket,
+    layer1_findings: layer1?.findings || [],
+    layer1_metadata: layer1?.metadata || null,
     ipa_metadata: ipaMetadata || null,
     meta: {
       models_used: [gemini.success && "gemini", deepseek.success && "deepseek", sonnet.success && "sonnet", opus.success && "opus"].filter(Boolean),
@@ -441,17 +443,28 @@ function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, to
 
 // ── Handler ────────────────────────────────────────────────
 export const handler = async (event) => {
-  const { userId, scanSK, scanId, contextForAI, ipaMetadata, s3Key, bundleId } = event;
+  const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId } = event;
   const totalStart = Date.now();
 
   try {
+    // ── Build enhanced context with Layer 1 structured findings ──
+    let enhancedContext = contextForAI;
+    if (layer1 && layer1.findings && layer1.findings.length > 0) {
+      enhancedContext = contextForAI +
+        `\n\n## STATIC ANALYSIS FINDINGS (Layer 1 - Proven Facts, confidence 1.0)\n` +
+        `These findings are proven from the binary. Do NOT dispute them. Focus on providing remediation and identifying additional issues.\n\n` +
+        JSON.stringify(layer1.findings, null, 2) +
+        `\n\n## STATIC ANALYSIS METADATA\n` +
+        JSON.stringify(layer1.metadata, null, 2);
+    }
+
     // ── Stage 1: Gemini + Sonnet + DeepSeek in parallel ──
     await updateScanStatus(userId, scanSK, "analyzing");
 
     const [gemini, sonnet, deepseek] = await Promise.all([
-      callGemini(contextForAI),
-      callSonnet(contextForAI),
-      callDeepSeek(contextForAI),
+      callGemini(enhancedContext),
+      callSonnet(enhancedContext),
+      callDeepSeek(enhancedContext),
     ]);
 
     console.log(`[Stage 1] Gemini=${gemini.success}(${gemini.latency}ms) Sonnet=${sonnet.success}(${sonnet.latency}ms) DeepSeek=${deepseek.success}(${deepseek.latency}ms)`);
@@ -470,7 +483,7 @@ export const handler = async (event) => {
     console.log(`[Stage 2] Opus=${opus.success}(${opus.latency}ms)`);
 
     // ── Merge + save ──
-    const merged = mergeResults({ gemini, deepseek, sonnet, opus, contextForAI, ipaMetadata, totalStart });
+    const merged = mergeResults({ gemini, deepseek, sonnet, opus, contextForAI, ipaMetadata, layer1, totalStart });
 
     await db.send(new UpdateCommand({
       TableName: TABLE,
