@@ -10,7 +10,9 @@ import { NextRequest } from "next/server";
 import { verifyToken } from "@/lib/auth";
 import {
   canUserScan,
+  claimFreeScan,
   deductScanCredit,
+  releaseFreeScanClaim,
   refundScanCredit,
   isAppFreeScanned,
   markFreeScannedApp,
@@ -111,6 +113,7 @@ export async function POST(request: NextRequest) {
 
     // ── Scan gating: founder > paid credits > free scan > blocked ──
     let scanCreditCharged = false;
+    let freeScanClaimed = false;
     let isFreeScan = false;
     let gate;
     try {
@@ -127,7 +130,15 @@ export async function POST(request: NextRequest) {
         scanCreditCharged = true;
       }
       if (gate.isFreeScan) {
+        const claimed = await claimFreeScan(authUser.userId);
+        if (!claimed) {
+          return Response.json(
+            { error: "No scan credits remaining. Purchase a scan pack to continue.", code: "NO_CREDITS" },
+            { status: 402 },
+          );
+        }
         isFreeScan = true;
+        freeScanClaimed = true;
       }
     } catch (err) {
       console.error("Credit check error:", err);
@@ -151,6 +162,9 @@ export async function POST(request: NextRequest) {
         if (scanCreditCharged) {
           try { await refundScanCredit(authUser.userId); } catch { /* best effort */ }
         }
+        if (freeScanClaimed) {
+          try { await releaseFreeScanClaim(authUser.userId); } catch { /* best effort */ }
+        }
         return Response.json({ error: "Failed to parse .ipa file." }, { status: 400 });
       }
 
@@ -159,6 +173,9 @@ export async function POST(request: NextRequest) {
         const bundleId = ipaMetadata.bundleId || parsed.bundleId;
         const alreadyScanned = await isAppFreeScanned(ipaHash, bundleId || undefined);
         if (alreadyScanned) {
+          if (freeScanClaimed) {
+            try { await releaseFreeScanClaim(authUser.userId); } catch { /* best effort */ }
+          }
           return Response.json({
             error: "This app has already been analyzed with a free scan. Purchase a scan pack to analyze it again.",
             code: "FREE_SCAN_DUPLICATE",

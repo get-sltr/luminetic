@@ -210,6 +210,7 @@ export async function canUserScan(userId: string): Promise<ScanGateResult> {
 
   const credits = (user.scanCredits as number) || 0;
   const scanCount = (user.scanCount as number) || 0;
+  const freeScanClaimed = !!user.freeScanClaimedAt;
   const isFounder = user.plan === "founder" || user.role === "founder" || user.role === "admin";
 
   if (isFounder) {
@@ -220,12 +221,48 @@ export async function canUserScan(userId: string): Promise<ScanGateResult> {
     return { allowed: true, reason: "Paid credit available.", isPaidScan: true, isFreeScan: false, credits, scanCount };
   }
 
-  // No credits: check if free scan is available (never scanned before)
-  if (scanCount === 0) {
+  // No credits: check if free scan is available (never scanned before and not already claimed)
+  if (scanCount === 0 && !freeScanClaimed) {
     return { allowed: true, reason: "Free scan available.", isPaidScan: false, isFreeScan: true, credits, scanCount };
   }
 
   return { allowed: false, reason: "No scan credits remaining.", isPaidScan: false, isFreeScan: false, credits, scanCount };
+}
+
+/**
+ * Atomically claim the one-time free scan slot.
+ * Prevents concurrent requests from bypassing free-scan limits.
+ */
+export async function claimFreeScan(userId: string): Promise<boolean> {
+  try {
+    await db.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+      UpdateExpression: "SET freeScanClaimedAt = :now, updatedAt = :now",
+      ConditionExpression:
+        "(attribute_not_exists(scanCredits) OR scanCredits <= :zero) AND (attribute_not_exists(scanCount) OR scanCount = :zero) AND attribute_not_exists(freeScanClaimedAt)",
+      ExpressionAttributeValues: {
+        ":zero": 0,
+        ":now": new Date().toISOString(),
+      },
+    }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Clear a previously claimed free scan slot (best-effort rollback on failures). */
+export async function releaseFreeScanClaim(userId: string): Promise<void> {
+  await db.send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+    UpdateExpression: "REMOVE freeScanClaimedAt SET updatedAt = :now",
+    ConditionExpression: "attribute_exists(PK)",
+    ExpressionAttributeValues: {
+      ":now": new Date().toISOString(),
+    },
+  }));
 }
 
 // ── Free-scan abuse prevention ────────────────────────────
