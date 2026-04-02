@@ -221,7 +221,7 @@ export default function AnalyzePage() {
       const poll = async (): Promise<void> => {
         polls++;
         if (polls > MAX_POLLS) {
-          setError('Analysis is taking longer than expected. Check your history page for results.');
+          setError('Your analysis is still processing in the background. Results will appear on your history page when complete — this usually takes a few more minutes.');
           setStep('error');
           return;
         }
