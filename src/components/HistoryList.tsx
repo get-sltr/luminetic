@@ -5,6 +5,7 @@ import Link from 'next/link';
 
 interface ScanItem {
   scanId: string;
+  status?: string;
   score: number;
   createdAt: string;
   mergedResult?: {
@@ -108,14 +109,36 @@ export default function HistoryList({ scans }: { scans: ScanItem[] }) {
 
               {/* Score */}
               <div>
-                <span style={{
-                  fontFamily: 'var(--display)',
-                  fontSize: '1.6rem',
-                  letterSpacing: 1,
-                  color: scan.score >= 80 ? 'var(--green)' : scan.score >= 60 ? 'var(--warning)' : 'var(--red)',
-                }}>
-                  {scan.score}
-                </span>
+                {scan.status === 'complete' || scan.mergedResult ? (
+                  <span style={{
+                    fontFamily: 'var(--display)',
+                    fontSize: '1.6rem',
+                    letterSpacing: 1,
+                    color: scan.score >= 80 ? 'var(--green)' : scan.score >= 60 ? 'var(--warning)' : 'var(--red)',
+                  }}>
+                    {scan.score}
+                  </span>
+                ) : scan.status === 'error' ? (
+                  <span style={{
+                    fontFamily: 'var(--mono)',
+                    fontSize: '0.68rem',
+                    letterSpacing: 1,
+                    color: 'var(--red)',
+                    textTransform: 'uppercase',
+                  }}>
+                    Failed
+                  </span>
+                ) : (
+                  <span style={{
+                    fontFamily: 'var(--mono)',
+                    fontSize: '0.68rem',
+                    letterSpacing: 1,
+                    color: 'var(--orange)',
+                    textTransform: 'uppercase',
+                  }}>
+                    Processing
+                  </span>
+                )}
               </div>
 
               {/* Issues count */}
@@ -124,7 +147,9 @@ export default function HistoryList({ scans }: { scans: ScanItem[] }) {
                 fontSize: '0.6rem',
                 color: issues.length > 0 ? 'var(--text-mid)' : 'var(--text-dim)',
               }}>
-                {issues.length > 0 ? `${issues.length} found` : 'None'}
+                {scan.status === 'error' ? 'Credit refunded' :
+                 !scan.mergedResult && scan.status !== 'complete' ? '—' :
+                 issues.length > 0 ? `${issues.length} found` : 'None'}
               </div>
 
               {/* Expand arrow */}
