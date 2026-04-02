@@ -615,7 +615,7 @@ function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, la
 }
 
 // ── Handler ────────────────────────────────────────────────
-export const handler = async (event) => {
+export const handler = async (event, context) => {
   const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId } = event;
   const totalStart = Date.now();
 
@@ -657,9 +657,29 @@ export const handler = async (event) => {
     const opus = await callOpus(contextForAI, gemini.data, deepseek.data, sonnet.data);
     console.log(`[Stage 2] Opus=${opus.success}(${opus.latency}ms)`);
 
-    // ── Collect Device Farm results ──
-    const deviceFarmResult = await deviceFarmPromise;
-    console.log(`[Device Farm] skipped=${deviceFarmResult?.skipped} latency=${deviceFarmResult?.latency}ms`);
+    // ── Collect Device Farm results (time-budgeted) ──
+    const SAVE_BUFFER_MS = 30_000; // 30s reserved for merge + DynamoDB save + cleanup
+    const remaining = context.getRemainingTimeInMillis();
+    let deviceFarmResult = null;
+
+    if (remaining > SAVE_BUFFER_MS) {
+      const dfDeadline = remaining - SAVE_BUFFER_MS;
+      try {
+        deviceFarmResult = await Promise.race([
+          deviceFarmPromise,
+          new Promise((resolve) => setTimeout(() => resolve(null), dfDeadline)),
+        ]);
+        if (deviceFarmResult) {
+          console.log(`[Device Farm] skipped=${deviceFarmResult.skipped} latency=${deviceFarmResult.latency}ms`);
+        } else {
+          console.warn(`[Device Farm] Skipped — exceeded time budget (${dfDeadline}ms)`);
+        }
+      } catch (dfErr) {
+        console.warn(`[Device Farm] Error (non-fatal):`, dfErr);
+      }
+    } else {
+      console.warn(`[Device Farm] Skipped — only ${remaining}ms remaining, need ${SAVE_BUFFER_MS}ms buffer`);
+    }
 
     // ── Merge + save ──
     const merged = mergeResults({ gemini, deepseek, sonnet, opus, contextForAI, ipaMetadata, layer1, layer2: deviceFarmResult, totalStart });
