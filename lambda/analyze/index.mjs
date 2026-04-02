@@ -614,9 +614,28 @@ function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, la
   };
 }
 
+// ── Safety net: update DynamoDB if Lambda is about to be killed ──
+let _activeContext = null;
+process.on("SIGTERM", async () => {
+  console.error("[SIGTERM] Lambda timeout imminent — saving error state");
+  if (_activeContext) {
+    const { userId, scanSK, scanId } = _activeContext;
+    try {
+      await updateScanStatus(userId, scanSK, "error", {
+        errorMessage: "Analysis timed out. Your credit has been preserved — please try again.",
+      });
+      console.error(`[SIGTERM] Updated scan ${scanId} to error state`);
+    } catch (e) {
+      console.error("[SIGTERM] Failed to update DynamoDB:", e);
+    }
+  }
+  process.exit(1);
+});
+
 // ── Handler ────────────────────────────────────────────────
 export const handler = async (event, context) => {
   const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId } = event;
+  _activeContext = { userId, scanSK, scanId };
   const totalStart = Date.now();
 
   try {
@@ -720,9 +739,11 @@ export const handler = async (event, context) => {
     }
 
     console.log(`[Done] scanId=${scanId} score=${merged.assessment.score} total=${Date.now() - totalStart}ms`);
+    _activeContext = null;
     return { statusCode: 200, body: JSON.stringify({ scanId, score: merged.assessment.score }) };
   } catch (err) {
     console.error("[Lambda fatal]", err);
+    _activeContext = null; // Prevent SIGTERM from double-updating
     await updateScanStatus(userId, scanSK, "error", {
       errorMessage: "Analysis failed unexpectedly. Please try again.",
     }).catch(() => {});
