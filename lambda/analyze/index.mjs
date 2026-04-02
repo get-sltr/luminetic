@@ -17,6 +17,7 @@ import {
 import {
   DynamoDBDocumentClient,
   UpdateCommand,
+  PutCommand,
 } from "@aws-sdk/lib-dynamodb";
 import {
   SecretsManagerClient,
@@ -441,7 +442,7 @@ function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, to
 
 // ── Handler ────────────────────────────────────────────────
 export const handler = async (event) => {
-  const { userId, scanSK, scanId, contextForAI, ipaMetadata, s3Key, bundleId } = event;
+  const { userId, scanSK, scanId, contextForAI, ipaMetadata, s3Key, bundleId, ipaHash, isFreeScan } = event;
   const totalStart = Date.now();
 
   try {
@@ -496,6 +497,38 @@ export const handler = async (event) => {
       UpdateExpression: "ADD scanCount :inc SET updatedAt = :now",
       ExpressionAttributeValues: { ":inc": 1, ":now": new Date().toISOString() },
     }));
+
+    // Record the free-scan marker only after successful completion.
+    // This avoids permanently blocking retries when analysis fails mid-flight.
+    if (isFreeScan && ipaHash) {
+      const now = new Date().toISOString();
+      try {
+        await db.send(new PutCommand({
+          TableName: TABLE,
+          Item: {
+            PK: `FREE_SCAN#${ipaHash}`,
+            SK: "HASH",
+            userId,
+            bundleId: bundleId || "unknown",
+            createdAt: now,
+          },
+        }));
+        if (bundleId) {
+          await db.send(new PutCommand({
+            TableName: TABLE,
+            Item: {
+              PK: `FREE_SCAN#${bundleId}`,
+              SK: "BUNDLE",
+              userId,
+              ipaHash,
+              createdAt: now,
+            },
+          }));
+        }
+      } catch (freeScanErr) {
+        console.warn("[Free scan marker] Failed to record marker (non-fatal):", freeScanErr);
+      }
+    }
 
     // Delete IPA from S3 — metadata is extracted, original file no longer needed
     if (s3Key && S3_BUCKET) {

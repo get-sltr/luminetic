@@ -13,7 +13,6 @@ import {
   deductScanCredit,
   refundScanCredit,
   isAppFreeScanned,
-  markFreeScannedApp,
 } from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
@@ -192,13 +191,6 @@ export async function POST(request: NextRequest) {
       },
     }));
 
-    // ── Mark free-scanned app (only for free scans) ──
-    if (ipaHash && isFreeScan) {
-      try {
-        await markFreeScannedApp(ipaHash, ipaMetadata?.bundleId || parsed.bundleId, authUser.userId);
-      } catch { /* best effort */ }
-    }
-
     // ── Invoke Lambda async (fire-and-forget) ──
     await lambda.send(new InvokeCommand({
       FunctionName: LAMBDA_NAME,
@@ -217,7 +209,9 @@ export async function POST(request: NextRequest) {
           privacyDescriptions: ipaMetadata.privacyUsageDescriptions,
         } : null,
         s3Key: parsed.s3Key,
+        ipaHash,
         bundleId: ipaMetadata?.bundleId || parsed.bundleId,
+        isFreeScan,
       })),
     }));
 
