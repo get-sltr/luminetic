@@ -45,7 +45,7 @@ describe("stuck-scan sweeper", () => {
       })
       .mockResolvedValueOnce({});
 
-    const { handler } = await import("./index.mjs");
+    const { handler } = await import("../../lambda/sweeper/index.mjs");
     const result = await handler();
 
     expect(result).toEqual({ swept: 1 });
@@ -73,7 +73,7 @@ describe("stuck-scan sweeper", () => {
       .mockResolvedValueOnce({})
       .mockResolvedValueOnce({});
 
-    const { handler } = await import("./index.mjs");
+    const { handler } = await import("../../lambda/sweeper/index.mjs");
     const result = await handler();
 
     expect(result).toEqual({ swept: 1 });
