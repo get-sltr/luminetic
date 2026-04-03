@@ -167,7 +167,7 @@ export async function getAllScansWithIssues(userId: string) {
     },
     ScanIndexForward: false,
     ExpressionAttributeNames: { "#s": "status" },
-    ProjectionExpression: "scanId, score, createdAt, mergedResult, #s",
+    ProjectionExpression: "scanId, score, createdAt, mergedResult, #s, ttl",
   }));
   return res.Items || [];
 }
