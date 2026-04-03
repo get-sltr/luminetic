@@ -141,6 +141,13 @@ export async function POST(request: NextRequest) {
     if (userText) {
       const guard = await guardInput(userText, "prompt-injection");
       if (guard.blocked) {
+        if (scanCreditCharged) {
+          try {
+            await refundScanCredit(authUser.userId);
+          } catch (refundErr) {
+            console.error("Failed to refund credit after guard block:", refundErr);
+          }
+        }
         return Response.json(
           { error: "Your input was flagged by our security system. Please revise and try again." },
           { status: 400 }
@@ -201,6 +208,7 @@ export async function POST(request: NextRequest) {
         scanId,
         userId: authUser.userId,
         status: "pending",
+        creditCharged: scanCreditCharged,
         ttl: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
         ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
         createdAt: timestamp,

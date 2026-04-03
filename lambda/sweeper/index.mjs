@@ -21,7 +21,7 @@ export const handler = async () => {
       ":cutoff": cutoff,
       ":scanPrefix": "SCAN#",
     },
-    ProjectionExpression: "PK, SK, scanId, #s, updatedAt",
+    ProjectionExpression: "PK, SK, scanId, #s, updatedAt, creditCharged",
   }));
 
   const stuckScans = res.Items || [];
@@ -50,18 +50,23 @@ export const handler = async () => {
         },
       }));
 
-      // Refund credit — extract userId from PK (format: USER#<userId>)
+      // Refund credit only when this scan actually deducted one.
+      // Free scans/founder scans should never mint paid credits on timeout.
       const userId = scan.PK.replace("USER#", "");
-      try {
-        await db.send(new UpdateCommand({
-          TableName: TABLE,
-          Key: { PK: scan.PK, SK: "PROFILE" },
-          UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
-          ExpressionAttributeValues: { ":one": 1, ":now": new Date().toISOString() },
-        }));
-        console.log(`[Sweeper] Refunded credit for user ${userId}, scan ${scan.scanId}`);
-      } catch (refundErr) {
-        console.warn(`[Sweeper] Credit refund failed for ${userId}:`, refundErr);
+      if (scan.creditCharged) {
+        try {
+          await db.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { PK: scan.PK, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ExpressionAttributeValues: { ":one": 1, ":now": new Date().toISOString() },
+          }));
+          console.log(`[Sweeper] Refunded credit for user ${userId}, scan ${scan.scanId}`);
+        } catch (refundErr) {
+          console.warn(`[Sweeper] Credit refund failed for ${userId}:`, refundErr);
+        }
+      } else {
+        console.log(`[Sweeper] No refund needed for scan ${scan.scanId} (creditCharged=false)`);
       }
 
       swept++;
