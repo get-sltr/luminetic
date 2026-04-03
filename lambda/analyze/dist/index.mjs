@@ -1,5 +1,1104 @@
-var Me=Object.defineProperty;var ke=(e,n)=>()=>(e&&(n=e(e=0)),n);var Le=(e,n)=>{for(var t in n)Me(e,t,{get:n[t],enumerable:!0})};var ve={};Le(ve,{BlockReason:()=>ee,ChatSession:()=>j,DynamicRetrievalMode:()=>se,ExecutableCodeLanguage:()=>q,FinishReason:()=>N,FunctionCallingMode:()=>ne,GenerativeModel:()=>L,GoogleGenerativeAI:()=>oe,GoogleGenerativeAIAbortError:()=>D,GoogleGenerativeAIError:()=>g,GoogleGenerativeAIFetchError:()=>b,GoogleGenerativeAIRequestInputError:()=>y,GoogleGenerativeAIResponseError:()=>w,HarmBlockThreshold:()=>Q,HarmCategory:()=>W,HarmProbability:()=>Z,Outcome:()=>z,POSSIBLE_ROLES:()=>X,SchemaType:()=>V,TaskType:()=>te});function $e(e){let n=[];return e?.apiClient&&n.push(e.apiClient),n.push(`${Pe}/${Ue}`),n.join(" ")}async function je(e){var n;let t=new Headers;t.append("Content-Type","application/json"),t.append("x-goog-api-client",$e(e.requestOptions)),t.append("x-goog-api-key",e.apiKey);let s=(n=e.requestOptions)===null||n===void 0?void 0:n.customHeaders;if(s){if(!(s instanceof Headers))try{s=new Headers(s)}catch(i){throw new y(`unable to convert customHeaders value ${JSON.stringify(s)} to Headers: ${i.message}`)}for(let[i,o]of s.entries()){if(i==="x-goog-api-key")throw new y(`Cannot set reserved header name ${i}`);if(i==="x-goog-api-client")throw new y(`Header name ${i} can only be set using the apiClient field`);t.append(i,o)}}return t}async function Ge(e,n,t,s,i,o){let a=new ie(e,n,t,s,o);return{url:a.toString(),fetchOptions:Object.assign(Object.assign({},He(o)),{method:"POST",headers:await je(a),body:i})}}async function x(e,n,t,s,i,o={},a=fetch){let{url:r,fetchOptions:c}=await Ge(e,n,t,s,i,o);return Ye(r,c,a)}async function Ye(e,n,t=fetch){let s;try{s=await t(e,n)}catch(i){Ke(i,e)}return s.ok||await Be(s,e),s}function Ke(e,n){let t=e;throw t.name==="AbortError"?(t=new D(`Request aborted when fetching ${n.toString()}: ${e.message}`),t.stack=e.stack):e instanceof b||e instanceof y||(t=new g(`Error fetching from ${n.toString()}: ${e.message}`),t.stack=e.stack),t}async function Be(e,n){let t="",s;try{let i=await e.json();t=i.error.message,i.error.details&&(t+=` ${JSON.stringify(i.error.details)}`,s=i.error.details)}catch{}throw new b(`Error fetching from ${n.toString()}: [${e.status} ${e.statusText}] ${t}`,e.status,e.statusText,s)}function He(e){let n={};if(e?.signal!==void 0||e?.timeout>=0){let t=new AbortController;e?.timeout>=0&&setTimeout(()=>t.abort(),e.timeout),e?.signal&&e.signal.addEventListener("abort",()=>{t.abort()}),n.signal=t.signal}return n}function ae(e){return e.text=()=>{if(e.candidates&&e.candidates.length>0){if(e.candidates.length>1&&console.warn(`This response had ${e.candidates.length} candidates. Returning text from the first candidate only. Access response.candidates directly to use the other candidates.`),$(e.candidates[0]))throw new w(`${v(e)}`,e);return Je(e)}else if(e.promptFeedback)throw new w(`Text not available. ${v(e)}`,e);return""},e.functionCall=()=>{if(e.candidates&&e.candidates.length>0){if(e.candidates.length>1&&console.warn(`This response had ${e.candidates.length} candidates. Returning function calls from the first candidate only. Access response.candidates directly to use the other candidates.`),$(e.candidates[0]))throw new w(`${v(e)}`,e);return console.warn("response.functionCall() is deprecated. Use response.functionCalls() instead."),fe(e)[0]}else if(e.promptFeedback)throw new w(`Function call not available. ${v(e)}`,e)},e.functionCalls=()=>{if(e.candidates&&e.candidates.length>0){if(e.candidates.length>1&&console.warn(`This response had ${e.candidates.length} candidates. Returning function calls from the first candidate only. Access response.candidates directly to use the other candidates.`),$(e.candidates[0]))throw new w(`${v(e)}`,e);return fe(e)}else if(e.promptFeedback)throw new w(`Function call not available. ${v(e)}`,e)},e}function Je(e){var n,t,s,i;let o=[];if(!((t=(n=e.candidates)===null||n===void 0?void 0:n[0].content)===null||t===void 0)&&t.parts)for(let a of(i=(s=e.candidates)===null||s===void 0?void 0:s[0].content)===null||i===void 0?void 0:i.parts)a.text&&o.push(a.text),a.executableCode&&o.push("\n```"+a.executableCode.language+`
-`+a.executableCode.code+"\n```\n"),a.codeExecutionResult&&o.push("\n```\n"+a.codeExecutionResult.output+"\n```\n");return o.length>0?o.join(""):""}function fe(e){var n,t,s,i;let o=[];if(!((t=(n=e.candidates)===null||n===void 0?void 0:n[0].content)===null||t===void 0)&&t.parts)for(let a of(i=(s=e.candidates)===null||s===void 0?void 0:s[0].content)===null||i===void 0?void 0:i.parts)a.functionCall&&o.push(a.functionCall);if(o.length>0)return o}function $(e){return!!e.finishReason&&Ve.includes(e.finishReason)}function v(e){var n,t,s;let i="";if((!e.candidates||e.candidates.length===0)&&e.promptFeedback)i+="Response was blocked",!((n=e.promptFeedback)===null||n===void 0)&&n.blockReason&&(i+=` due to ${e.promptFeedback.blockReason}`),!((t=e.promptFeedback)===null||t===void 0)&&t.blockReasonMessage&&(i+=`: ${e.promptFeedback.blockReasonMessage}`);else if(!((s=e.candidates)===null||s===void 0)&&s[0]){let o=e.candidates[0];$(o)&&(i+=`Candidate was blocked due to ${o.finishReason}`,o.finishMessage&&(i+=`: ${o.finishMessage}`))}return i}function M(e){return this instanceof M?(this.v=e,this):new M(e)}function qe(e,n,t){if(!Symbol.asyncIterator)throw new TypeError("Symbol.asyncIterator is not defined.");var s=t.apply(e,n||[]),i,o=[];return i={},a("next"),a("throw"),a("return"),i[Symbol.asyncIterator]=function(){return this},i;function a(u){s[u]&&(i[u]=function(l){return new Promise(function(f,h){o.push([u,l,f,h])>1||r(u,l)})})}function r(u,l){try{c(s[u](l))}catch(f){p(o[0][3],f)}}function c(u){u.value instanceof M?Promise.resolve(u.value.v).then(d,m):p(o[0][2],u)}function d(u){r("next",u)}function m(u){r("throw",u)}function p(u,l){u(l),o.shift(),o.length&&r(o[0][0],o[0][1])}}function ze(e){let n=e.body.pipeThrough(new TextDecoderStream("utf8",{fatal:!0})),t=Qe(n),[s,i]=t.tee();return{stream:We(s),response:Xe(i)}}async function Xe(e){let n=[],t=e.getReader();for(;;){let{done:s,value:i}=await t.read();if(s)return ae(Ze(n));n.push(i)}}function We(e){return qe(this,arguments,function*(){let t=e.getReader();for(;;){let{value:s,done:i}=yield M(t.read());if(i)break;yield yield M(ae(s))}})}function Qe(e){let n=e.getReader();return new ReadableStream({start(s){let i="";return o();function o(){return n.read().then(({value:a,done:r})=>{if(r){if(i.trim()){s.error(new g("Failed to parse stream"));return}s.close();return}i+=a;let c=i.match(pe),d;for(;c;){try{d=JSON.parse(c[1])}catch{s.error(new g(`Error parsing JSON response: "${c[1]}"`));return}s.enqueue(d),i=i.substring(c[0].length),c=i.match(pe)}return o()}).catch(a=>{let r=a;throw r.stack=a.stack,r.name==="AbortError"?r=new D("Request aborted when reading from the stream"):r=new g("Error reading from the stream"),r})}}})}function Ze(e){let n=e[e.length-1],t={promptFeedback:n?.promptFeedback};for(let s of e){if(s.candidates){let i=0;for(let o of s.candidates)if(t.candidates||(t.candidates=[]),t.candidates[i]||(t.candidates[i]={index:i}),t.candidates[i].citationMetadata=o.citationMetadata,t.candidates[i].groundingMetadata=o.groundingMetadata,t.candidates[i].finishReason=o.finishReason,t.candidates[i].finishMessage=o.finishMessage,t.candidates[i].safetyRatings=o.safetyRatings,o.content&&o.content.parts){t.candidates[i].content||(t.candidates[i].content={role:o.content.role||"user",parts:[]});let a={};for(let r of o.content.parts)r.text&&(a.text=r.text),r.functionCall&&(a.functionCall=r.functionCall),r.executableCode&&(a.executableCode=r.executableCode),r.codeExecutionResult&&(a.codeExecutionResult=r.codeExecutionResult),Object.keys(a).length===0&&(a.text=""),t.candidates[i].content.parts.push(a)}i++}s.usageMetadata&&(t.usageMetadata=s.usageMetadata)}return t}async function ye(e,n,t,s){let i=await x(n,A.STREAM_GENERATE_CONTENT,e,!0,JSON.stringify(t),s);return ze(i)}async function Ee(e,n,t,s){let o=await(await x(n,A.GENERATE_CONTENT,e,!1,JSON.stringify(t),s)).json();return{response:ae(o)}}function we(e){if(e!=null){if(typeof e=="string")return{role:"system",parts:[{text:e}]};if(e.text)return{role:"system",parts:[e]};if(e.parts)return e.role?e:{role:"system",parts:e.parts}}}function k(e){let n=[];if(typeof e=="string")n=[{text:e}];else for(let t of e)typeof t=="string"?n.push({text:t}):n.push(t);return et(n)}function et(e){let n={role:"user",parts:[]},t={role:"function",parts:[]},s=!1,i=!1;for(let o of e)"functionResponse"in o?(t.parts.push(o),i=!0):(n.parts.push(o),s=!0);if(s&&i)throw new g("Within a single message, FunctionResponse cannot be mixed with other type of part in the request for sending chat message.");if(!s&&!i)throw new g("No content is provided for sending chat message.");return s?n:t}function tt(e,n){var t;let s={model:n?.model,generationConfig:n?.generationConfig,safetySettings:n?.safetySettings,tools:n?.tools,toolConfig:n?.toolConfig,systemInstruction:n?.systemInstruction,cachedContent:(t=n?.cachedContent)===null||t===void 0?void 0:t.name,contents:[]},i=e.generateContentRequest!=null;if(e.contents){if(i)throw new y("CountTokensRequest must have one of contents or generateContentRequest, not both.");s.contents=e.contents}else if(i)s=Object.assign(Object.assign({},s),e.generateContentRequest);else{let o=k(e);s.contents=[o]}return{generateContentRequest:s}}function me(e){let n;return e.contents?n=e:n={contents:[k(e)]},e.systemInstruction&&(n.systemInstruction=we(e.systemInstruction)),n}function nt(e){return typeof e=="string"||Array.isArray(e)?{content:k(e)}:e}function it(e){let n=!1;for(let t of e){let{role:s,parts:i}=t;if(!n&&s!=="user")throw new g(`First content should be with role 'user', got ${s}`);if(!X.includes(s))throw new g(`Each item should include role field. Got ${s} but valid roles are: ${JSON.stringify(X)}`);if(!Array.isArray(i))throw new g("Content should have 'parts' property with an array of Parts");if(i.length===0)throw new g("Each Content should have at least one part");let o={text:0,inlineData:0,functionCall:0,functionResponse:0,fileData:0,executableCode:0,codeExecutionResult:0};for(let r of i)for(let c of ge)c in r&&(o[c]+=1);let a=st[s];for(let r of ge)if(!a.includes(r)&&o[r]>0)throw new g(`Content with role '${s}' can't contain '${r}' part`);n=!0}}function he(e){var n;if(e.candidates===void 0||e.candidates.length===0)return!1;let t=(n=e.candidates[0])===null||n===void 0?void 0:n.content;if(t===void 0||t.parts===void 0||t.parts.length===0)return!1;for(let s of t.parts)if(s===void 0||Object.keys(s).length===0||s.text!==void 0&&s.text==="")return!1;return!0}async function ot(e,n,t,s){return(await x(n,A.COUNT_TOKENS,e,!1,JSON.stringify(t),s)).json()}async function at(e,n,t,s){return(await x(n,A.EMBED_CONTENT,e,!1,JSON.stringify(t),s)).json()}async function rt(e,n,t,s){let i=t.requests.map(a=>Object.assign(Object.assign({},a),{model:n}));return(await x(n,A.BATCH_EMBED_CONTENTS,e,!1,JSON.stringify({requests:i}),s)).json()}var V,q,z,X,W,Q,Z,ee,N,te,ne,se,g,w,b,y,D,xe,Fe,Ue,Pe,A,ie,Ve,pe,ge,st,_e,j,L,oe,Se=ke(()=>{(function(e){e.STRING="string",e.NUMBER="number",e.INTEGER="integer",e.BOOLEAN="boolean",e.ARRAY="array",e.OBJECT="object"})(V||(V={}));(function(e){e.LANGUAGE_UNSPECIFIED="language_unspecified",e.PYTHON="python"})(q||(q={}));(function(e){e.OUTCOME_UNSPECIFIED="outcome_unspecified",e.OUTCOME_OK="outcome_ok",e.OUTCOME_FAILED="outcome_failed",e.OUTCOME_DEADLINE_EXCEEDED="outcome_deadline_exceeded"})(z||(z={}));X=["user","model","function","system"];(function(e){e.HARM_CATEGORY_UNSPECIFIED="HARM_CATEGORY_UNSPECIFIED",e.HARM_CATEGORY_HATE_SPEECH="HARM_CATEGORY_HATE_SPEECH",e.HARM_CATEGORY_SEXUALLY_EXPLICIT="HARM_CATEGORY_SEXUALLY_EXPLICIT",e.HARM_CATEGORY_HARASSMENT="HARM_CATEGORY_HARASSMENT",e.HARM_CATEGORY_DANGEROUS_CONTENT="HARM_CATEGORY_DANGEROUS_CONTENT",e.HARM_CATEGORY_CIVIC_INTEGRITY="HARM_CATEGORY_CIVIC_INTEGRITY"})(W||(W={}));(function(e){e.HARM_BLOCK_THRESHOLD_UNSPECIFIED="HARM_BLOCK_THRESHOLD_UNSPECIFIED",e.BLOCK_LOW_AND_ABOVE="BLOCK_LOW_AND_ABOVE",e.BLOCK_MEDIUM_AND_ABOVE="BLOCK_MEDIUM_AND_ABOVE",e.BLOCK_ONLY_HIGH="BLOCK_ONLY_HIGH",e.BLOCK_NONE="BLOCK_NONE"})(Q||(Q={}));(function(e){e.HARM_PROBABILITY_UNSPECIFIED="HARM_PROBABILITY_UNSPECIFIED",e.NEGLIGIBLE="NEGLIGIBLE",e.LOW="LOW",e.MEDIUM="MEDIUM",e.HIGH="HIGH"})(Z||(Z={}));(function(e){e.BLOCKED_REASON_UNSPECIFIED="BLOCKED_REASON_UNSPECIFIED",e.SAFETY="SAFETY",e.OTHER="OTHER"})(ee||(ee={}));(function(e){e.FINISH_REASON_UNSPECIFIED="FINISH_REASON_UNSPECIFIED",e.STOP="STOP",e.MAX_TOKENS="MAX_TOKENS",e.SAFETY="SAFETY",e.RECITATION="RECITATION",e.LANGUAGE="LANGUAGE",e.BLOCKLIST="BLOCKLIST",e.PROHIBITED_CONTENT="PROHIBITED_CONTENT",e.SPII="SPII",e.MALFORMED_FUNCTION_CALL="MALFORMED_FUNCTION_CALL",e.OTHER="OTHER"})(N||(N={}));(function(e){e.TASK_TYPE_UNSPECIFIED="TASK_TYPE_UNSPECIFIED",e.RETRIEVAL_QUERY="RETRIEVAL_QUERY",e.RETRIEVAL_DOCUMENT="RETRIEVAL_DOCUMENT",e.SEMANTIC_SIMILARITY="SEMANTIC_SIMILARITY",e.CLASSIFICATION="CLASSIFICATION",e.CLUSTERING="CLUSTERING"})(te||(te={}));(function(e){e.MODE_UNSPECIFIED="MODE_UNSPECIFIED",e.AUTO="AUTO",e.ANY="ANY",e.NONE="NONE"})(ne||(ne={}));(function(e){e.MODE_UNSPECIFIED="MODE_UNSPECIFIED",e.MODE_DYNAMIC="MODE_DYNAMIC"})(se||(se={}));g=class extends Error{constructor(n){super(`[GoogleGenerativeAI Error]: ${n}`)}},w=class extends g{constructor(n,t){super(n),this.response=t}},b=class extends g{constructor(n,t,s,i){super(n),this.status=t,this.statusText=s,this.errorDetails=i}},y=class extends g{},D=class extends g{};xe="https://generativelanguage.googleapis.com",Fe="v1beta",Ue="0.24.1",Pe="genai-js";(function(e){e.GENERATE_CONTENT="generateContent",e.STREAM_GENERATE_CONTENT="streamGenerateContent",e.COUNT_TOKENS="countTokens",e.EMBED_CONTENT="embedContent",e.BATCH_EMBED_CONTENTS="batchEmbedContents"})(A||(A={}));ie=class{constructor(n,t,s,i,o){this.model=n,this.task=t,this.apiKey=s,this.stream=i,this.requestOptions=o}toString(){var n,t;let s=((n=this.requestOptions)===null||n===void 0?void 0:n.apiVersion)||Fe,o=`${((t=this.requestOptions)===null||t===void 0?void 0:t.baseUrl)||xe}/${s}/${this.model}:${this.task}`;return this.stream&&(o+="?alt=sse"),o}};Ve=[N.RECITATION,N.SAFETY,N.LANGUAGE];pe=/^data\: (.*)(?:\n\n|\r\r|\r\n\r\n)/;ge=["text","inlineData","functionCall","functionResponse","executableCode","codeExecutionResult"],st={user:["text","inlineData"],function:["functionResponse"],model:["text","functionCall","executableCode","codeExecutionResult"],system:["text"]};_e="SILENT_ERROR",j=class{constructor(n,t,s,i={}){this.model=t,this.params=s,this._requestOptions=i,this._history=[],this._sendPromise=Promise.resolve(),this._apiKey=n,s?.history&&(it(s.history),this._history=s.history)}async getHistory(){return await this._sendPromise,this._history}async sendMessage(n,t={}){var s,i,o,a,r,c;await this._sendPromise;let d=k(n),m={safetySettings:(s=this.params)===null||s===void 0?void 0:s.safetySettings,generationConfig:(i=this.params)===null||i===void 0?void 0:i.generationConfig,tools:(o=this.params)===null||o===void 0?void 0:o.tools,toolConfig:(a=this.params)===null||a===void 0?void 0:a.toolConfig,systemInstruction:(r=this.params)===null||r===void 0?void 0:r.systemInstruction,cachedContent:(c=this.params)===null||c===void 0?void 0:c.cachedContent,contents:[...this._history,d]},p=Object.assign(Object.assign({},this._requestOptions),t),u;return this._sendPromise=this._sendPromise.then(()=>Ee(this._apiKey,this.model,m,p)).then(l=>{var f;if(he(l.response)){this._history.push(d);let h=Object.assign({parts:[],role:"model"},(f=l.response.candidates)===null||f===void 0?void 0:f[0].content);this._history.push(h)}else{let h=v(l.response);h&&console.warn(`sendMessage() was unsuccessful. ${h}. Inspect response object for details.`)}u=l}).catch(l=>{throw this._sendPromise=Promise.resolve(),l}),await this._sendPromise,u}async sendMessageStream(n,t={}){var s,i,o,a,r,c;await this._sendPromise;let d=k(n),m={safetySettings:(s=this.params)===null||s===void 0?void 0:s.safetySettings,generationConfig:(i=this.params)===null||i===void 0?void 0:i.generationConfig,tools:(o=this.params)===null||o===void 0?void 0:o.tools,toolConfig:(a=this.params)===null||a===void 0?void 0:a.toolConfig,systemInstruction:(r=this.params)===null||r===void 0?void 0:r.systemInstruction,cachedContent:(c=this.params)===null||c===void 0?void 0:c.cachedContent,contents:[...this._history,d]},p=Object.assign(Object.assign({},this._requestOptions),t),u=ye(this._apiKey,this.model,m,p);return this._sendPromise=this._sendPromise.then(()=>u).catch(l=>{throw new Error(_e)}).then(l=>l.response).then(l=>{if(he(l)){this._history.push(d);let f=Object.assign({},l.candidates[0].content);f.role||(f.role="model"),this._history.push(f)}else{let f=v(l);f&&console.warn(`sendMessageStream() was unsuccessful. ${f}. Inspect response object for details.`)}}).catch(l=>{l.message!==_e&&console.error(l)}),u}};L=class{constructor(n,t,s={}){this.apiKey=n,this._requestOptions=s,t.model.includes("/")?this.model=t.model:this.model=`models/${t.model}`,this.generationConfig=t.generationConfig||{},this.safetySettings=t.safetySettings||[],this.tools=t.tools,this.toolConfig=t.toolConfig,this.systemInstruction=we(t.systemInstruction),this.cachedContent=t.cachedContent}async generateContent(n,t={}){var s;let i=me(n),o=Object.assign(Object.assign({},this._requestOptions),t);return Ee(this.apiKey,this.model,Object.assign({generationConfig:this.generationConfig,safetySettings:this.safetySettings,tools:this.tools,toolConfig:this.toolConfig,systemInstruction:this.systemInstruction,cachedContent:(s=this.cachedContent)===null||s===void 0?void 0:s.name},i),o)}async generateContentStream(n,t={}){var s;let i=me(n),o=Object.assign(Object.assign({},this._requestOptions),t);return ye(this.apiKey,this.model,Object.assign({generationConfig:this.generationConfig,safetySettings:this.safetySettings,tools:this.tools,toolConfig:this.toolConfig,systemInstruction:this.systemInstruction,cachedContent:(s=this.cachedContent)===null||s===void 0?void 0:s.name},i),o)}startChat(n){var t;return new j(this.apiKey,this.model,Object.assign({generationConfig:this.generationConfig,safetySettings:this.safetySettings,tools:this.tools,toolConfig:this.toolConfig,systemInstruction:this.systemInstruction,cachedContent:(t=this.cachedContent)===null||t===void 0?void 0:t.name},n),this._requestOptions)}async countTokens(n,t={}){let s=tt(n,{model:this.model,generationConfig:this.generationConfig,safetySettings:this.safetySettings,tools:this.tools,toolConfig:this.toolConfig,systemInstruction:this.systemInstruction,cachedContent:this.cachedContent}),i=Object.assign(Object.assign({},this._requestOptions),t);return ot(this.apiKey,this.model,s,i)}async embedContent(n,t={}){let s=nt(n),i=Object.assign(Object.assign({},this._requestOptions),t);return at(this.apiKey,this.model,s,i)}async batchEmbedContents(n,t={}){let s=Object.assign(Object.assign({},this._requestOptions),t);return rt(this.apiKey,this.model,n,s)}};oe=class{constructor(n){this.apiKey=n}getGenerativeModel(n,t){if(!n.model)throw new g("Must provide a model name. Example: genai.getGenerativeModel({ model: 'my-model-name' })");return new L(this.apiKey,n,t)}getGenerativeModelFromCachedContent(n,t,s){if(!n.name)throw new y("Cached content must contain a `name` field.");if(!n.model)throw new y("Cached content must contain a `model` field.");let i=["model","systemInstruction"];for(let a of i)if(t?.[a]&&n[a]&&t?.[a]!==n[a]){if(a==="model"){let r=t.model.startsWith("models/")?t.model.replace("models/",""):t.model,c=n.model.startsWith("models/")?n.model.replace("models/",""):n.model;if(r===c)continue}throw new y(`Different value for "${a}" specified in modelParams (${t[a]}) and cachedContent (${n[a]})`)}let o=Object.assign(Object.assign({},t),{model:n.model,tools:n.tools,toolConfig:n.toolConfig,systemInstruction:n.systemInstruction,cachedContent:n});return new L(this.apiKey,o,s)}}});import{BedrockRuntimeClient as ct,InvokeModelCommand as B}from"@aws-sdk/client-bedrock-runtime";import{DynamoDBClient as lt}from"@aws-sdk/client-dynamodb";import{DynamoDBDocumentClient as dt,UpdateCommand as ce}from"@aws-sdk/lib-dynamodb";import{SecretsManagerClient as ut,GetSecretValueCommand as ft}from"@aws-sdk/client-secrets-manager";import{S3Client as pt,GetObjectCommand as mt,DeleteObjectCommand as gt}from"@aws-sdk/client-s3";import{DeviceFarmClient as ht,CreateUploadCommand as _t,GetUploadCommand as yt,ScheduleRunCommand as Et,GetRunCommand as wt,ListArtifactsCommand as vt}from"@aws-sdk/client-device-farm";var H=process.env.AWS_REGION||"us-east-1",le=process.env.DYNAMODB_TABLE||"appready",J=new ct({region:H}),de=dt.from(new lt({region:H})),St=new ut({region:H}),Ce=new pt({region:H}),G=process.env.S3_BUCKET,P=new ht({region:"us-west-2"}),K=process.env.DEVICE_FARM_PROJECT_ARN,ue=process.env.DEVICE_FARM_DEVICE_POOL_ARN,re=null;async function Ct(){let e=process.env.GEMINI_API_KEY;if(e)return e;if(re)return re;let n=await St.send(new ft({SecretId:"luminetic/gemini-api-key"})),t=n.SecretString?JSON.parse(n.SecretString).GEMINI_API_KEY:null;if(!t)throw new Error("Gemini API key not found");return re=t,t}async function F(e,n,t,s={}){await de.send(new ce({TableName:le,Key:{PK:`USER#${e}`,SK:n},UpdateExpression:"SET #s = :s, updatedAt = :now"+Object.keys(s).map((i,o)=>`, #e${o} = :e${o}`).join(""),ExpressionAttributeNames:{"#s":"status",...Object.fromEntries(Object.keys(s).map((i,o)=>[`#e${o}`,i]))},ExpressionAttributeValues:{":s":t,":now":new Date().toISOString(),...Object.fromEntries(Object.entries(s).map(([i,o],a)=>[`:e${a}`,o]))}}))}var Oe=`You are an expert iOS App Store submission analyst. You analyze .ipa app metadata to identify App Store Review Guideline violations, missing configurations, and submission risks BEFORE the developer submits to Apple.
+import { createRequire } from "module";const require = createRequire(import.meta.url);
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+
+// ../../node_modules/@google/generative-ai/dist/index.mjs
+var dist_exports = {};
+__export(dist_exports, {
+  BlockReason: () => BlockReason,
+  ChatSession: () => ChatSession,
+  DynamicRetrievalMode: () => DynamicRetrievalMode,
+  ExecutableCodeLanguage: () => ExecutableCodeLanguage,
+  FinishReason: () => FinishReason,
+  FunctionCallingMode: () => FunctionCallingMode,
+  GenerativeModel: () => GenerativeModel,
+  GoogleGenerativeAI: () => GoogleGenerativeAI,
+  GoogleGenerativeAIAbortError: () => GoogleGenerativeAIAbortError,
+  GoogleGenerativeAIError: () => GoogleGenerativeAIError,
+  GoogleGenerativeAIFetchError: () => GoogleGenerativeAIFetchError,
+  GoogleGenerativeAIRequestInputError: () => GoogleGenerativeAIRequestInputError,
+  GoogleGenerativeAIResponseError: () => GoogleGenerativeAIResponseError,
+  HarmBlockThreshold: () => HarmBlockThreshold,
+  HarmCategory: () => HarmCategory,
+  HarmProbability: () => HarmProbability,
+  Outcome: () => Outcome,
+  POSSIBLE_ROLES: () => POSSIBLE_ROLES,
+  SchemaType: () => SchemaType,
+  TaskType: () => TaskType
+});
+function getClientHeaders(requestOptions) {
+  const clientHeaders = [];
+  if (requestOptions === null || requestOptions === void 0 ? void 0 : requestOptions.apiClient) {
+    clientHeaders.push(requestOptions.apiClient);
+  }
+  clientHeaders.push(`${PACKAGE_LOG_HEADER}/${PACKAGE_VERSION}`);
+  return clientHeaders.join(" ");
+}
+async function getHeaders(url) {
+  var _a;
+  const headers = new Headers();
+  headers.append("Content-Type", "application/json");
+  headers.append("x-goog-api-client", getClientHeaders(url.requestOptions));
+  headers.append("x-goog-api-key", url.apiKey);
+  let customHeaders = (_a = url.requestOptions) === null || _a === void 0 ? void 0 : _a.customHeaders;
+  if (customHeaders) {
+    if (!(customHeaders instanceof Headers)) {
+      try {
+        customHeaders = new Headers(customHeaders);
+      } catch (e) {
+        throw new GoogleGenerativeAIRequestInputError(`unable to convert customHeaders value ${JSON.stringify(customHeaders)} to Headers: ${e.message}`);
+      }
+    }
+    for (const [headerName, headerValue] of customHeaders.entries()) {
+      if (headerName === "x-goog-api-key") {
+        throw new GoogleGenerativeAIRequestInputError(`Cannot set reserved header name ${headerName}`);
+      } else if (headerName === "x-goog-api-client") {
+        throw new GoogleGenerativeAIRequestInputError(`Header name ${headerName} can only be set using the apiClient field`);
+      }
+      headers.append(headerName, headerValue);
+    }
+  }
+  return headers;
+}
+async function constructModelRequest(model, task, apiKey, stream, body, requestOptions) {
+  const url = new RequestUrl(model, task, apiKey, stream, requestOptions);
+  return {
+    url: url.toString(),
+    fetchOptions: Object.assign(Object.assign({}, buildFetchOptions(requestOptions)), { method: "POST", headers: await getHeaders(url), body })
+  };
+}
+async function makeModelRequest(model, task, apiKey, stream, body, requestOptions = {}, fetchFn = fetch) {
+  const { url, fetchOptions } = await constructModelRequest(model, task, apiKey, stream, body, requestOptions);
+  return makeRequest(url, fetchOptions, fetchFn);
+}
+async function makeRequest(url, fetchOptions, fetchFn = fetch) {
+  let response;
+  try {
+    response = await fetchFn(url, fetchOptions);
+  } catch (e) {
+    handleResponseError(e, url);
+  }
+  if (!response.ok) {
+    await handleResponseNotOk(response, url);
+  }
+  return response;
+}
+function handleResponseError(e, url) {
+  let err = e;
+  if (err.name === "AbortError") {
+    err = new GoogleGenerativeAIAbortError(`Request aborted when fetching ${url.toString()}: ${e.message}`);
+    err.stack = e.stack;
+  } else if (!(e instanceof GoogleGenerativeAIFetchError || e instanceof GoogleGenerativeAIRequestInputError)) {
+    err = new GoogleGenerativeAIError(`Error fetching from ${url.toString()}: ${e.message}`);
+    err.stack = e.stack;
+  }
+  throw err;
+}
+async function handleResponseNotOk(response, url) {
+  let message = "";
+  let errorDetails;
+  try {
+    const json = await response.json();
+    message = json.error.message;
+    if (json.error.details) {
+      message += ` ${JSON.stringify(json.error.details)}`;
+      errorDetails = json.error.details;
+    }
+  } catch (e) {
+  }
+  throw new GoogleGenerativeAIFetchError(`Error fetching from ${url.toString()}: [${response.status} ${response.statusText}] ${message}`, response.status, response.statusText, errorDetails);
+}
+function buildFetchOptions(requestOptions) {
+  const fetchOptions = {};
+  if ((requestOptions === null || requestOptions === void 0 ? void 0 : requestOptions.signal) !== void 0 || (requestOptions === null || requestOptions === void 0 ? void 0 : requestOptions.timeout) >= 0) {
+    const controller = new AbortController();
+    if ((requestOptions === null || requestOptions === void 0 ? void 0 : requestOptions.timeout) >= 0) {
+      setTimeout(() => controller.abort(), requestOptions.timeout);
+    }
+    if (requestOptions === null || requestOptions === void 0 ? void 0 : requestOptions.signal) {
+      requestOptions.signal.addEventListener("abort", () => {
+        controller.abort();
+      });
+    }
+    fetchOptions.signal = controller.signal;
+  }
+  return fetchOptions;
+}
+function addHelpers(response) {
+  response.text = () => {
+    if (response.candidates && response.candidates.length > 0) {
+      if (response.candidates.length > 1) {
+        console.warn(`This response had ${response.candidates.length} candidates. Returning text from the first candidate only. Access response.candidates directly to use the other candidates.`);
+      }
+      if (hadBadFinishReason(response.candidates[0])) {
+        throw new GoogleGenerativeAIResponseError(`${formatBlockErrorMessage(response)}`, response);
+      }
+      return getText(response);
+    } else if (response.promptFeedback) {
+      throw new GoogleGenerativeAIResponseError(`Text not available. ${formatBlockErrorMessage(response)}`, response);
+    }
+    return "";
+  };
+  response.functionCall = () => {
+    if (response.candidates && response.candidates.length > 0) {
+      if (response.candidates.length > 1) {
+        console.warn(`This response had ${response.candidates.length} candidates. Returning function calls from the first candidate only. Access response.candidates directly to use the other candidates.`);
+      }
+      if (hadBadFinishReason(response.candidates[0])) {
+        throw new GoogleGenerativeAIResponseError(`${formatBlockErrorMessage(response)}`, response);
+      }
+      console.warn(`response.functionCall() is deprecated. Use response.functionCalls() instead.`);
+      return getFunctionCalls(response)[0];
+    } else if (response.promptFeedback) {
+      throw new GoogleGenerativeAIResponseError(`Function call not available. ${formatBlockErrorMessage(response)}`, response);
+    }
+    return void 0;
+  };
+  response.functionCalls = () => {
+    if (response.candidates && response.candidates.length > 0) {
+      if (response.candidates.length > 1) {
+        console.warn(`This response had ${response.candidates.length} candidates. Returning function calls from the first candidate only. Access response.candidates directly to use the other candidates.`);
+      }
+      if (hadBadFinishReason(response.candidates[0])) {
+        throw new GoogleGenerativeAIResponseError(`${formatBlockErrorMessage(response)}`, response);
+      }
+      return getFunctionCalls(response);
+    } else if (response.promptFeedback) {
+      throw new GoogleGenerativeAIResponseError(`Function call not available. ${formatBlockErrorMessage(response)}`, response);
+    }
+    return void 0;
+  };
+  return response;
+}
+function getText(response) {
+  var _a, _b, _c, _d;
+  const textStrings = [];
+  if ((_b = (_a = response.candidates) === null || _a === void 0 ? void 0 : _a[0].content) === null || _b === void 0 ? void 0 : _b.parts) {
+    for (const part of (_d = (_c = response.candidates) === null || _c === void 0 ? void 0 : _c[0].content) === null || _d === void 0 ? void 0 : _d.parts) {
+      if (part.text) {
+        textStrings.push(part.text);
+      }
+      if (part.executableCode) {
+        textStrings.push("\n```" + part.executableCode.language + "\n" + part.executableCode.code + "\n```\n");
+      }
+      if (part.codeExecutionResult) {
+        textStrings.push("\n```\n" + part.codeExecutionResult.output + "\n```\n");
+      }
+    }
+  }
+  if (textStrings.length > 0) {
+    return textStrings.join("");
+  } else {
+    return "";
+  }
+}
+function getFunctionCalls(response) {
+  var _a, _b, _c, _d;
+  const functionCalls = [];
+  if ((_b = (_a = response.candidates) === null || _a === void 0 ? void 0 : _a[0].content) === null || _b === void 0 ? void 0 : _b.parts) {
+    for (const part of (_d = (_c = response.candidates) === null || _c === void 0 ? void 0 : _c[0].content) === null || _d === void 0 ? void 0 : _d.parts) {
+      if (part.functionCall) {
+        functionCalls.push(part.functionCall);
+      }
+    }
+  }
+  if (functionCalls.length > 0) {
+    return functionCalls;
+  } else {
+    return void 0;
+  }
+}
+function hadBadFinishReason(candidate) {
+  return !!candidate.finishReason && badFinishReasons.includes(candidate.finishReason);
+}
+function formatBlockErrorMessage(response) {
+  var _a, _b, _c;
+  let message = "";
+  if ((!response.candidates || response.candidates.length === 0) && response.promptFeedback) {
+    message += "Response was blocked";
+    if ((_a = response.promptFeedback) === null || _a === void 0 ? void 0 : _a.blockReason) {
+      message += ` due to ${response.promptFeedback.blockReason}`;
+    }
+    if ((_b = response.promptFeedback) === null || _b === void 0 ? void 0 : _b.blockReasonMessage) {
+      message += `: ${response.promptFeedback.blockReasonMessage}`;
+    }
+  } else if ((_c = response.candidates) === null || _c === void 0 ? void 0 : _c[0]) {
+    const firstCandidate = response.candidates[0];
+    if (hadBadFinishReason(firstCandidate)) {
+      message += `Candidate was blocked due to ${firstCandidate.finishReason}`;
+      if (firstCandidate.finishMessage) {
+        message += `: ${firstCandidate.finishMessage}`;
+      }
+    }
+  }
+  return message;
+}
+function __await(v) {
+  return this instanceof __await ? (this.v = v, this) : new __await(v);
+}
+function __asyncGenerator(thisArg, _arguments, generator) {
+  if (!Symbol.asyncIterator) throw new TypeError("Symbol.asyncIterator is not defined.");
+  var g = generator.apply(thisArg, _arguments || []), i, q = [];
+  return i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function() {
+    return this;
+  }, i;
+  function verb(n) {
+    if (g[n]) i[n] = function(v) {
+      return new Promise(function(a, b) {
+        q.push([n, v, a, b]) > 1 || resume(n, v);
+      });
+    };
+  }
+  function resume(n, v) {
+    try {
+      step(g[n](v));
+    } catch (e) {
+      settle(q[0][3], e);
+    }
+  }
+  function step(r) {
+    r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r);
+  }
+  function fulfill(value) {
+    resume("next", value);
+  }
+  function reject(value) {
+    resume("throw", value);
+  }
+  function settle(f, v) {
+    if (f(v), q.shift(), q.length) resume(q[0][0], q[0][1]);
+  }
+}
+function processStream(response) {
+  const inputStream = response.body.pipeThrough(new TextDecoderStream("utf8", { fatal: true }));
+  const responseStream = getResponseStream(inputStream);
+  const [stream1, stream2] = responseStream.tee();
+  return {
+    stream: generateResponseSequence(stream1),
+    response: getResponsePromise(stream2)
+  };
+}
+async function getResponsePromise(stream) {
+  const allResponses = [];
+  const reader = stream.getReader();
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      return addHelpers(aggregateResponses(allResponses));
+    }
+    allResponses.push(value);
+  }
+}
+function generateResponseSequence(stream) {
+  return __asyncGenerator(this, arguments, function* generateResponseSequence_1() {
+    const reader = stream.getReader();
+    while (true) {
+      const { value, done } = yield __await(reader.read());
+      if (done) {
+        break;
+      }
+      yield yield __await(addHelpers(value));
+    }
+  });
+}
+function getResponseStream(inputStream) {
+  const reader = inputStream.getReader();
+  const stream = new ReadableStream({
+    start(controller) {
+      let currentText = "";
+      return pump();
+      function pump() {
+        return reader.read().then(({ value, done }) => {
+          if (done) {
+            if (currentText.trim()) {
+              controller.error(new GoogleGenerativeAIError("Failed to parse stream"));
+              return;
+            }
+            controller.close();
+            return;
+          }
+          currentText += value;
+          let match = currentText.match(responseLineRE);
+          let parsedResponse;
+          while (match) {
+            try {
+              parsedResponse = JSON.parse(match[1]);
+            } catch (e) {
+              controller.error(new GoogleGenerativeAIError(`Error parsing JSON response: "${match[1]}"`));
+              return;
+            }
+            controller.enqueue(parsedResponse);
+            currentText = currentText.substring(match[0].length);
+            match = currentText.match(responseLineRE);
+          }
+          return pump();
+        }).catch((e) => {
+          let err = e;
+          err.stack = e.stack;
+          if (err.name === "AbortError") {
+            err = new GoogleGenerativeAIAbortError("Request aborted when reading from the stream");
+          } else {
+            err = new GoogleGenerativeAIError("Error reading from the stream");
+          }
+          throw err;
+        });
+      }
+    }
+  });
+  return stream;
+}
+function aggregateResponses(responses) {
+  const lastResponse = responses[responses.length - 1];
+  const aggregatedResponse = {
+    promptFeedback: lastResponse === null || lastResponse === void 0 ? void 0 : lastResponse.promptFeedback
+  };
+  for (const response of responses) {
+    if (response.candidates) {
+      let candidateIndex = 0;
+      for (const candidate of response.candidates) {
+        if (!aggregatedResponse.candidates) {
+          aggregatedResponse.candidates = [];
+        }
+        if (!aggregatedResponse.candidates[candidateIndex]) {
+          aggregatedResponse.candidates[candidateIndex] = {
+            index: candidateIndex
+          };
+        }
+        aggregatedResponse.candidates[candidateIndex].citationMetadata = candidate.citationMetadata;
+        aggregatedResponse.candidates[candidateIndex].groundingMetadata = candidate.groundingMetadata;
+        aggregatedResponse.candidates[candidateIndex].finishReason = candidate.finishReason;
+        aggregatedResponse.candidates[candidateIndex].finishMessage = candidate.finishMessage;
+        aggregatedResponse.candidates[candidateIndex].safetyRatings = candidate.safetyRatings;
+        if (candidate.content && candidate.content.parts) {
+          if (!aggregatedResponse.candidates[candidateIndex].content) {
+            aggregatedResponse.candidates[candidateIndex].content = {
+              role: candidate.content.role || "user",
+              parts: []
+            };
+          }
+          const newPart = {};
+          for (const part of candidate.content.parts) {
+            if (part.text) {
+              newPart.text = part.text;
+            }
+            if (part.functionCall) {
+              newPart.functionCall = part.functionCall;
+            }
+            if (part.executableCode) {
+              newPart.executableCode = part.executableCode;
+            }
+            if (part.codeExecutionResult) {
+              newPart.codeExecutionResult = part.codeExecutionResult;
+            }
+            if (Object.keys(newPart).length === 0) {
+              newPart.text = "";
+            }
+            aggregatedResponse.candidates[candidateIndex].content.parts.push(newPart);
+          }
+        }
+      }
+      candidateIndex++;
+    }
+    if (response.usageMetadata) {
+      aggregatedResponse.usageMetadata = response.usageMetadata;
+    }
+  }
+  return aggregatedResponse;
+}
+async function generateContentStream(apiKey, model, params, requestOptions) {
+  const response = await makeModelRequest(
+    model,
+    Task.STREAM_GENERATE_CONTENT,
+    apiKey,
+    /* stream */
+    true,
+    JSON.stringify(params),
+    requestOptions
+  );
+  return processStream(response);
+}
+async function generateContent(apiKey, model, params, requestOptions) {
+  const response = await makeModelRequest(
+    model,
+    Task.GENERATE_CONTENT,
+    apiKey,
+    /* stream */
+    false,
+    JSON.stringify(params),
+    requestOptions
+  );
+  const responseJson = await response.json();
+  const enhancedResponse = addHelpers(responseJson);
+  return {
+    response: enhancedResponse
+  };
+}
+function formatSystemInstruction(input) {
+  if (input == null) {
+    return void 0;
+  } else if (typeof input === "string") {
+    return { role: "system", parts: [{ text: input }] };
+  } else if (input.text) {
+    return { role: "system", parts: [input] };
+  } else if (input.parts) {
+    if (!input.role) {
+      return { role: "system", parts: input.parts };
+    } else {
+      return input;
+    }
+  }
+}
+function formatNewContent(request) {
+  let newParts = [];
+  if (typeof request === "string") {
+    newParts = [{ text: request }];
+  } else {
+    for (const partOrString of request) {
+      if (typeof partOrString === "string") {
+        newParts.push({ text: partOrString });
+      } else {
+        newParts.push(partOrString);
+      }
+    }
+  }
+  return assignRoleToPartsAndValidateSendMessageRequest(newParts);
+}
+function assignRoleToPartsAndValidateSendMessageRequest(parts) {
+  const userContent = { role: "user", parts: [] };
+  const functionContent = { role: "function", parts: [] };
+  let hasUserContent = false;
+  let hasFunctionContent = false;
+  for (const part of parts) {
+    if ("functionResponse" in part) {
+      functionContent.parts.push(part);
+      hasFunctionContent = true;
+    } else {
+      userContent.parts.push(part);
+      hasUserContent = true;
+    }
+  }
+  if (hasUserContent && hasFunctionContent) {
+    throw new GoogleGenerativeAIError("Within a single message, FunctionResponse cannot be mixed with other type of part in the request for sending chat message.");
+  }
+  if (!hasUserContent && !hasFunctionContent) {
+    throw new GoogleGenerativeAIError("No content is provided for sending chat message.");
+  }
+  if (hasUserContent) {
+    return userContent;
+  }
+  return functionContent;
+}
+function formatCountTokensInput(params, modelParams) {
+  var _a;
+  let formattedGenerateContentRequest = {
+    model: modelParams === null || modelParams === void 0 ? void 0 : modelParams.model,
+    generationConfig: modelParams === null || modelParams === void 0 ? void 0 : modelParams.generationConfig,
+    safetySettings: modelParams === null || modelParams === void 0 ? void 0 : modelParams.safetySettings,
+    tools: modelParams === null || modelParams === void 0 ? void 0 : modelParams.tools,
+    toolConfig: modelParams === null || modelParams === void 0 ? void 0 : modelParams.toolConfig,
+    systemInstruction: modelParams === null || modelParams === void 0 ? void 0 : modelParams.systemInstruction,
+    cachedContent: (_a = modelParams === null || modelParams === void 0 ? void 0 : modelParams.cachedContent) === null || _a === void 0 ? void 0 : _a.name,
+    contents: []
+  };
+  const containsGenerateContentRequest = params.generateContentRequest != null;
+  if (params.contents) {
+    if (containsGenerateContentRequest) {
+      throw new GoogleGenerativeAIRequestInputError("CountTokensRequest must have one of contents or generateContentRequest, not both.");
+    }
+    formattedGenerateContentRequest.contents = params.contents;
+  } else if (containsGenerateContentRequest) {
+    formattedGenerateContentRequest = Object.assign(Object.assign({}, formattedGenerateContentRequest), params.generateContentRequest);
+  } else {
+    const content = formatNewContent(params);
+    formattedGenerateContentRequest.contents = [content];
+  }
+  return { generateContentRequest: formattedGenerateContentRequest };
+}
+function formatGenerateContentInput(params) {
+  let formattedRequest;
+  if (params.contents) {
+    formattedRequest = params;
+  } else {
+    const content = formatNewContent(params);
+    formattedRequest = { contents: [content] };
+  }
+  if (params.systemInstruction) {
+    formattedRequest.systemInstruction = formatSystemInstruction(params.systemInstruction);
+  }
+  return formattedRequest;
+}
+function formatEmbedContentInput(params) {
+  if (typeof params === "string" || Array.isArray(params)) {
+    const content = formatNewContent(params);
+    return { content };
+  }
+  return params;
+}
+function validateChatHistory(history) {
+  let prevContent = false;
+  for (const currContent of history) {
+    const { role, parts } = currContent;
+    if (!prevContent && role !== "user") {
+      throw new GoogleGenerativeAIError(`First content should be with role 'user', got ${role}`);
+    }
+    if (!POSSIBLE_ROLES.includes(role)) {
+      throw new GoogleGenerativeAIError(`Each item should include role field. Got ${role} but valid roles are: ${JSON.stringify(POSSIBLE_ROLES)}`);
+    }
+    if (!Array.isArray(parts)) {
+      throw new GoogleGenerativeAIError("Content should have 'parts' property with an array of Parts");
+    }
+    if (parts.length === 0) {
+      throw new GoogleGenerativeAIError("Each Content should have at least one part");
+    }
+    const countFields = {
+      text: 0,
+      inlineData: 0,
+      functionCall: 0,
+      functionResponse: 0,
+      fileData: 0,
+      executableCode: 0,
+      codeExecutionResult: 0
+    };
+    for (const part of parts) {
+      for (const key of VALID_PART_FIELDS) {
+        if (key in part) {
+          countFields[key] += 1;
+        }
+      }
+    }
+    const validParts = VALID_PARTS_PER_ROLE[role];
+    for (const key of VALID_PART_FIELDS) {
+      if (!validParts.includes(key) && countFields[key] > 0) {
+        throw new GoogleGenerativeAIError(`Content with role '${role}' can't contain '${key}' part`);
+      }
+    }
+    prevContent = true;
+  }
+}
+function isValidResponse(response) {
+  var _a;
+  if (response.candidates === void 0 || response.candidates.length === 0) {
+    return false;
+  }
+  const content = (_a = response.candidates[0]) === null || _a === void 0 ? void 0 : _a.content;
+  if (content === void 0) {
+    return false;
+  }
+  if (content.parts === void 0 || content.parts.length === 0) {
+    return false;
+  }
+  for (const part of content.parts) {
+    if (part === void 0 || Object.keys(part).length === 0) {
+      return false;
+    }
+    if (part.text !== void 0 && part.text === "") {
+      return false;
+    }
+  }
+  return true;
+}
+async function countTokens(apiKey, model, params, singleRequestOptions) {
+  const response = await makeModelRequest(model, Task.COUNT_TOKENS, apiKey, false, JSON.stringify(params), singleRequestOptions);
+  return response.json();
+}
+async function embedContent(apiKey, model, params, requestOptions) {
+  const response = await makeModelRequest(model, Task.EMBED_CONTENT, apiKey, false, JSON.stringify(params), requestOptions);
+  return response.json();
+}
+async function batchEmbedContents(apiKey, model, params, requestOptions) {
+  const requestsWithModel = params.requests.map((request) => {
+    return Object.assign(Object.assign({}, request), { model });
+  });
+  const response = await makeModelRequest(model, Task.BATCH_EMBED_CONTENTS, apiKey, false, JSON.stringify({ requests: requestsWithModel }), requestOptions);
+  return response.json();
+}
+var SchemaType, ExecutableCodeLanguage, Outcome, POSSIBLE_ROLES, HarmCategory, HarmBlockThreshold, HarmProbability, BlockReason, FinishReason, TaskType, FunctionCallingMode, DynamicRetrievalMode, GoogleGenerativeAIError, GoogleGenerativeAIResponseError, GoogleGenerativeAIFetchError, GoogleGenerativeAIRequestInputError, GoogleGenerativeAIAbortError, DEFAULT_BASE_URL, DEFAULT_API_VERSION, PACKAGE_VERSION, PACKAGE_LOG_HEADER, Task, RequestUrl, badFinishReasons, responseLineRE, VALID_PART_FIELDS, VALID_PARTS_PER_ROLE, SILENT_ERROR, ChatSession, GenerativeModel, GoogleGenerativeAI;
+var init_dist = __esm({
+  "../../node_modules/@google/generative-ai/dist/index.mjs"() {
+    (function(SchemaType2) {
+      SchemaType2["STRING"] = "string";
+      SchemaType2["NUMBER"] = "number";
+      SchemaType2["INTEGER"] = "integer";
+      SchemaType2["BOOLEAN"] = "boolean";
+      SchemaType2["ARRAY"] = "array";
+      SchemaType2["OBJECT"] = "object";
+    })(SchemaType || (SchemaType = {}));
+    (function(ExecutableCodeLanguage2) {
+      ExecutableCodeLanguage2["LANGUAGE_UNSPECIFIED"] = "language_unspecified";
+      ExecutableCodeLanguage2["PYTHON"] = "python";
+    })(ExecutableCodeLanguage || (ExecutableCodeLanguage = {}));
+    (function(Outcome2) {
+      Outcome2["OUTCOME_UNSPECIFIED"] = "outcome_unspecified";
+      Outcome2["OUTCOME_OK"] = "outcome_ok";
+      Outcome2["OUTCOME_FAILED"] = "outcome_failed";
+      Outcome2["OUTCOME_DEADLINE_EXCEEDED"] = "outcome_deadline_exceeded";
+    })(Outcome || (Outcome = {}));
+    POSSIBLE_ROLES = ["user", "model", "function", "system"];
+    (function(HarmCategory2) {
+      HarmCategory2["HARM_CATEGORY_UNSPECIFIED"] = "HARM_CATEGORY_UNSPECIFIED";
+      HarmCategory2["HARM_CATEGORY_HATE_SPEECH"] = "HARM_CATEGORY_HATE_SPEECH";
+      HarmCategory2["HARM_CATEGORY_SEXUALLY_EXPLICIT"] = "HARM_CATEGORY_SEXUALLY_EXPLICIT";
+      HarmCategory2["HARM_CATEGORY_HARASSMENT"] = "HARM_CATEGORY_HARASSMENT";
+      HarmCategory2["HARM_CATEGORY_DANGEROUS_CONTENT"] = "HARM_CATEGORY_DANGEROUS_CONTENT";
+      HarmCategory2["HARM_CATEGORY_CIVIC_INTEGRITY"] = "HARM_CATEGORY_CIVIC_INTEGRITY";
+    })(HarmCategory || (HarmCategory = {}));
+    (function(HarmBlockThreshold2) {
+      HarmBlockThreshold2["HARM_BLOCK_THRESHOLD_UNSPECIFIED"] = "HARM_BLOCK_THRESHOLD_UNSPECIFIED";
+      HarmBlockThreshold2["BLOCK_LOW_AND_ABOVE"] = "BLOCK_LOW_AND_ABOVE";
+      HarmBlockThreshold2["BLOCK_MEDIUM_AND_ABOVE"] = "BLOCK_MEDIUM_AND_ABOVE";
+      HarmBlockThreshold2["BLOCK_ONLY_HIGH"] = "BLOCK_ONLY_HIGH";
+      HarmBlockThreshold2["BLOCK_NONE"] = "BLOCK_NONE";
+    })(HarmBlockThreshold || (HarmBlockThreshold = {}));
+    (function(HarmProbability2) {
+      HarmProbability2["HARM_PROBABILITY_UNSPECIFIED"] = "HARM_PROBABILITY_UNSPECIFIED";
+      HarmProbability2["NEGLIGIBLE"] = "NEGLIGIBLE";
+      HarmProbability2["LOW"] = "LOW";
+      HarmProbability2["MEDIUM"] = "MEDIUM";
+      HarmProbability2["HIGH"] = "HIGH";
+    })(HarmProbability || (HarmProbability = {}));
+    (function(BlockReason2) {
+      BlockReason2["BLOCKED_REASON_UNSPECIFIED"] = "BLOCKED_REASON_UNSPECIFIED";
+      BlockReason2["SAFETY"] = "SAFETY";
+      BlockReason2["OTHER"] = "OTHER";
+    })(BlockReason || (BlockReason = {}));
+    (function(FinishReason2) {
+      FinishReason2["FINISH_REASON_UNSPECIFIED"] = "FINISH_REASON_UNSPECIFIED";
+      FinishReason2["STOP"] = "STOP";
+      FinishReason2["MAX_TOKENS"] = "MAX_TOKENS";
+      FinishReason2["SAFETY"] = "SAFETY";
+      FinishReason2["RECITATION"] = "RECITATION";
+      FinishReason2["LANGUAGE"] = "LANGUAGE";
+      FinishReason2["BLOCKLIST"] = "BLOCKLIST";
+      FinishReason2["PROHIBITED_CONTENT"] = "PROHIBITED_CONTENT";
+      FinishReason2["SPII"] = "SPII";
+      FinishReason2["MALFORMED_FUNCTION_CALL"] = "MALFORMED_FUNCTION_CALL";
+      FinishReason2["OTHER"] = "OTHER";
+    })(FinishReason || (FinishReason = {}));
+    (function(TaskType2) {
+      TaskType2["TASK_TYPE_UNSPECIFIED"] = "TASK_TYPE_UNSPECIFIED";
+      TaskType2["RETRIEVAL_QUERY"] = "RETRIEVAL_QUERY";
+      TaskType2["RETRIEVAL_DOCUMENT"] = "RETRIEVAL_DOCUMENT";
+      TaskType2["SEMANTIC_SIMILARITY"] = "SEMANTIC_SIMILARITY";
+      TaskType2["CLASSIFICATION"] = "CLASSIFICATION";
+      TaskType2["CLUSTERING"] = "CLUSTERING";
+    })(TaskType || (TaskType = {}));
+    (function(FunctionCallingMode2) {
+      FunctionCallingMode2["MODE_UNSPECIFIED"] = "MODE_UNSPECIFIED";
+      FunctionCallingMode2["AUTO"] = "AUTO";
+      FunctionCallingMode2["ANY"] = "ANY";
+      FunctionCallingMode2["NONE"] = "NONE";
+    })(FunctionCallingMode || (FunctionCallingMode = {}));
+    (function(DynamicRetrievalMode2) {
+      DynamicRetrievalMode2["MODE_UNSPECIFIED"] = "MODE_UNSPECIFIED";
+      DynamicRetrievalMode2["MODE_DYNAMIC"] = "MODE_DYNAMIC";
+    })(DynamicRetrievalMode || (DynamicRetrievalMode = {}));
+    GoogleGenerativeAIError = class extends Error {
+      constructor(message) {
+        super(`[GoogleGenerativeAI Error]: ${message}`);
+      }
+    };
+    GoogleGenerativeAIResponseError = class extends GoogleGenerativeAIError {
+      constructor(message, response) {
+        super(message);
+        this.response = response;
+      }
+    };
+    GoogleGenerativeAIFetchError = class extends GoogleGenerativeAIError {
+      constructor(message, status, statusText, errorDetails) {
+        super(message);
+        this.status = status;
+        this.statusText = statusText;
+        this.errorDetails = errorDetails;
+      }
+    };
+    GoogleGenerativeAIRequestInputError = class extends GoogleGenerativeAIError {
+    };
+    GoogleGenerativeAIAbortError = class extends GoogleGenerativeAIError {
+    };
+    DEFAULT_BASE_URL = "https://generativelanguage.googleapis.com";
+    DEFAULT_API_VERSION = "v1beta";
+    PACKAGE_VERSION = "0.24.1";
+    PACKAGE_LOG_HEADER = "genai-js";
+    (function(Task2) {
+      Task2["GENERATE_CONTENT"] = "generateContent";
+      Task2["STREAM_GENERATE_CONTENT"] = "streamGenerateContent";
+      Task2["COUNT_TOKENS"] = "countTokens";
+      Task2["EMBED_CONTENT"] = "embedContent";
+      Task2["BATCH_EMBED_CONTENTS"] = "batchEmbedContents";
+    })(Task || (Task = {}));
+    RequestUrl = class {
+      constructor(model, task, apiKey, stream, requestOptions) {
+        this.model = model;
+        this.task = task;
+        this.apiKey = apiKey;
+        this.stream = stream;
+        this.requestOptions = requestOptions;
+      }
+      toString() {
+        var _a, _b;
+        const apiVersion = ((_a = this.requestOptions) === null || _a === void 0 ? void 0 : _a.apiVersion) || DEFAULT_API_VERSION;
+        const baseUrl = ((_b = this.requestOptions) === null || _b === void 0 ? void 0 : _b.baseUrl) || DEFAULT_BASE_URL;
+        let url = `${baseUrl}/${apiVersion}/${this.model}:${this.task}`;
+        if (this.stream) {
+          url += "?alt=sse";
+        }
+        return url;
+      }
+    };
+    badFinishReasons = [
+      FinishReason.RECITATION,
+      FinishReason.SAFETY,
+      FinishReason.LANGUAGE
+    ];
+    responseLineRE = /^data\: (.*)(?:\n\n|\r\r|\r\n\r\n)/;
+    VALID_PART_FIELDS = [
+      "text",
+      "inlineData",
+      "functionCall",
+      "functionResponse",
+      "executableCode",
+      "codeExecutionResult"
+    ];
+    VALID_PARTS_PER_ROLE = {
+      user: ["text", "inlineData"],
+      function: ["functionResponse"],
+      model: ["text", "functionCall", "executableCode", "codeExecutionResult"],
+      // System instructions shouldn't be in history anyway.
+      system: ["text"]
+    };
+    SILENT_ERROR = "SILENT_ERROR";
+    ChatSession = class {
+      constructor(apiKey, model, params, _requestOptions = {}) {
+        this.model = model;
+        this.params = params;
+        this._requestOptions = _requestOptions;
+        this._history = [];
+        this._sendPromise = Promise.resolve();
+        this._apiKey = apiKey;
+        if (params === null || params === void 0 ? void 0 : params.history) {
+          validateChatHistory(params.history);
+          this._history = params.history;
+        }
+      }
+      /**
+       * Gets the chat history so far. Blocked prompts are not added to history.
+       * Blocked candidates are not added to history, nor are the prompts that
+       * generated them.
+       */
+      async getHistory() {
+        await this._sendPromise;
+        return this._history;
+      }
+      /**
+       * Sends a chat message and receives a non-streaming
+       * {@link GenerateContentResult}.
+       *
+       * Fields set in the optional {@link SingleRequestOptions} parameter will
+       * take precedence over the {@link RequestOptions} values provided to
+       * {@link GoogleGenerativeAI.getGenerativeModel }.
+       */
+      async sendMessage(request, requestOptions = {}) {
+        var _a, _b, _c, _d, _e, _f;
+        await this._sendPromise;
+        const newContent = formatNewContent(request);
+        const generateContentRequest = {
+          safetySettings: (_a = this.params) === null || _a === void 0 ? void 0 : _a.safetySettings,
+          generationConfig: (_b = this.params) === null || _b === void 0 ? void 0 : _b.generationConfig,
+          tools: (_c = this.params) === null || _c === void 0 ? void 0 : _c.tools,
+          toolConfig: (_d = this.params) === null || _d === void 0 ? void 0 : _d.toolConfig,
+          systemInstruction: (_e = this.params) === null || _e === void 0 ? void 0 : _e.systemInstruction,
+          cachedContent: (_f = this.params) === null || _f === void 0 ? void 0 : _f.cachedContent,
+          contents: [...this._history, newContent]
+        };
+        const chatSessionRequestOptions = Object.assign(Object.assign({}, this._requestOptions), requestOptions);
+        let finalResult;
+        this._sendPromise = this._sendPromise.then(() => generateContent(this._apiKey, this.model, generateContentRequest, chatSessionRequestOptions)).then((result) => {
+          var _a2;
+          if (isValidResponse(result.response)) {
+            this._history.push(newContent);
+            const responseContent = Object.assign({
+              parts: [],
+              // Response seems to come back without a role set.
+              role: "model"
+            }, (_a2 = result.response.candidates) === null || _a2 === void 0 ? void 0 : _a2[0].content);
+            this._history.push(responseContent);
+          } else {
+            const blockErrorMessage = formatBlockErrorMessage(result.response);
+            if (blockErrorMessage) {
+              console.warn(`sendMessage() was unsuccessful. ${blockErrorMessage}. Inspect response object for details.`);
+            }
+          }
+          finalResult = result;
+        }).catch((e) => {
+          this._sendPromise = Promise.resolve();
+          throw e;
+        });
+        await this._sendPromise;
+        return finalResult;
+      }
+      /**
+       * Sends a chat message and receives the response as a
+       * {@link GenerateContentStreamResult} containing an iterable stream
+       * and a response promise.
+       *
+       * Fields set in the optional {@link SingleRequestOptions} parameter will
+       * take precedence over the {@link RequestOptions} values provided to
+       * {@link GoogleGenerativeAI.getGenerativeModel }.
+       */
+      async sendMessageStream(request, requestOptions = {}) {
+        var _a, _b, _c, _d, _e, _f;
+        await this._sendPromise;
+        const newContent = formatNewContent(request);
+        const generateContentRequest = {
+          safetySettings: (_a = this.params) === null || _a === void 0 ? void 0 : _a.safetySettings,
+          generationConfig: (_b = this.params) === null || _b === void 0 ? void 0 : _b.generationConfig,
+          tools: (_c = this.params) === null || _c === void 0 ? void 0 : _c.tools,
+          toolConfig: (_d = this.params) === null || _d === void 0 ? void 0 : _d.toolConfig,
+          systemInstruction: (_e = this.params) === null || _e === void 0 ? void 0 : _e.systemInstruction,
+          cachedContent: (_f = this.params) === null || _f === void 0 ? void 0 : _f.cachedContent,
+          contents: [...this._history, newContent]
+        };
+        const chatSessionRequestOptions = Object.assign(Object.assign({}, this._requestOptions), requestOptions);
+        const streamPromise = generateContentStream(this._apiKey, this.model, generateContentRequest, chatSessionRequestOptions);
+        this._sendPromise = this._sendPromise.then(() => streamPromise).catch((_ignored) => {
+          throw new Error(SILENT_ERROR);
+        }).then((streamResult) => streamResult.response).then((response) => {
+          if (isValidResponse(response)) {
+            this._history.push(newContent);
+            const responseContent = Object.assign({}, response.candidates[0].content);
+            if (!responseContent.role) {
+              responseContent.role = "model";
+            }
+            this._history.push(responseContent);
+          } else {
+            const blockErrorMessage = formatBlockErrorMessage(response);
+            if (blockErrorMessage) {
+              console.warn(`sendMessageStream() was unsuccessful. ${blockErrorMessage}. Inspect response object for details.`);
+            }
+          }
+        }).catch((e) => {
+          if (e.message !== SILENT_ERROR) {
+            console.error(e);
+          }
+        });
+        return streamPromise;
+      }
+    };
+    GenerativeModel = class {
+      constructor(apiKey, modelParams, _requestOptions = {}) {
+        this.apiKey = apiKey;
+        this._requestOptions = _requestOptions;
+        if (modelParams.model.includes("/")) {
+          this.model = modelParams.model;
+        } else {
+          this.model = `models/${modelParams.model}`;
+        }
+        this.generationConfig = modelParams.generationConfig || {};
+        this.safetySettings = modelParams.safetySettings || [];
+        this.tools = modelParams.tools;
+        this.toolConfig = modelParams.toolConfig;
+        this.systemInstruction = formatSystemInstruction(modelParams.systemInstruction);
+        this.cachedContent = modelParams.cachedContent;
+      }
+      /**
+       * Makes a single non-streaming call to the model
+       * and returns an object containing a single {@link GenerateContentResponse}.
+       *
+       * Fields set in the optional {@link SingleRequestOptions} parameter will
+       * take precedence over the {@link RequestOptions} values provided to
+       * {@link GoogleGenerativeAI.getGenerativeModel }.
+       */
+      async generateContent(request, requestOptions = {}) {
+        var _a;
+        const formattedParams = formatGenerateContentInput(request);
+        const generativeModelRequestOptions = Object.assign(Object.assign({}, this._requestOptions), requestOptions);
+        return generateContent(this.apiKey, this.model, Object.assign({ generationConfig: this.generationConfig, safetySettings: this.safetySettings, tools: this.tools, toolConfig: this.toolConfig, systemInstruction: this.systemInstruction, cachedContent: (_a = this.cachedContent) === null || _a === void 0 ? void 0 : _a.name }, formattedParams), generativeModelRequestOptions);
+      }
+      /**
+       * Makes a single streaming call to the model and returns an object
+       * containing an iterable stream that iterates over all chunks in the
+       * streaming response as well as a promise that returns the final
+       * aggregated response.
+       *
+       * Fields set in the optional {@link SingleRequestOptions} parameter will
+       * take precedence over the {@link RequestOptions} values provided to
+       * {@link GoogleGenerativeAI.getGenerativeModel }.
+       */
+      async generateContentStream(request, requestOptions = {}) {
+        var _a;
+        const formattedParams = formatGenerateContentInput(request);
+        const generativeModelRequestOptions = Object.assign(Object.assign({}, this._requestOptions), requestOptions);
+        return generateContentStream(this.apiKey, this.model, Object.assign({ generationConfig: this.generationConfig, safetySettings: this.safetySettings, tools: this.tools, toolConfig: this.toolConfig, systemInstruction: this.systemInstruction, cachedContent: (_a = this.cachedContent) === null || _a === void 0 ? void 0 : _a.name }, formattedParams), generativeModelRequestOptions);
+      }
+      /**
+       * Gets a new {@link ChatSession} instance which can be used for
+       * multi-turn chats.
+       */
+      startChat(startChatParams) {
+        var _a;
+        return new ChatSession(this.apiKey, this.model, Object.assign({ generationConfig: this.generationConfig, safetySettings: this.safetySettings, tools: this.tools, toolConfig: this.toolConfig, systemInstruction: this.systemInstruction, cachedContent: (_a = this.cachedContent) === null || _a === void 0 ? void 0 : _a.name }, startChatParams), this._requestOptions);
+      }
+      /**
+       * Counts the tokens in the provided request.
+       *
+       * Fields set in the optional {@link SingleRequestOptions} parameter will
+       * take precedence over the {@link RequestOptions} values provided to
+       * {@link GoogleGenerativeAI.getGenerativeModel }.
+       */
+      async countTokens(request, requestOptions = {}) {
+        const formattedParams = formatCountTokensInput(request, {
+          model: this.model,
+          generationConfig: this.generationConfig,
+          safetySettings: this.safetySettings,
+          tools: this.tools,
+          toolConfig: this.toolConfig,
+          systemInstruction: this.systemInstruction,
+          cachedContent: this.cachedContent
+        });
+        const generativeModelRequestOptions = Object.assign(Object.assign({}, this._requestOptions), requestOptions);
+        return countTokens(this.apiKey, this.model, formattedParams, generativeModelRequestOptions);
+      }
+      /**
+       * Embeds the provided content.
+       *
+       * Fields set in the optional {@link SingleRequestOptions} parameter will
+       * take precedence over the {@link RequestOptions} values provided to
+       * {@link GoogleGenerativeAI.getGenerativeModel }.
+       */
+      async embedContent(request, requestOptions = {}) {
+        const formattedParams = formatEmbedContentInput(request);
+        const generativeModelRequestOptions = Object.assign(Object.assign({}, this._requestOptions), requestOptions);
+        return embedContent(this.apiKey, this.model, formattedParams, generativeModelRequestOptions);
+      }
+      /**
+       * Embeds an array of {@link EmbedContentRequest}s.
+       *
+       * Fields set in the optional {@link SingleRequestOptions} parameter will
+       * take precedence over the {@link RequestOptions} values provided to
+       * {@link GoogleGenerativeAI.getGenerativeModel }.
+       */
+      async batchEmbedContents(batchEmbedContentRequest, requestOptions = {}) {
+        const generativeModelRequestOptions = Object.assign(Object.assign({}, this._requestOptions), requestOptions);
+        return batchEmbedContents(this.apiKey, this.model, batchEmbedContentRequest, generativeModelRequestOptions);
+      }
+    };
+    GoogleGenerativeAI = class {
+      constructor(apiKey) {
+        this.apiKey = apiKey;
+      }
+      /**
+       * Gets a {@link GenerativeModel} instance for the provided model name.
+       */
+      getGenerativeModel(modelParams, requestOptions) {
+        if (!modelParams.model) {
+          throw new GoogleGenerativeAIError(`Must provide a model name. Example: genai.getGenerativeModel({ model: 'my-model-name' })`);
+        }
+        return new GenerativeModel(this.apiKey, modelParams, requestOptions);
+      }
+      /**
+       * Creates a {@link GenerativeModel} instance from provided content cache.
+       */
+      getGenerativeModelFromCachedContent(cachedContent, modelParams, requestOptions) {
+        if (!cachedContent.name) {
+          throw new GoogleGenerativeAIRequestInputError("Cached content must contain a `name` field.");
+        }
+        if (!cachedContent.model) {
+          throw new GoogleGenerativeAIRequestInputError("Cached content must contain a `model` field.");
+        }
+        const disallowedDuplicates = ["model", "systemInstruction"];
+        for (const key of disallowedDuplicates) {
+          if ((modelParams === null || modelParams === void 0 ? void 0 : modelParams[key]) && cachedContent[key] && (modelParams === null || modelParams === void 0 ? void 0 : modelParams[key]) !== cachedContent[key]) {
+            if (key === "model") {
+              const modelParamsComp = modelParams.model.startsWith("models/") ? modelParams.model.replace("models/", "") : modelParams.model;
+              const cachedContentComp = cachedContent.model.startsWith("models/") ? cachedContent.model.replace("models/", "") : cachedContent.model;
+              if (modelParamsComp === cachedContentComp) {
+                continue;
+              }
+            }
+            throw new GoogleGenerativeAIRequestInputError(`Different value for "${key}" specified in modelParams (${modelParams[key]}) and cachedContent (${cachedContent[key]})`);
+          }
+        }
+        const modelParamsFromCache = Object.assign(Object.assign({}, modelParams), { model: cachedContent.model, tools: cachedContent.tools, toolConfig: cachedContent.toolConfig, systemInstruction: cachedContent.systemInstruction, cachedContent });
+        return new GenerativeModel(this.apiKey, modelParamsFromCache, requestOptions);
+      }
+    };
+  }
+});
+
+// index.mjs
+import {
+  BedrockRuntimeClient,
+  InvokeModelCommand
+} from "@aws-sdk/client-bedrock-runtime";
+import {
+  DynamoDBClient
+} from "@aws-sdk/client-dynamodb";
+import {
+  DynamoDBDocumentClient,
+  UpdateCommand
+} from "@aws-sdk/lib-dynamodb";
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand
+} from "@aws-sdk/client-secrets-manager";
+import {
+  S3Client,
+  GetObjectCommand,
+  DeleteObjectCommand
+} from "@aws-sdk/client-s3";
+import {
+  DeviceFarmClient,
+  CreateUploadCommand,
+  GetUploadCommand,
+  ScheduleRunCommand,
+  GetRunCommand,
+  ListArtifactsCommand
+} from "@aws-sdk/client-device-farm";
+var REGION = process.env.AWS_REGION || "us-east-1";
+var TABLE = process.env.DYNAMODB_TABLE || "appready";
+var bedrock = new BedrockRuntimeClient({ region: REGION });
+var db = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }));
+var secrets = new SecretsManagerClient({ region: REGION });
+var s3 = new S3Client({ region: REGION });
+var S3_BUCKET = process.env.S3_BUCKET;
+var deviceFarm = new DeviceFarmClient({ region: "us-west-2" });
+var DF_PROJECT_ARN = process.env.DEVICE_FARM_PROJECT_ARN;
+var DF_DEVICE_POOL_ARN = process.env.DEVICE_FARM_DEVICE_POOL_ARN;
+var cachedGeminiKey = null;
+async function getGeminiKey() {
+  const envKey = process.env.GEMINI_API_KEY;
+  if (envKey) return envKey;
+  if (cachedGeminiKey) return cachedGeminiKey;
+  const res = await secrets.send(new GetSecretValueCommand({ SecretId: "luminetic/gemini-api-key" }));
+  const key = res.SecretString ? JSON.parse(res.SecretString).GEMINI_API_KEY : null;
+  if (!key) throw new Error("Gemini API key not found");
+  cachedGeminiKey = key;
+  return key;
+}
+async function updateScanStatus(userId, scanSK, status, extra = {}) {
+  await db.send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { PK: `USER#${userId}`, SK: scanSK },
+    UpdateExpression: "SET #s = :s, updatedAt = :now" + Object.keys(extra).map((k, i) => `, #e${i} = :e${i}`).join(""),
+    ExpressionAttributeNames: {
+      "#s": "status",
+      ...Object.fromEntries(Object.keys(extra).map((k, i) => [`#e${i}`, k]))
+    },
+    ExpressionAttributeValues: {
+      ":s": status,
+      ":now": (/* @__PURE__ */ new Date()).toISOString(),
+      ...Object.fromEntries(Object.entries(extra).map(([k, v], i) => [`:e${i}`, v]))
+    }
+  }));
+}
+var GEMINI_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst. You analyze .ipa app metadata to identify App Store Review Guideline violations, missing configurations, and submission risks BEFORE the developer submits to Apple.
 
 CRITICAL RULES:
 - ONLY flag issues you can PROVE from the provided metadata. Every issue MUST cite specific evidence from the data.
@@ -37,7 +1136,8 @@ Analyze the metadata for issues and respond ONLY with valid JSON (no markdown, n
     "sign_in_with_apple": { "status": "pass" | "fail" | "warning" | "not_applicable", "detail": "..." },
     "push_notifications": { "status": "pass" | "fail" | "warning" | "not_applicable", "detail": "..." }
   }
-}`,Ot=`You are an expert iOS App Store submission analyst. You analyze .ipa metadata to find App Store Review Guideline violations.
+}`;
+var DEEPSEEK_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst. You analyze .ipa metadata to find App Store Review Guideline violations.
 
 CRITICAL RULES:
 - ONLY flag issues PROVABLE from the provided metadata. Every issue MUST cite the exact metadata field or value as evidence.
@@ -59,7 +1159,8 @@ Respond with this exact JSON structure:
     "permissions_usage": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
     "att_compliance": { "status": "pass" | "fail" | "warning" | "not_applicable", "detail": "..." }
   }
-}`,At=`You are a meticulous iOS App Store review compliance analyst. Analyze the provided .ipa metadata independently for App Store Review Guideline compliance.
+}`;
+var SONNET_SYSTEM_PROMPT = `You are a meticulous iOS App Store review compliance analyst. Analyze the provided .ipa metadata independently for App Store Review Guideline compliance.
 
 CRITICAL RULES:
 - ONLY flag issues you can PROVE from the provided metadata. Cite exact fields and values as evidence.
@@ -85,7 +1186,8 @@ Respond ONLY with valid JSON (no markdown, no backticks):
     "att_compliance": { "status": "pass"|"fail"|"warning"|"not_applicable", "detail": "..." },
     "sign_in_with_apple": { "status": "pass"|"fail"|"warning"|"not_applicable", "detail": "..." }
   }
-}`,Rt=`You are the final-stage senior App Store review analyst. You reconcile findings from three independent AI analyses (Gemini/Mistral, DeepSeek, Claude Sonnet) to produce the authoritative final assessment.
+}`;
+var OPUS_JUDGE_PROMPT = `You are the final-stage senior App Store review analyst. You reconcile findings from three independent AI analyses (Gemini/Mistral, DeepSeek, Claude Sonnet) to produce the authoritative final assessment.
 
 CRITICAL RULES:
 - REMOVE any finding that lacks concrete evidence from the app metadata. If a model flagged something speculative, DROP IT.
@@ -112,36 +1214,518 @@ Respond ONLY with valid JSON (no markdown, no backticks):
     "reviewer_notes": "Notes to include in the App Store Connect reviewer notes field",
     "known_limitations": ["Any known limitations to disclose"]
   }
-}`;async function It(e){let n=Date.now();try{let t={max_tokens:8192,temperature:.2,messages:[{role:"system",content:Oe},{role:"user",content:`Analyze this iOS app's metadata for App Store Review compliance:
+}`;
+async function callMistralLarge(context) {
+  const start = Date.now();
+  try {
+    const payload = {
+      max_tokens: 8192,
+      temperature: 0.2,
+      messages: [
+        { role: "system", content: GEMINI_SYSTEM_PROMPT },
+        { role: "user", content: `Analyze this iOS app's metadata for App Store Review compliance:
 
-${e}`}]},s=new B({modelId:"mistral.mistral-large-3-675b-instruct",contentType:"application/json",accept:"application/json",body:JSON.stringify(t)}),i=await J.send(s),a=JSON.parse(new TextDecoder().decode(i.body))?.choices?.[0]?.message?.content;if(!a)throw new Error("Empty response from Mistral Large");let r=a.replace(/```json\s*|```/g,"").trim();return{data:JSON.parse(r),success:!0,latency:Date.now()-n}}catch(t){return console.error("[Mistral Large error]",t),{data:null,success:!1,latency:Date.now()-n}}}async function Nt(e){let n=Date.now(),t=2;for(let s=1;s<=t;s++)try{let i=await Ct(),{GoogleGenerativeAI:o}=await Promise.resolve().then(()=>(Se(),ve)),m=(await new o(i).getGenerativeModel({model:"gemini-2.5-pro",generationConfig:{temperature:.2,maxOutputTokens:8192}}).generateContent([{text:Oe},{text:`Analyze this iOS app's metadata for App Store Review compliance:
+${context}` }
+      ]
+    };
+    const cmd = new InvokeModelCommand({
+      modelId: "mistral.mistral-large-3-675b-instruct",
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify(payload)
+    });
+    const response = await bedrock.send(cmd);
+    const body = JSON.parse(new TextDecoder().decode(response.body));
+    const raw = body?.choices?.[0]?.message?.content;
+    if (!raw) throw new Error("Empty response from Mistral Large");
+    const cleaned = raw.replace(/```json\s*|```/g, "").trim();
+    return { data: JSON.parse(cleaned), success: true, latency: Date.now() - start };
+  } catch (err) {
+    console.error("[Mistral Large error]", err);
+    return { data: null, success: false, latency: Date.now() - start };
+  }
+}
+async function callGemini(context) {
+  const start = Date.now();
+  const MAX_RETRIES = 2;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const apiKey = await getGeminiKey();
+      const { GoogleGenerativeAI: GoogleGenerativeAI2 } = await Promise.resolve().then(() => (init_dist(), dist_exports));
+      const genAI = new GoogleGenerativeAI2(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-pro",
+        generationConfig: { temperature: 0.2, maxOutputTokens: 8192 }
+      });
+      const result = await model.generateContent([
+        { text: GEMINI_SYSTEM_PROMPT },
+        { text: `Analyze this iOS app's metadata for App Store Review compliance:
 
-${e}`}])).response.text().replace(/```json\s*|```/g,"").trim();return{data:JSON.parse(m),success:!0,latency:Date.now()-n}}catch(i){if((i?.status===503||i?.status===429)&&s<t){console.warn(`[Gemini] ${i.status} on attempt ${s}, retrying in 3s...`),await new Promise(a=>setTimeout(a,3e3));continue}return console.error("[Gemini error]",i),console.log("[Gemini] Falling back to Mistral Large 3..."),await It(e)}}async function Tt(e){let n=Date.now();try{let t={max_tokens:8192,temperature:.2,system:Ot,messages:[{role:"user",content:`Analyze this iOS app metadata for App Store compliance. Respond with ONLY valid JSON:
+${context}` }
+      ]);
+      const raw = result.response.text();
+      const cleaned = raw.replace(/```json\s*|```/g, "").trim();
+      return { data: JSON.parse(cleaned), success: true, latency: Date.now() - start };
+    } catch (err) {
+      const isRetryable = err?.status === 503 || err?.status === 429;
+      if (isRetryable && attempt < MAX_RETRIES) {
+        console.warn(`[Gemini] ${err.status} on attempt ${attempt}, retrying in 3s...`);
+        await new Promise((r) => setTimeout(r, 3e3));
+        continue;
+      }
+      console.error("[Gemini error]", err);
+      console.log("[Gemini] Falling back to Mistral Large 3...");
+      return await callMistralLarge(context);
+    }
+  }
+}
+async function callDeepSeek(context) {
+  const start = Date.now();
+  try {
+    const payload = {
+      max_tokens: 8192,
+      temperature: 0.2,
+      system: DEEPSEEK_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: `Analyze this iOS app metadata for App Store compliance. Respond with ONLY valid JSON:
 
-${e}`}]},s=new B({modelId:"deepseek.v3.2",contentType:"application/json",accept:"application/json",body:JSON.stringify(t)}),i=await J.send(s),o=JSON.parse(new TextDecoder().decode(i.body)),a=o?.choices?.[0]?.message?.content||o?.content?.[0]?.text||null;if(!a)throw new Error("Empty response from DeepSeek");let r=(typeof a=="string"?a:JSON.stringify(a)).replace(/```json\s*|```/g,"").trim();return{data:JSON.parse(r),success:!0,latency:Date.now()-n}}catch(t){return console.error("[DeepSeek error]",t),{data:null,success:!1,latency:Date.now()-n}}}async function bt(e){let n=Date.now();try{let t={anthropic_version:"bedrock-2023-05-31",max_tokens:4096,temperature:.2,system:At,messages:[{role:"user",content:`APP METADATA:
-${e}
+${context}` }]
+    };
+    const cmd = new InvokeModelCommand({
+      modelId: "deepseek.v3.2",
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify(payload)
+    });
+    const response = await bedrock.send(cmd);
+    const body = JSON.parse(new TextDecoder().decode(response.body));
+    const raw = body?.choices?.[0]?.message?.content || body?.content?.[0]?.text || null;
+    if (!raw) throw new Error("Empty response from DeepSeek");
+    const cleaned = (typeof raw === "string" ? raw : JSON.stringify(raw)).replace(/```json\s*|```/g, "").trim();
+    return { data: JSON.parse(cleaned), success: true, latency: Date.now() - start };
+  } catch (err) {
+    console.error("[DeepSeek error]", err);
+    return { data: null, success: false, latency: Date.now() - start };
+  }
+}
+async function callSonnet(context) {
+  const start = Date.now();
+  try {
+    const payload = {
+      anthropic_version: "bedrock-2023-05-31",
+      max_tokens: 4096,
+      temperature: 0.2,
+      system: SONNET_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: `APP METADATA:
+${context}
 
-Analyze this iOS app's metadata for App Store Review compliance.`}]},s=new B({modelId:"us.anthropic.claude-sonnet-4-6",contentType:"application/json",accept:"application/json",body:JSON.stringify(t)}),i=await J.send(s),a=JSON.parse(new TextDecoder().decode(i.body))?.content?.[0]?.text;if(!a)throw new Error("Empty response from Sonnet");let r=a.replace(/```json\s*|```/g,"").trim();return{data:JSON.parse(r),success:!0,latency:Date.now()-n}}catch(t){return console.error("[Sonnet error]",t),{data:null,success:!1,latency:Date.now()-n}}}async function Dt(e,n,t,s){let i=Date.now();try{let o=`APP METADATA:
-${e}
+Analyze this iOS app's metadata for App Store Review compliance.` }]
+    };
+    const cmd = new InvokeModelCommand({
+      modelId: "us.anthropic.claude-sonnet-4-6",
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify(payload)
+    });
+    const response = await bedrock.send(cmd);
+    const body = JSON.parse(new TextDecoder().decode(response.body));
+    const raw = body?.content?.[0]?.text;
+    if (!raw) throw new Error("Empty response from Sonnet");
+    const cleaned = raw.replace(/```json\s*|```/g, "").trim();
+    return { data: JSON.parse(cleaned), success: true, latency: Date.now() - start };
+  } catch (err) {
+    console.error("[Sonnet error]", err);
+    return { data: null, success: false, latency: Date.now() - start };
+  }
+}
+async function callOpus(context, geminiData, deepseekData, sonnetData) {
+  const start = Date.now();
+  try {
+    const userMessage = `APP METADATA:
+${context}
 
 GEMINI ANALYSIS:
-${JSON.stringify(n,null,2)}
+${JSON.stringify(geminiData, null, 2)}
 
 DEEPSEEK ANALYSIS:
-${JSON.stringify(t,null,2)}
+${JSON.stringify(deepseekData, null, 2)}
 
 CLAUDE SONNET ANALYSIS:
-${JSON.stringify(s,null,2)}
+${JSON.stringify(sonnetData, null, 2)}
 
-Reconcile all findings and produce the final assessment.`,a={anthropic_version:"bedrock-2023-05-31",max_tokens:4096,temperature:.2,system:Rt,messages:[{role:"user",content:o}]},r=new B({modelId:"us.anthropic.claude-opus-4-6-v1",contentType:"application/json",accept:"application/json",body:JSON.stringify(a)}),c=await J.send(r),m=JSON.parse(new TextDecoder().decode(c.body))?.content?.[0]?.text;if(!m)throw new Error("Empty response from Opus");let p=m.replace(/```json\s*|```/g,"").trim();return{data:JSON.parse(p),success:!0,latency:Date.now()-i}}catch(o){return console.error("[Opus error]",o),{data:null,success:!1,latency:Date.now()-i}}}async function Mt(e,n){if(!K||!ue)return null;try{let t=await P.send(new _t({projectArn:K,name:e.split("/").pop()||"app.ipa",type:"IOS_APP"})),s=t.upload?.arn,i=t.upload?.url;if(!s||!i)throw new Error("No upload ARN/URL returned");let a=await(await Ce.send(new mt({Bucket:n,Key:e}))).Body.transformToByteArray(),r=await fetch(i,{method:"PUT",body:a,headers:{"Content-Type":"application/octet-stream"}});if(!r.ok)throw new Error(`Upload PUT failed: ${r.status}`);for(let c=0;c<30;c++){let d=await P.send(new yt({arn:s})),m=d.upload?.status;if(m==="SUCCEEDED")return s;if(m==="FAILED")throw new Error(`Upload processing failed: ${d.upload?.message}`);await new Promise(p=>setTimeout(p,5e3))}throw new Error("Upload processing timed out")}catch(t){return console.error("[Device Farm upload error]",t),null}}async function kt(e){try{return(await P.send(new Et({projectArn:K,appArn:e,devicePoolArn:ue,name:`luminetic-scan-${Date.now()}`,test:{type:"BUILTIN_FUZZ"},executionConfiguration:{jobTimeoutMinutes:5,accountsCleanup:!0,appPackagesCleanup:!0}}))).run?.arn||null}catch(n){return console.error("[Device Farm schedule error]",n),null}}async function Lt(e){for(let t=0;t<200;t++)try{let s=await P.send(new wt({arn:e})),i=s.run?.status;if(i==="COMPLETED")return s.run;if(i==="ERRORED"||i==="STOPPED")return console.warn(`[Device Farm] Run ended with status: ${i}`),s.run;await new Promise(o=>setTimeout(o,3e3))}catch(s){return console.error("[Device Farm poll error]",s),null}return console.warn("[Device Farm] Polling timed out"),null}async function xt(e,n){try{let t=await P.send(new vt({arn:e,type:"FILE"})),s=[],i=null,o=null;for(let d of t.artifacts||[])d.type==="SCREENSHOT"&&d.url&&s.push(d.url),d.type==="VIDEO"&&d.url&&(i=d.url),d.type==="DEVICE_LOG"&&d.url&&(o=d.url);let a=n?.counters||{},r=(a.errored||0)+(a.failed||0),c=n?.result!=="ERRORED"&&r===0;return{layer:"runtime_analysis",device:n?.device?{name:n.device.name||"Unknown",os_version:n.device.os||"Unknown",model_id:n.device.model||"Unknown"}:null,results:{launch_success:c,crashes:[],crash_count:r,test_duration_seconds:Math.round((n?.deviceMinutes?.total||0)*60),memory_peak_mb:null,cpu_peak_percent:null,screenshots:s,video_url:i,device_logs_url:o},fuzz_results:{events_sent:null,ui_elements_discovered:null,unresponsive_periods:null},skipped:!1,skip_reason:null}}catch(t){return console.error("[Device Farm results error]",t),null}}async function Ft(e,n){let t=Date.now();if(!K||!ue||!e)return{layer:"runtime_analysis",device:null,results:null,fuzz_results:null,skipped:!0,skip_reason:"Device Farm not configured",latency:Date.now()-t};let s=await Mt(e,n);if(!s)return{layer:"runtime_analysis",device:null,results:null,fuzz_results:null,skipped:!0,skip_reason:"IPA upload to Device Farm failed",latency:Date.now()-t};let i=await kt(s);if(!i)return{layer:"runtime_analysis",device:null,results:null,fuzz_results:null,skipped:!0,skip_reason:"Failed to schedule Device Farm run",latency:Date.now()-t};let o=await Lt(i);if(!o)return{layer:"runtime_analysis",device:null,results:null,fuzz_results:null,skipped:!0,skip_reason:"Device Farm run timed out or failed",latency:Date.now()-t};let a=await xt(i,o);return a&&(a.latency=Date.now()-t),a||{layer:"runtime_analysis",device:null,results:null,fuzz_results:null,skipped:!0,skip_reason:"Failed to collect results",latency:Date.now()-t}}function Y(e){if(e==null)return null;if(typeof e=="number"&&Number.isFinite(e))return Math.max(0,Math.min(100,Math.round(e)));if(typeof e=="string"){let n=e.trim().match(/^(\d+(\.\d+)?)/);if(n){let t=Math.round(parseFloat(n[1]));return Number.isFinite(t)?Math.max(0,Math.min(100,t)):null}}return null}function Ut(e){if(!e.length)return 72;let n=0;for(let t of e){let s=String(t?.severity||"minor").toLowerCase();s==="critical"?n+=20:s==="major"?n+=10:n+=3}return Math.max(10,Math.min(95,100-Math.min(90,n)))}function Pt(e,n,t,s){let i=Y(e?.score)??Y(e?.readiness_score),o=Y(n?.score)??Y(n?.readiness_score);if(i!=null&&o!=null){let a=Math.round(i*.3+o*.7);if(a>0)return a}return o!=null&&o>0?o:i!=null&&i>0?i:t.length>0?Ut(t):s?65:0}function $t({gemini:e,deepseek:n,sonnet:t,opus:s,context:i,ipaMetadata:o,layer1:a,layer2:r,totalStart:c}){let d=e.data,m=n.data,p=t.data,u=s.data,l=d?.issues_identified||[],f=m?.issues_identified||[],h=new Set(l.map(_=>(_?.issue||"").toLowerCase().slice(0,60))),R=f.filter(_=>!h.has((_?.issue||"").toLowerCase().slice(0,60))),T=p?.validation?.missed_issues||[],I=p?.validation?.disputed_issues||[],S=new Set(I.map(_=>_?.original_issue)),C=[...l.filter(_=>!S.has(_?.issue)),...R.map(_=>({..._,source:"deepseek_added"})),...I.map(_=>({severity:"major",issue:_?.correction,evidence:_?.dispute_reason,source:"sonnet_corrected"})),...T.map(_=>({..._,source:"sonnet_added"}))],E=u?.final_assessment||null,O=d?.readiness_assessment||null,Ae=e.success||n.success||t.success||s.success,Re=Pt(O,E,C,Ae),Ie=d?.preflight_checks||{},Ne=m?.preflight_checks||{},Te=p?.refined_preflight||{},be={...Ie,...Ne,...Te},De=u?.review_packet_notes||{};return{guidelines:d?.guidelines_referenced||[],issues:C,action_plan:u?.refined_action_plan||d?.action_plan||[],assessment:{score:Re,confidence:E?.confidence||"medium",summary:E?.summary||O?.summary||"Analysis completed.",agreement_level:E?.agreement_level||"partial",risk_factors:E?.risk_factors||O?.risk_factors||[]},preflight:be,review_packet:De,layer1_findings:a?.findings||[],layer1_metadata:a?.metadata||null,layer2_runtime:r||null,ipa_metadata:o||null,meta:{models_used:[e.success&&"gemini",n.success&&"deepseek",t.success&&"sonnet",s.success&&"opus"].filter(Boolean),gemini_latency_ms:e.latency,deepseek_latency_ms:n.latency,sonnet_latency_ms:t.latency,opus_latency_ms:s.latency,total_latency_ms:Date.now()-c,gemini_success:e.success,deepseek_success:n.success,sonnet_success:t.success,opus_success:s.success}}}var U=null;process.on("SIGTERM",async()=>{if(console.error("[SIGTERM] Lambda timeout imminent \u2014 saving error state"),U){let{userId:e,scanSK:n,scanId:t}=U;try{await F(e,n,"error",{errorMessage:"Analysis timed out. Your credit has been preserved \u2014 please try again."}),console.error(`[SIGTERM] Updated scan ${t} to error state`)}catch(s){console.error("[SIGTERM] Failed to update DynamoDB:",s)}}process.exit(1)});var Vt=async(e,n)=>{let{userId:t,scanSK:s,scanId:i,contextForAI:o,layer1:a,ipaMetadata:r,s3Key:c,bundleId:d}=e;U={userId:t,scanSK:s,scanId:i};let m=Date.now();try{let p=o;a&&a.findings&&a.findings.length>0&&(p=o+`
+Reconcile all findings and produce the final assessment.`;
+    const payload = {
+      anthropic_version: "bedrock-2023-05-31",
+      max_tokens: 4096,
+      temperature: 0.2,
+      system: OPUS_JUDGE_PROMPT,
+      messages: [{ role: "user", content: userMessage }]
+    };
+    const cmd = new InvokeModelCommand({
+      modelId: "us.anthropic.claude-opus-4-6-v1",
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify(payload)
+    });
+    const response = await bedrock.send(cmd);
+    const body = JSON.parse(new TextDecoder().decode(response.body));
+    const raw = body?.content?.[0]?.text;
+    if (!raw) throw new Error("Empty response from Opus");
+    const cleaned = raw.replace(/```json\s*|```/g, "").trim();
+    return { data: JSON.parse(cleaned), success: true, latency: Date.now() - start };
+  } catch (err) {
+    console.error("[Opus error]", err);
+    return { data: null, success: false, latency: Date.now() - start };
+  }
+}
+async function uploadToDeviceFarm(s3Key, bucket) {
+  if (!DF_PROJECT_ARN || !DF_DEVICE_POOL_ARN) return null;
+  try {
+    const createRes = await deviceFarm.send(new CreateUploadCommand({
+      projectArn: DF_PROJECT_ARN,
+      name: s3Key.split("/").pop() || "app.ipa",
+      type: "IOS_APP"
+    }));
+    const uploadArn = createRes.upload?.arn;
+    const uploadUrl = createRes.upload?.url;
+    if (!uploadArn || !uploadUrl) throw new Error("No upload ARN/URL returned");
+    const ipaResp = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: s3Key }));
+    const ipaBytes = await ipaResp.Body.transformToByteArray();
+    const putRes = await fetch(uploadUrl, {
+      method: "PUT",
+      body: ipaBytes,
+      headers: { "Content-Type": "application/octet-stream" }
+    });
+    if (!putRes.ok) throw new Error(`Upload PUT failed: ${putRes.status}`);
+    for (let i = 0; i < 30; i++) {
+      const status = await deviceFarm.send(new GetUploadCommand({ arn: uploadArn }));
+      const st = status.upload?.status;
+      if (st === "SUCCEEDED") return uploadArn;
+      if (st === "FAILED") throw new Error(`Upload processing failed: ${status.upload?.message}`);
+      await new Promise((r) => setTimeout(r, 5e3));
+    }
+    throw new Error("Upload processing timed out");
+  } catch (err) {
+    console.error("[Device Farm upload error]", err);
+    return null;
+  }
+}
+async function scheduleDeviceFarmRun(uploadArn) {
+  try {
+    const res = await deviceFarm.send(new ScheduleRunCommand({
+      projectArn: DF_PROJECT_ARN,
+      appArn: uploadArn,
+      devicePoolArn: DF_DEVICE_POOL_ARN,
+      name: `luminetic-scan-${Date.now()}`,
+      test: { type: "BUILTIN_FUZZ" },
+      executionConfiguration: {
+        jobTimeoutMinutes: 5,
+        accountsCleanup: true,
+        appPackagesCleanup: true
+      }
+    }));
+    return res.run?.arn || null;
+  } catch (err) {
+    console.error("[Device Farm schedule error]", err);
+    return null;
+  }
+}
+async function pollDeviceFarmRun(runArn) {
+  const MAX_POLLS = 200;
+  for (let i = 0; i < MAX_POLLS; i++) {
+    try {
+      const res = await deviceFarm.send(new GetRunCommand({ arn: runArn }));
+      const status = res.run?.status;
+      if (status === "COMPLETED") return res.run;
+      if (status === "ERRORED" || status === "STOPPED") {
+        console.warn(`[Device Farm] Run ended with status: ${status}`);
+        return res.run;
+      }
+      await new Promise((r) => setTimeout(r, 3e3));
+    } catch (err) {
+      console.error("[Device Farm poll error]", err);
+      return null;
+    }
+  }
+  console.warn("[Device Farm] Polling timed out");
+  return null;
+}
+async function collectDeviceFarmResults(runArn, run) {
+  try {
+    const artifacts = await deviceFarm.send(new ListArtifactsCommand({
+      arn: runArn,
+      type: "FILE"
+    }));
+    const screenshots = [];
+    let videoUrl = null;
+    let deviceLogsUrl = null;
+    for (const artifact of artifacts.artifacts || []) {
+      if (artifact.type === "SCREENSHOT" && artifact.url) screenshots.push(artifact.url);
+      if (artifact.type === "VIDEO" && artifact.url) videoUrl = artifact.url;
+      if (artifact.type === "DEVICE_LOG" && artifact.url) deviceLogsUrl = artifact.url;
+    }
+    const counters = run?.counters || {};
+    const crashed = (counters.errored || 0) + (counters.failed || 0);
+    const launchSuccess = run?.result !== "ERRORED" && crashed === 0;
+    return {
+      layer: "runtime_analysis",
+      device: run?.device ? {
+        name: run.device.name || "Unknown",
+        os_version: run.device.os || "Unknown",
+        model_id: run.device.model || "Unknown"
+      } : null,
+      results: {
+        launch_success: launchSuccess,
+        crashes: [],
+        crash_count: crashed,
+        test_duration_seconds: Math.round((run?.deviceMinutes?.total || 0) * 60),
+        memory_peak_mb: null,
+        cpu_peak_percent: null,
+        screenshots,
+        video_url: videoUrl,
+        device_logs_url: deviceLogsUrl
+      },
+      fuzz_results: {
+        events_sent: null,
+        ui_elements_discovered: null,
+        unresponsive_periods: null
+      },
+      skipped: false,
+      skip_reason: null
+    };
+  } catch (err) {
+    console.error("[Device Farm results error]", err);
+    return null;
+  }
+}
+async function runDeviceFarm(s3Key, bucket) {
+  const start = Date.now();
+  if (!DF_PROJECT_ARN || !DF_DEVICE_POOL_ARN || !s3Key) {
+    return { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "Device Farm not configured", latency: Date.now() - start };
+  }
+  const uploadArn = await uploadToDeviceFarm(s3Key, bucket);
+  if (!uploadArn) {
+    return { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "IPA upload to Device Farm failed", latency: Date.now() - start };
+  }
+  const runArn = await scheduleDeviceFarmRun(uploadArn);
+  if (!runArn) {
+    return { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "Failed to schedule Device Farm run", latency: Date.now() - start };
+  }
+  const run = await pollDeviceFarmRun(runArn);
+  if (!run) {
+    return { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "Device Farm run timed out or failed", latency: Date.now() - start };
+  }
+  const results = await collectDeviceFarmResults(runArn, run);
+  if (results) results.latency = Date.now() - start;
+  return results || { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "Failed to collect results", latency: Date.now() - start };
+}
+function parseScore(value) {
+  if (value === null || value === void 0) return null;
+  if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, Math.min(100, Math.round(value)));
+  if (typeof value === "string") {
+    const m = value.trim().match(/^(\d+(\.\d+)?)/);
+    if (m) {
+      const n = Math.round(parseFloat(m[1]));
+      return Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : null;
+    }
+  }
+  return null;
+}
+function heuristicScore(issues) {
+  if (!issues.length) return 72;
+  let penalty = 0;
+  for (const i of issues) {
+    const sev = String(i?.severity || "minor").toLowerCase();
+    if (sev === "critical") penalty += 20;
+    else if (sev === "major") penalty += 10;
+    else penalty += 3;
+  }
+  return Math.max(10, Math.min(95, 100 - Math.min(90, penalty)));
+}
+function resolveScore(geminiAssessment, opusFinal, allIssues, anyOk) {
+  const gs = parseScore(geminiAssessment?.score) ?? parseScore(geminiAssessment?.readiness_score);
+  const os = parseScore(opusFinal?.score) ?? parseScore(opusFinal?.readiness_score);
+  if (gs != null && os != null) {
+    const b = Math.round(gs * 0.3 + os * 0.7);
+    if (b > 0) return b;
+  }
+  if (os != null && os > 0) return os;
+  if (gs != null && gs > 0) return gs;
+  if (allIssues.length > 0) return heuristicScore(allIssues);
+  if (anyOk) return 65;
+  return 0;
+}
+function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, layer1, layer2, totalStart }) {
+  const geminiData = gemini.data;
+  const deepseekData = deepseek.data;
+  const sonnetData = sonnet.data;
+  const opusData = opus.data;
+  const confirmedIssues = geminiData?.issues_identified || [];
+  const deepseekIssues = deepseekData?.issues_identified || [];
+  const geminiTexts = new Set(confirmedIssues.map((i) => (i?.issue || "").toLowerCase().slice(0, 60)));
+  const uniqueDeepseek = deepseekIssues.filter((i) => !geminiTexts.has((i?.issue || "").toLowerCase().slice(0, 60)));
+  const sonnetMissed = sonnetData?.validation?.missed_issues || [];
+  const sonnetDisputed = sonnetData?.validation?.disputed_issues || [];
+  const disputedSet = new Set(sonnetDisputed.map((d) => d?.original_issue));
+  const allIssues = [
+    ...confirmedIssues.filter((i) => !disputedSet.has(i?.issue)),
+    ...uniqueDeepseek.map((i) => ({ ...i, source: "deepseek_added" })),
+    ...sonnetDisputed.map((d) => ({ severity: "major", issue: d?.correction, evidence: d?.dispute_reason, source: "sonnet_corrected" })),
+    ...sonnetMissed.map((i) => ({ ...i, source: "sonnet_added" }))
+  ];
+  const opusFinal = opusData?.final_assessment || null;
+  const geminiAssessment = geminiData?.readiness_assessment || null;
+  const anyOk = gemini.success || deepseek.success || sonnet.success || opus.success;
+  const finalScore = resolveScore(geminiAssessment, opusFinal, allIssues, anyOk);
+  const gPre = geminiData?.preflight_checks || {};
+  const dPre = deepseekData?.preflight_checks || {};
+  const sPre = sonnetData?.refined_preflight || {};
+  const mergedPreflight = { ...gPre, ...dPre, ...sPre };
+  const reviewPacket = opusData?.review_packet_notes || {};
+  return {
+    guidelines: geminiData?.guidelines_referenced || [],
+    issues: allIssues,
+    action_plan: opusData?.refined_action_plan || geminiData?.action_plan || [],
+    assessment: {
+      score: finalScore,
+      confidence: opusFinal?.confidence || "medium",
+      summary: opusFinal?.summary || geminiAssessment?.summary || "Analysis completed.",
+      agreement_level: opusFinal?.agreement_level || "partial",
+      risk_factors: opusFinal?.risk_factors || geminiAssessment?.risk_factors || []
+    },
+    preflight: mergedPreflight,
+    review_packet: reviewPacket,
+    layer1_findings: layer1?.findings || [],
+    layer1_metadata: layer1?.metadata || null,
+    layer2_runtime: layer2 || null,
+    ipa_metadata: ipaMetadata || null,
+    meta: {
+      models_used: [gemini.success && "gemini", deepseek.success && "deepseek", sonnet.success && "sonnet", opus.success && "opus"].filter(Boolean),
+      gemini_latency_ms: gemini.latency,
+      deepseek_latency_ms: deepseek.latency,
+      sonnet_latency_ms: sonnet.latency,
+      opus_latency_ms: opus.latency,
+      total_latency_ms: Date.now() - totalStart,
+      gemini_success: gemini.success,
+      deepseek_success: deepseek.success,
+      sonnet_success: sonnet.success,
+      opus_success: opus.success
+    }
+  };
+}
+var _activeContext = null;
+process.on("SIGTERM", async () => {
+  console.error("[SIGTERM] Lambda timeout imminent \u2014 saving error state");
+  if (_activeContext) {
+    const { userId, scanSK, scanId } = _activeContext;
+    try {
+      await updateScanStatus(userId, scanSK, "error", {
+        errorMessage: "Analysis timed out. Your credit has been preserved \u2014 please try again."
+      });
+      console.error(`[SIGTERM] Updated scan ${scanId} to error state`);
+    } catch (e) {
+      console.error("[SIGTERM] Failed to update DynamoDB:", e);
+    }
+  }
+  process.exit(1);
+});
+var handler = async (event, context) => {
+  const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId } = event;
+  _activeContext = { userId, scanSK, scanId };
+  const totalStart = Date.now();
+  try {
+    let enhancedContext = contextForAI;
+    if (layer1 && layer1.findings && layer1.findings.length > 0) {
+      enhancedContext = contextForAI + `
 
 ## STATIC ANALYSIS FINDINGS (Layer 1 - Proven Facts, confidence 1.0)
 These findings are proven from the binary. Do NOT dispute them. Focus on providing remediation and identifying additional issues.
 
-`+JSON.stringify(a.findings,null,2)+`
+` + JSON.stringify(layer1.findings, null, 2) + `
 
 ## STATIC ANALYSIS METADATA
-`+JSON.stringify(a.metadata,null,2)),await F(t,s,"analyzing");let u=Ft(c,G),[l,f,h]=await Promise.all([Nt(p),bt(p),Tt(p)]);if(console.log(`[Stage 1] Gemini=${l.success}(${l.latency}ms) Sonnet=${f.success}(${f.latency}ms) DeepSeek=${h.success}(${h.latency}ms)`),!l.success&&!f.success&&!h.success)return await F(t,s,"error",{errorMessage:"All AI models failed in Stage 1. Please try again."}),{statusCode:500,body:"All Stage 1 models failed"};await F(t,s,"reconciling");let R=await Dt(o,l.data,h.data,f.data);console.log(`[Stage 2] Opus=${R.success}(${R.latency}ms)`);let T=3e4,I=n.getRemainingTimeInMillis(),S=null;if(I>T){let E=I-T;try{S=await Promise.race([u,new Promise(O=>setTimeout(()=>O(null),E))]),S?console.log(`[Device Farm] skipped=${S.skipped} latency=${S.latency}ms`):console.warn(`[Device Farm] Skipped \u2014 exceeded time budget (${E}ms)`)}catch(O){console.warn("[Device Farm] Error (non-fatal):",O)}}else console.warn(`[Device Farm] Skipped \u2014 only ${I}ms remaining, need ${T}ms buffer`);let C=$t({gemini:l,deepseek:h,sonnet:f,opus:R,contextForAI:o,ipaMetadata:r,layer1:a,layer2:S,totalStart:m});if(await de.send(new ce({TableName:le,Key:{PK:`USER#${t}`,SK:s},UpdateExpression:"SET #s = :s, mergedResult = :mr, geminiResult = :gr, deepseekResult = :dr, claudeResult = :cr, sonnetResult = :sr, score = :sc, updatedAt = :now",ExpressionAttributeNames:{"#s":"status"},ExpressionAttributeValues:{":s":"complete",":mr":C,":gr":l.data,":dr":h.data,":cr":R.data,":sr":f.data,":sc":C.assessment.score,":now":new Date().toISOString()}})),await de.send(new ce({TableName:le,Key:{PK:`USER#${t}`,SK:"PROFILE"},UpdateExpression:"ADD scanCount :inc SET updatedAt = :now",ExpressionAttributeValues:{":inc":1,":now":new Date().toISOString()}})),c&&G)try{await Ce.send(new gt({Bucket:G,Key:c})),console.log(`[Cleanup] Deleted s3://${G}/${c}`)}catch(E){console.warn("[Cleanup] Failed to delete IPA (non-fatal):",E)}return console.log(`[Done] scanId=${i} score=${C.assessment.score} total=${Date.now()-m}ms`),U=null,{statusCode:200,body:JSON.stringify({scanId:i,score:C.assessment.score})}}catch(p){return console.error("[Lambda fatal]",p),U=null,await F(t,s,"error",{errorMessage:"Analysis failed unexpectedly. Please try again."}).catch(()=>{}),{statusCode:500,body:String(p)}}};export{Vt as handler};
+` + JSON.stringify(layer1.metadata, null, 2);
+    }
+    await updateScanStatus(userId, scanSK, "analyzing");
+    const deviceFarmPromise = runDeviceFarm(s3Key, S3_BUCKET);
+    const [gemini, sonnet, deepseek] = await Promise.all([
+      callGemini(enhancedContext),
+      callSonnet(enhancedContext),
+      callDeepSeek(enhancedContext)
+    ]);
+    console.log(`[Stage 1] Gemini=${gemini.success}(${gemini.latency}ms) Sonnet=${sonnet.success}(${sonnet.latency}ms) DeepSeek=${deepseek.success}(${deepseek.latency}ms)`);
+    if (!gemini.success && !sonnet.success && !deepseek.success) {
+      await updateScanStatus(userId, scanSK, "error", {
+        errorMessage: "All AI models failed in Stage 1. Please try again."
+      });
+      return { statusCode: 500, body: "All Stage 1 models failed" };
+    }
+    await updateScanStatus(userId, scanSK, "reconciling");
+    const opus = await callOpus(contextForAI, gemini.data, deepseek.data, sonnet.data);
+    console.log(`[Stage 2] Opus=${opus.success}(${opus.latency}ms)`);
+    const SAVE_BUFFER_MS = 3e4;
+    const remaining = context.getRemainingTimeInMillis();
+    let deviceFarmResult = null;
+    if (remaining > SAVE_BUFFER_MS) {
+      const dfDeadline = remaining - SAVE_BUFFER_MS;
+      try {
+        deviceFarmResult = await Promise.race([
+          deviceFarmPromise,
+          new Promise((resolve) => setTimeout(() => resolve(null), dfDeadline))
+        ]);
+        if (deviceFarmResult) {
+          console.log(`[Device Farm] skipped=${deviceFarmResult.skipped} latency=${deviceFarmResult.latency}ms`);
+        } else {
+          console.warn(`[Device Farm] Skipped \u2014 exceeded time budget (${dfDeadline}ms)`);
+        }
+      } catch (dfErr) {
+        console.warn(`[Device Farm] Error (non-fatal):`, dfErr);
+      }
+    } else {
+      console.warn(`[Device Farm] Skipped \u2014 only ${remaining}ms remaining, need ${SAVE_BUFFER_MS}ms buffer`);
+    }
+    const merged = mergeResults({ gemini, deepseek, sonnet, opus, contextForAI, ipaMetadata, layer1, layer2: deviceFarmResult, totalStart });
+    await db.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: `USER#${userId}`, SK: scanSK },
+      UpdateExpression: "SET #s = :s, mergedResult = :mr, score = :sc, updatedAt = :now",
+      ExpressionAttributeNames: { "#s": "status" },
+      ExpressionAttributeValues: {
+        ":s": "complete",
+        ":mr": merged,
+        ":sc": merged.assessment.score,
+        ":now": (/* @__PURE__ */ new Date()).toISOString()
+      }
+    }));
+    await db.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+      UpdateExpression: "ADD scanCount :inc SET updatedAt = :now",
+      ExpressionAttributeValues: { ":inc": 1, ":now": (/* @__PURE__ */ new Date()).toISOString() }
+    }));
+    if (s3Key && S3_BUCKET) {
+      try {
+        await s3.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: s3Key }));
+        console.log(`[Cleanup] Deleted s3://${S3_BUCKET}/${s3Key}`);
+      } catch (delErr) {
+        console.warn(`[Cleanup] Failed to delete IPA (non-fatal):`, delErr);
+      }
+    }
+    console.log(`[Done] scanId=${scanId} score=${merged.assessment.score} total=${Date.now() - totalStart}ms`);
+    _activeContext = null;
+    return { statusCode: 200, body: JSON.stringify({ scanId, score: merged.assessment.score }) };
+  } catch (err) {
+    console.error("[Lambda fatal]", err);
+    _activeContext = null;
+    await updateScanStatus(userId, scanSK, "error", {
+      errorMessage: "Analysis failed unexpectedly. Please try again."
+    }).catch(() => {
+    });
+    return { statusCode: 500, body: String(err) };
+  }
+};
+export {
+  handler
+};
 /*! Bundled license information:
 
 @google/generative-ai/dist/index.mjs:
