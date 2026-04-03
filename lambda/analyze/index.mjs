@@ -706,15 +706,11 @@ export const handler = async (event, context) => {
     await db.send(new UpdateCommand({
       TableName: TABLE,
       Key: { PK: `USER#${userId}`, SK: scanSK },
-      UpdateExpression: "SET #s = :s, mergedResult = :mr, geminiResult = :gr, deepseekResult = :dr, claudeResult = :cr, sonnetResult = :sr, score = :sc, updatedAt = :now",
+      UpdateExpression: "SET #s = :s, mergedResult = :mr, score = :sc, updatedAt = :now",
       ExpressionAttributeNames: { "#s": "status" },
       ExpressionAttributeValues: {
         ":s": "complete",
         ":mr": merged,
-        ":gr": gemini.data,
-        ":dr": deepseek.data,
-        ":cr": opus.data,
-        ":sr": sonnet.data,
         ":sc": merged.assessment.score,
         ":now": new Date().toISOString(),
       },
