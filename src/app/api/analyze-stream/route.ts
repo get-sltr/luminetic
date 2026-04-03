@@ -18,6 +18,7 @@ import {
 import { analyzeLimiter } from "@/lib/rate-limit";
 import { runStaticAnalysis } from "@/lib/analyzers/orchestrator";
 import { z } from "zod";
+import { guardInput } from "@/lib/vindicara";
 import { parseIpa, type IpaMetadata } from "@/lib/ipa-parser";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
@@ -135,6 +136,18 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Unable to verify credits." }, { status: 503 });
     }
 
+    // ── VINDICARA: Guard user-supplied text against prompt injection ──
+    const userText = parsed.synopsis || parsed.feedback || parsed.email || parsed.text;
+    if (userText) {
+      const guard = await guardInput(userText, "prompt-injection");
+      if (guard.blocked) {
+        return Response.json(
+          { error: "Your input was flagged by our security system. Please revise and try again." },
+          { status: 400 }
+        );
+      }
+    }
+
     // ── Parse IPA / build context ──
     const isIpaFlow = !!parsed.s3Key;
     let contextForAI: string;
@@ -187,9 +200,8 @@ export async function POST(request: NextRequest) {
         GSI1SK: `SCAN#${timestamp}`,
         scanId,
         userId: authUser.userId,
-        inputText: isIpaFlow ? `IPA: ${parsed.s3Key} | Synopsis: ${parsed.synopsis?.slice(0, 500)}` : contextForAI.slice(0, 500),
         status: "pending",
-        ...(parsed.s3Key ? { s3Key: parsed.s3Key } : {}),
+        ttl: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
         ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
         createdAt: timestamp,
         updatedAt: timestamp,
