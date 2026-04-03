@@ -9,6 +9,8 @@ export default async function HistoryPage() {
 
   const scans = await getAllScansWithIssues(user.userId) as Array<{
     scanId: string;
+    status?: string;
+    ttl?: number;
     score: number;
     createdAt: string;
     mergedResult?: {

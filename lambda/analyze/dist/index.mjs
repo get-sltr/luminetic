@@ -1,4 +1,4 @@
-import { createRequire } from "module"; const require = createRequire(import.meta.url);
+import { createRequire } from "module";const require = createRequire(import.meta.url);
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __esm = (fn, res) => function __init() {
@@ -9,7 +9,7 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// node_modules/@google/generative-ai/dist/index.mjs
+// ../../node_modules/@google/generative-ai/dist/index.mjs
 var dist_exports = {};
 __export(dist_exports, {
   BlockReason: () => BlockReason,
@@ -621,7 +621,7 @@ async function batchEmbedContents(apiKey, model, params, requestOptions) {
 }
 var SchemaType, ExecutableCodeLanguage, Outcome, POSSIBLE_ROLES, HarmCategory, HarmBlockThreshold, HarmProbability, BlockReason, FinishReason, TaskType, FunctionCallingMode, DynamicRetrievalMode, GoogleGenerativeAIError, GoogleGenerativeAIResponseError, GoogleGenerativeAIFetchError, GoogleGenerativeAIRequestInputError, GoogleGenerativeAIAbortError, DEFAULT_BASE_URL, DEFAULT_API_VERSION, PACKAGE_VERSION, PACKAGE_LOG_HEADER, Task, RequestUrl, badFinishReasons, responseLineRE, VALID_PART_FIELDS, VALID_PARTS_PER_ROLE, SILENT_ERROR, ChatSession, GenerativeModel, GoogleGenerativeAI;
 var init_dist = __esm({
-  "node_modules/@google/generative-ai/dist/index.mjs"() {
+  "../../node_modules/@google/generative-ai/dist/index.mjs"() {
     (function(SchemaType2) {
       SchemaType2["STRING"] = "string";
       SchemaType2["NUMBER"] = "number";
@@ -1032,7 +1032,7 @@ var init_dist = __esm({
   }
 });
 
-// lambda/analyze/index.mjs
+// index.mjs
 import {
   BedrockRuntimeClient,
   InvokeModelCommand
@@ -1050,8 +1050,17 @@ import {
 } from "@aws-sdk/client-secrets-manager";
 import {
   S3Client,
+  GetObjectCommand,
   DeleteObjectCommand
 } from "@aws-sdk/client-s3";
+import {
+  DeviceFarmClient,
+  CreateUploadCommand,
+  GetUploadCommand,
+  ScheduleRunCommand,
+  GetRunCommand,
+  ListArtifactsCommand
+} from "@aws-sdk/client-device-farm";
 var REGION = process.env.AWS_REGION || "us-east-1";
 var TABLE = process.env.DYNAMODB_TABLE || "appready";
 var bedrock = new BedrockRuntimeClient({ region: REGION });
@@ -1059,6 +1068,9 @@ var db = DynamoDBDocumentClient.from(new DynamoDBClient({ region: REGION }));
 var secrets = new SecretsManagerClient({ region: REGION });
 var s3 = new S3Client({ region: REGION });
 var S3_BUCKET = process.env.S3_BUCKET;
+var deviceFarm = new DeviceFarmClient({ region: "us-west-2" });
+var DF_PROJECT_ARN = process.env.DEVICE_FARM_PROJECT_ARN;
+var DF_DEVICE_POOL_ARN = process.env.DEVICE_FARM_DEVICE_POOL_ARN;
 var cachedGeminiKey = null;
 async function getGeminiKey() {
   const envKey = process.env.GEMINI_API_KEY;
@@ -1086,12 +1098,19 @@ async function updateScanStatus(userId, scanSK, status, extra = {}) {
     }
   }));
 }
-var GEMINI_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst. You analyze .ipa app metadata to identify potential App Store Review Guideline violations, missing configurations, and submission risks BEFORE the developer submits to Apple.
+var GEMINI_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst. You analyze .ipa app metadata to identify App Store Review Guideline violations, missing configurations, and submission risks BEFORE the developer submits to Apple.
+
+CRITICAL RULES:
+- ONLY flag issues you can PROVE from the provided metadata. Every issue MUST cite specific evidence from the data.
+- Do NOT speculate. Do NOT say "might be an issue" or "could cause rejection" without concrete proof.
+- If you cannot point to a specific field, framework, or configuration that proves the issue, do NOT include it.
+- Assign a confidence score (0.0-1.0) to every finding. Only include findings with confidence >= 0.8.
+- Confidence 1.0 = provable from metadata (missing required key, wrong value). 0.8-0.9 = strongly indicated by metadata patterns.
 
 You have deep knowledge of:
 - Apple's App Store Review Guidelines (all sections 1-5)
 - Info.plist configuration requirements
-- Privacy and data collection requirements (NSUsageDescriptions, ATT)
+- Privacy and data collection requirements (NSUsageDescriptions, ATT, Privacy Manifests)
 - In-App Purchase and StoreKit requirements
 - Entitlements and capabilities
 - Framework/SDK compliance issues
@@ -1101,9 +1120,10 @@ Analyze the metadata for issues and respond ONLY with valid JSON (no markdown, n
 
 {
   "guidelines_referenced": [{ "section": "e.g. 2.1", "name": "e.g. App Completeness", "description": "Brief description" }],
-  "issues_identified": [{ "severity": "critical" | "major" | "minor", "issue": "Clear description", "evidence": "What metadata indicates this", "guideline_section": "e.g. 2.1" }],
+  "issues_identified": [{ "severity": "critical" | "major" | "minor", "issue": "Clear description", "evidence": "Exact metadata field or value that proves this issue", "guideline_section": "e.g. 2.1", "confidence": 0.8 }],
   "action_plan": [{ "priority": 1, "action": "Specific action", "details": "Step-by-step guidance", "estimated_effort": "e.g. 1-2 hours" }],
   "readiness_assessment": { "score": 0-100, "summary": "Assessment paragraph", "risk_factors": ["List of risks"] },
+  "positive_signals": ["Things the app does correctly, e.g. proper ATS configuration, all icon sizes present"],
   "preflight_checks": {
     "privacy_policy": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
     "account_deletion": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
@@ -1119,12 +1139,18 @@ Analyze the metadata for issues and respond ONLY with valid JSON (no markdown, n
 }`;
 var DEEPSEEK_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst. You analyze .ipa metadata to find App Store Review Guideline violations.
 
+CRITICAL RULES:
+- ONLY flag issues PROVABLE from the provided metadata. Every issue MUST cite the exact metadata field or value as evidence.
+- Do NOT speculate or guess. If you cannot prove it from the data, do NOT include it.
+- Assign a confidence score (0.0-1.0) to every finding. Only include findings with confidence >= 0.8.
+- Confidence 1.0 = directly provable. 0.8-0.9 = strongly indicated by metadata patterns.
+
 CRITICAL INSTRUCTION: You MUST respond with ONLY a valid JSON object. Do NOT include any text, explanation, or markdown before or after the JSON. Do NOT start with "Let's", "Sure", "Here", or any other word. Your entire response must be parseable by JSON.parse().
 
 Respond with this exact JSON structure:
 
 {
-  "issues_identified": [{ "severity": "critical" | "major" | "minor", "issue": "Clear description", "evidence": "What metadata indicates this", "guideline_section": "e.g. 2.1", "reasoning": "Step-by-step reasoning" }],
+  "issues_identified": [{ "severity": "critical" | "major" | "minor", "issue": "Clear description", "evidence": "Exact metadata field or value that proves this", "guideline_section": "e.g. 2.1", "reasoning": "Step-by-step reasoning", "confidence": 0.8 }],
   "readiness_assessment": { "score": 0-100, "summary": "Assessment paragraph", "risk_factors": ["List of risks"] },
   "preflight_checks": {
     "privacy_policy": { "status": "pass" | "fail" | "warning" | "unknown", "detail": "..." },
@@ -1136,13 +1162,19 @@ Respond with this exact JSON structure:
 }`;
 var SONNET_SYSTEM_PROMPT = `You are a meticulous iOS App Store review compliance analyst. Analyze the provided .ipa metadata independently for App Store Review Guideline compliance.
 
+CRITICAL RULES:
+- ONLY flag issues you can PROVE from the provided metadata. Cite exact fields and values as evidence.
+- Do NOT speculate or include "might" or "could" issues. If it is not provable, omit it.
+- Assign a confidence score (0.0-1.0) to every finding. Only include findings with confidence >= 0.8.
+- For each issue you identify, you MUST include the specific metadata that proves it exists.
+
 Respond ONLY with valid JSON (no markdown, no backticks):
 
 {
   "validation": {
     "confirmed_issues": ["..."],
     "disputed_issues": [{ "original_issue": "...", "dispute_reason": "...", "correction": "..." }],
-    "missed_issues": [{ "severity": "critical"|"major"|"minor", "issue": "...", "guideline_section": "...", "evidence": "...", "action": "..." }]
+    "missed_issues": [{ "severity": "critical"|"major"|"minor", "issue": "...", "guideline_section": "...", "evidence": "Exact metadata proving this", "action": "...", "confidence": 0.8 }]
   },
   "refined_preflight": {
     "privacy_policy": { "status": "pass"|"fail"|"warning"|"unknown", "detail": "..." },
@@ -1155,47 +1187,96 @@ Respond ONLY with valid JSON (no markdown, no backticks):
     "sign_in_with_apple": { "status": "pass"|"fail"|"warning"|"not_applicable", "detail": "..." }
   }
 }`;
-var OPUS_JUDGE_PROMPT = `You are the final-stage senior App Store review analyst. You reconcile findings from three independent AI analyses (Gemini, DeepSeek, Claude Sonnet) to produce the authoritative final assessment.
+var OPUS_JUDGE_PROMPT = `You are the final-stage senior App Store review analyst. You reconcile findings from three independent AI analyses (Gemini/Mistral, DeepSeek, Claude Sonnet) to produce the authoritative final assessment.
+
+CRITICAL RULES:
+- REMOVE any finding that lacks concrete evidence from the app metadata. If a model flagged something speculative, DROP IT.
+- Only keep findings where at least one model cited specific metadata fields/values as proof.
+- If two models agree on a finding with evidence, confidence = high. If only one model found it but with strong evidence, confidence = medium.
+- If a finding is based on assumptions or "might be" language, EXCLUDE it entirely.
+- Assign a numeric confidence (0.0-1.0) to every finding. Drop anything below 0.8.
 
 Your job:
-- RECONCILE all findings \u2014 confirm agreements, resolve disagreements
+- RECONCILE all findings: confirm agreements, resolve disagreements, REMOVE unsubstantiated claims
 - Produce the FINAL action plan with confidence levels
 - Assign the FINAL readiness score (0-100)
 - Generate App Store reviewer notes
+- Include positive signals (things the app does correctly)
 
 Respond ONLY with valid JSON (no markdown, no backticks):
 
 {
-  "refined_action_plan": [{ "priority": 1, "action": "...", "details": "...", "estimated_effort": "...", "confidence": "high"|"medium"|"low", "source": "gemini_confirmed"|"sonnet_added"|"opus_refined"|"deepseek_added" }],
+  "refined_action_plan": [{ "priority": 1, "action": "...", "details": "...", "estimated_effort": "...", "confidence": "high"|"medium"|"low", "numeric_confidence": 0.9, "source": "gemini_confirmed"|"sonnet_added"|"opus_refined"|"deepseek_added", "evidence": "Specific metadata proving this issue" }],
   "final_assessment": { "score": 0-100, "confidence": "high"|"medium"|"low", "summary": "...", "agreement_level": "full"|"partial"|"significant_disagreement", "risk_factors": ["..."] },
+  "positive_signals": ["Things the app does correctly"],
   "review_packet_notes": {
     "testing_steps": ["Step-by-step testing instructions for Apple reviewer"],
     "reviewer_notes": "Notes to include in the App Store Connect reviewer notes field",
     "known_limitations": ["Any known limitations to disclose"]
   }
 }`;
-async function callGemini(context) {
+async function callMistralLarge(context) {
   const start = Date.now();
   try {
-    const apiKey = await getGeminiKey();
-    const { GoogleGenerativeAI: GoogleGenerativeAI2 } = await Promise.resolve().then(() => (init_dist(), dist_exports));
-    const genAI = new GoogleGenerativeAI2(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-pro",
-      generationConfig: { temperature: 0.2, maxOutputTokens: 8192 }
-    });
-    const result = await model.generateContent([
-      { text: GEMINI_SYSTEM_PROMPT },
-      { text: `Analyze this iOS app's metadata for App Store Review compliance:
+    const payload = {
+      max_tokens: 8192,
+      temperature: 0.2,
+      messages: [
+        { role: "system", content: GEMINI_SYSTEM_PROMPT },
+        { role: "user", content: `Analyze this iOS app's metadata for App Store Review compliance:
 
 ${context}` }
-    ]);
-    const raw = result.response.text();
+      ]
+    };
+    const cmd = new InvokeModelCommand({
+      modelId: "mistral.mistral-large-3-675b-instruct",
+      contentType: "application/json",
+      accept: "application/json",
+      body: JSON.stringify(payload)
+    });
+    const response = await bedrock.send(cmd);
+    const body = JSON.parse(new TextDecoder().decode(response.body));
+    const raw = body?.choices?.[0]?.message?.content;
+    if (!raw) throw new Error("Empty response from Mistral Large");
     const cleaned = raw.replace(/```json\s*|```/g, "").trim();
     return { data: JSON.parse(cleaned), success: true, latency: Date.now() - start };
   } catch (err) {
-    console.error("[Gemini error]", err);
+    console.error("[Mistral Large error]", err);
     return { data: null, success: false, latency: Date.now() - start };
+  }
+}
+async function callGemini(context) {
+  const start = Date.now();
+  const MAX_RETRIES = 2;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const apiKey = await getGeminiKey();
+      const { GoogleGenerativeAI: GoogleGenerativeAI2 } = await Promise.resolve().then(() => (init_dist(), dist_exports));
+      const genAI = new GoogleGenerativeAI2(apiKey);
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-pro",
+        generationConfig: { temperature: 0.2, maxOutputTokens: 8192 }
+      });
+      const result = await model.generateContent([
+        { text: GEMINI_SYSTEM_PROMPT },
+        { text: `Analyze this iOS app's metadata for App Store Review compliance:
+
+${context}` }
+      ]);
+      const raw = result.response.text();
+      const cleaned = raw.replace(/```json\s*|```/g, "").trim();
+      return { data: JSON.parse(cleaned), success: true, latency: Date.now() - start };
+    } catch (err) {
+      const isRetryable = err?.status === 503 || err?.status === 429;
+      if (isRetryable && attempt < MAX_RETRIES) {
+        console.warn(`[Gemini] ${err.status} on attempt ${attempt}, retrying in 3s...`);
+        await new Promise((r) => setTimeout(r, 3e3));
+        continue;
+      }
+      console.error("[Gemini error]", err);
+      console.log("[Gemini] Falling back to Mistral Large 3...");
+      return await callMistralLarge(context);
+    }
   }
 }
 async function callDeepSeek(context) {
@@ -1296,6 +1377,147 @@ Reconcile all findings and produce the final assessment.`;
     return { data: null, success: false, latency: Date.now() - start };
   }
 }
+async function uploadToDeviceFarm(s3Key, bucket) {
+  if (!DF_PROJECT_ARN || !DF_DEVICE_POOL_ARN) return null;
+  try {
+    const createRes = await deviceFarm.send(new CreateUploadCommand({
+      projectArn: DF_PROJECT_ARN,
+      name: s3Key.split("/").pop() || "app.ipa",
+      type: "IOS_APP"
+    }));
+    const uploadArn = createRes.upload?.arn;
+    const uploadUrl = createRes.upload?.url;
+    if (!uploadArn || !uploadUrl) throw new Error("No upload ARN/URL returned");
+    const ipaResp = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: s3Key }));
+    const ipaBytes = await ipaResp.Body.transformToByteArray();
+    const putRes = await fetch(uploadUrl, {
+      method: "PUT",
+      body: ipaBytes,
+      headers: { "Content-Type": "application/octet-stream" }
+    });
+    if (!putRes.ok) throw new Error(`Upload PUT failed: ${putRes.status}`);
+    for (let i = 0; i < 30; i++) {
+      const status = await deviceFarm.send(new GetUploadCommand({ arn: uploadArn }));
+      const st = status.upload?.status;
+      if (st === "SUCCEEDED") return uploadArn;
+      if (st === "FAILED") throw new Error(`Upload processing failed: ${status.upload?.message}`);
+      await new Promise((r) => setTimeout(r, 5e3));
+    }
+    throw new Error("Upload processing timed out");
+  } catch (err) {
+    console.error("[Device Farm upload error]", err);
+    return null;
+  }
+}
+async function scheduleDeviceFarmRun(uploadArn) {
+  try {
+    const res = await deviceFarm.send(new ScheduleRunCommand({
+      projectArn: DF_PROJECT_ARN,
+      appArn: uploadArn,
+      devicePoolArn: DF_DEVICE_POOL_ARN,
+      name: `luminetic-scan-${Date.now()}`,
+      test: { type: "BUILTIN_FUZZ" },
+      executionConfiguration: {
+        jobTimeoutMinutes: 5,
+        accountsCleanup: true,
+        appPackagesCleanup: true
+      }
+    }));
+    return res.run?.arn || null;
+  } catch (err) {
+    console.error("[Device Farm schedule error]", err);
+    return null;
+  }
+}
+async function pollDeviceFarmRun(runArn) {
+  const MAX_POLLS = 200;
+  for (let i = 0; i < MAX_POLLS; i++) {
+    try {
+      const res = await deviceFarm.send(new GetRunCommand({ arn: runArn }));
+      const status = res.run?.status;
+      if (status === "COMPLETED") return res.run;
+      if (status === "ERRORED" || status === "STOPPED") {
+        console.warn(`[Device Farm] Run ended with status: ${status}`);
+        return res.run;
+      }
+      await new Promise((r) => setTimeout(r, 3e3));
+    } catch (err) {
+      console.error("[Device Farm poll error]", err);
+      return null;
+    }
+  }
+  console.warn("[Device Farm] Polling timed out");
+  return null;
+}
+async function collectDeviceFarmResults(runArn, run) {
+  try {
+    const artifacts = await deviceFarm.send(new ListArtifactsCommand({
+      arn: runArn,
+      type: "FILE"
+    }));
+    const screenshots = [];
+    let videoUrl = null;
+    let deviceLogsUrl = null;
+    for (const artifact of artifacts.artifacts || []) {
+      if (artifact.type === "SCREENSHOT" && artifact.url) screenshots.push(artifact.url);
+      if (artifact.type === "VIDEO" && artifact.url) videoUrl = artifact.url;
+      if (artifact.type === "DEVICE_LOG" && artifact.url) deviceLogsUrl = artifact.url;
+    }
+    const counters = run?.counters || {};
+    const crashed = (counters.errored || 0) + (counters.failed || 0);
+    const launchSuccess = run?.result !== "ERRORED" && crashed === 0;
+    return {
+      layer: "runtime_analysis",
+      device: run?.device ? {
+        name: run.device.name || "Unknown",
+        os_version: run.device.os || "Unknown",
+        model_id: run.device.model || "Unknown"
+      } : null,
+      results: {
+        launch_success: launchSuccess,
+        crashes: [],
+        crash_count: crashed,
+        test_duration_seconds: Math.round((run?.deviceMinutes?.total || 0) * 60),
+        memory_peak_mb: null,
+        cpu_peak_percent: null,
+        screenshots,
+        video_url: videoUrl,
+        device_logs_url: deviceLogsUrl
+      },
+      fuzz_results: {
+        events_sent: null,
+        ui_elements_discovered: null,
+        unresponsive_periods: null
+      },
+      skipped: false,
+      skip_reason: null
+    };
+  } catch (err) {
+    console.error("[Device Farm results error]", err);
+    return null;
+  }
+}
+async function runDeviceFarm(s3Key, bucket) {
+  const start = Date.now();
+  if (!DF_PROJECT_ARN || !DF_DEVICE_POOL_ARN || !s3Key) {
+    return { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "Device Farm not configured", latency: Date.now() - start };
+  }
+  const uploadArn = await uploadToDeviceFarm(s3Key, bucket);
+  if (!uploadArn) {
+    return { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "IPA upload to Device Farm failed", latency: Date.now() - start };
+  }
+  const runArn = await scheduleDeviceFarmRun(uploadArn);
+  if (!runArn) {
+    return { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "Failed to schedule Device Farm run", latency: Date.now() - start };
+  }
+  const run = await pollDeviceFarmRun(runArn);
+  if (!run) {
+    return { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "Device Farm run timed out or failed", latency: Date.now() - start };
+  }
+  const results = await collectDeviceFarmResults(runArn, run);
+  if (results) results.latency = Date.now() - start;
+  return results || { layer: "runtime_analysis", device: null, results: null, fuzz_results: null, skipped: true, skip_reason: "Failed to collect results", latency: Date.now() - start };
+}
 function parseScore(value) {
   if (value === null || value === void 0) return null;
   if (typeof value === "number" && Number.isFinite(value)) return Math.max(0, Math.min(100, Math.round(value)));
@@ -1332,7 +1554,7 @@ function resolveScore(geminiAssessment, opusFinal, allIssues, anyOk) {
   if (anyOk) return 65;
   return 0;
 }
-function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, totalStart }) {
+function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, layer1, layer2, totalStart }) {
   const geminiData = gemini.data;
   const deepseekData = deepseek.data;
   const sonnetData = sonnet.data;
@@ -1372,6 +1594,9 @@ function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, to
     },
     preflight: mergedPreflight,
     review_packet: reviewPacket,
+    layer1_findings: layer1?.findings || [],
+    layer1_metadata: layer1?.metadata || null,
+    layer2_runtime: layer2 || null,
     ipa_metadata: ipaMetadata || null,
     meta: {
       models_used: [gemini.success && "gemini", deepseek.success && "deepseek", sonnet.success && "sonnet", opus.success && "opus"].filter(Boolean),
@@ -1387,15 +1612,45 @@ function mergeResults({ gemini, deepseek, sonnet, opus, context, ipaMetadata, to
     }
   };
 }
-var handler = async (event) => {
-  const { userId, scanSK, scanId, contextForAI, ipaMetadata, s3Key, bundleId } = event;
+var _activeContext = null;
+process.on("SIGTERM", async () => {
+  console.error("[SIGTERM] Lambda timeout imminent \u2014 saving error state");
+  if (_activeContext) {
+    const { userId, scanSK, scanId } = _activeContext;
+    try {
+      await updateScanStatus(userId, scanSK, "error", {
+        errorMessage: "Analysis timed out. Your credit has been preserved \u2014 please try again."
+      });
+      console.error(`[SIGTERM] Updated scan ${scanId} to error state`);
+    } catch (e) {
+      console.error("[SIGTERM] Failed to update DynamoDB:", e);
+    }
+  }
+  process.exit(1);
+});
+var handler = async (event, context) => {
+  const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId } = event;
+  _activeContext = { userId, scanSK, scanId };
   const totalStart = Date.now();
   try {
+    let enhancedContext = contextForAI;
+    if (layer1 && layer1.findings && layer1.findings.length > 0) {
+      enhancedContext = contextForAI + `
+
+## STATIC ANALYSIS FINDINGS (Layer 1 - Proven Facts, confidence 1.0)
+These findings are proven from the binary. Do NOT dispute them. Focus on providing remediation and identifying additional issues.
+
+` + JSON.stringify(layer1.findings, null, 2) + `
+
+## STATIC ANALYSIS METADATA
+` + JSON.stringify(layer1.metadata, null, 2);
+    }
     await updateScanStatus(userId, scanSK, "analyzing");
+    const deviceFarmPromise = runDeviceFarm(s3Key, S3_BUCKET);
     const [gemini, sonnet, deepseek] = await Promise.all([
-      callGemini(contextForAI),
-      callSonnet(contextForAI),
-      callDeepSeek(contextForAI)
+      callGemini(enhancedContext),
+      callSonnet(enhancedContext),
+      callDeepSeek(enhancedContext)
     ]);
     console.log(`[Stage 1] Gemini=${gemini.success}(${gemini.latency}ms) Sonnet=${sonnet.success}(${sonnet.latency}ms) DeepSeek=${deepseek.success}(${deepseek.latency}ms)`);
     if (!gemini.success && !sonnet.success && !deepseek.success) {
@@ -1407,19 +1662,36 @@ var handler = async (event) => {
     await updateScanStatus(userId, scanSK, "reconciling");
     const opus = await callOpus(contextForAI, gemini.data, deepseek.data, sonnet.data);
     console.log(`[Stage 2] Opus=${opus.success}(${opus.latency}ms)`);
-    const merged = mergeResults({ gemini, deepseek, sonnet, opus, contextForAI, ipaMetadata, totalStart });
+    const SAVE_BUFFER_MS = 3e4;
+    const remaining = context.getRemainingTimeInMillis();
+    let deviceFarmResult = null;
+    if (remaining > SAVE_BUFFER_MS) {
+      const dfDeadline = remaining - SAVE_BUFFER_MS;
+      try {
+        deviceFarmResult = await Promise.race([
+          deviceFarmPromise,
+          new Promise((resolve) => setTimeout(() => resolve(null), dfDeadline))
+        ]);
+        if (deviceFarmResult) {
+          console.log(`[Device Farm] skipped=${deviceFarmResult.skipped} latency=${deviceFarmResult.latency}ms`);
+        } else {
+          console.warn(`[Device Farm] Skipped \u2014 exceeded time budget (${dfDeadline}ms)`);
+        }
+      } catch (dfErr) {
+        console.warn(`[Device Farm] Error (non-fatal):`, dfErr);
+      }
+    } else {
+      console.warn(`[Device Farm] Skipped \u2014 only ${remaining}ms remaining, need ${SAVE_BUFFER_MS}ms buffer`);
+    }
+    const merged = mergeResults({ gemini, deepseek, sonnet, opus, contextForAI, ipaMetadata, layer1, layer2: deviceFarmResult, totalStart });
     await db.send(new UpdateCommand({
       TableName: TABLE,
       Key: { PK: `USER#${userId}`, SK: scanSK },
-      UpdateExpression: "SET #s = :s, mergedResult = :mr, geminiResult = :gr, deepseekResult = :dr, claudeResult = :cr, sonnetResult = :sr, score = :sc, updatedAt = :now",
+      UpdateExpression: "SET #s = :s, mergedResult = :mr, score = :sc, updatedAt = :now",
       ExpressionAttributeNames: { "#s": "status" },
       ExpressionAttributeValues: {
         ":s": "complete",
         ":mr": merged,
-        ":gr": gemini.data,
-        ":dr": deepseek.data,
-        ":cr": opus.data,
-        ":sr": sonnet.data,
         ":sc": merged.assessment.score,
         ":now": (/* @__PURE__ */ new Date()).toISOString()
       }
@@ -1439,9 +1711,11 @@ var handler = async (event) => {
       }
     }
     console.log(`[Done] scanId=${scanId} score=${merged.assessment.score} total=${Date.now() - totalStart}ms`);
+    _activeContext = null;
     return { statusCode: 200, body: JSON.stringify({ scanId, score: merged.assessment.score }) };
   } catch (err) {
     console.error("[Lambda fatal]", err);
+    _activeContext = null;
     await updateScanStatus(userId, scanSK, "error", {
       errorMessage: "Analysis failed unexpectedly. Please try again."
     }).catch(() => {

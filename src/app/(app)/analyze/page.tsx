@@ -215,13 +215,13 @@ export default function AnalyzePage() {
 
       // ── Step 2: Poll for results ──
       const POLL_INTERVAL = 3000;
-      const MAX_POLLS = 100; // 3s × 100 = 5 minutes max
+      const MAX_POLLS = 200; // 3s × 200 = 10 minutes max
       let polls = 0;
 
       const poll = async (): Promise<void> => {
         polls++;
         if (polls > MAX_POLLS) {
-          setError('Analysis is taking longer than expected. Check your history page for results.');
+          setError('Your analysis is still processing in the background. Results will appear on your history page when complete — this usually takes a few more minutes.');
           setStep('error');
           return;
         }
@@ -638,6 +638,27 @@ export default function AnalyzePage() {
           </form>
         ) : step === 'done' && result ? (
           <>
+            {/* Data retention warning */}
+            <div style={{
+              padding: '20px 24px',
+              marginBottom: 32,
+              border: '1px solid rgba(255,106,0,0.25)',
+              background: 'rgba(255,106,0,0.04)',
+              display: 'flex', alignItems: 'flex-start', gap: 14,
+            }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--orange)', flexShrink: 0, marginTop: 2 }}>
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+              </svg>
+              <div>
+                <div style={{ fontFamily: 'var(--mono)', fontSize: '0.62rem', letterSpacing: 2, textTransform: 'uppercase', color: 'var(--orange)', fontWeight: 700, marginBottom: 6 }}>
+                  Download Your Report
+                </div>
+                <p style={{ fontFamily: 'var(--body)', fontSize: '0.78rem', color: 'var(--text-mid)', lineHeight: 1.6, margin: 0 }}>
+                  Your scan results will be automatically deleted in 24 hours. Download the PDF reports below to keep a permanent copy. We don&apos;t retain your data.
+                </p>
+              </div>
+            </div>
+
             <AnalysisResults result={result} />
             {scanId && <TestDownloader scanId={scanId} hasIssues={result.issues.length > 0} />}
 

@@ -5,6 +5,8 @@ import Link from 'next/link';
 
 interface ScanItem {
   scanId: string;
+  status?: string;
+  ttl?: number;
   score: number;
   createdAt: string;
   mergedResult?: {
@@ -26,6 +28,16 @@ function severityBg(sev: string): string {
   if (s === 'critical') return 'rgba(239,68,68,0.06)';
   if (s === 'major') return 'rgba(255,184,0,0.06)';
   return 'rgba(255,255,255,0.02)';
+}
+
+function formatExpiry(ttl?: number): string | null {
+  if (!ttl) return null;
+  const remaining = ttl * 1000 - Date.now();
+  if (remaining <= 0) return 'Expiring soon';
+  const hours = Math.floor(remaining / (1000 * 60 * 60));
+  const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+  if (hours > 0) return `${hours}h ${minutes}m remaining`;
+  return `${minutes}m remaining`;
 }
 
 export default function HistoryList({ scans }: { scans: ScanItem[] }) {
@@ -104,18 +116,52 @@ export default function HistoryList({ scans }: { scans: ScanItem[] }) {
                 <div style={{ fontFamily: 'var(--mono)', fontSize: '0.6rem', color: 'var(--text-dim)', marginTop: 2 }}>
                   {new Date(scan.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                 </div>
+                {scan.ttl && (
+                  <div style={{
+                    fontFamily: 'var(--mono)',
+                    fontSize: '0.5rem',
+                    letterSpacing: 1.5,
+                    textTransform: 'uppercase',
+                    color: (scan.ttl * 1000 - Date.now()) < 2 * 60 * 60 * 1000 ? 'var(--red)' : 'var(--orange)',
+                    marginTop: 4,
+                  }}>
+                    {formatExpiry(scan.ttl)}
+                  </div>
+                )}
               </div>
 
               {/* Score */}
               <div>
-                <span style={{
-                  fontFamily: 'var(--display)',
-                  fontSize: '1.6rem',
-                  letterSpacing: 1,
-                  color: scan.score >= 80 ? 'var(--green)' : scan.score >= 60 ? 'var(--warning)' : 'var(--red)',
-                }}>
-                  {scan.score}
-                </span>
+                {scan.status === 'complete' || scan.mergedResult ? (
+                  <span style={{
+                    fontFamily: 'var(--display)',
+                    fontSize: '1.6rem',
+                    letterSpacing: 1,
+                    color: scan.score >= 80 ? 'var(--green)' : scan.score >= 60 ? 'var(--warning)' : 'var(--red)',
+                  }}>
+                    {scan.score}
+                  </span>
+                ) : scan.status === 'error' ? (
+                  <span style={{
+                    fontFamily: 'var(--mono)',
+                    fontSize: '0.68rem',
+                    letterSpacing: 1,
+                    color: 'var(--red)',
+                    textTransform: 'uppercase',
+                  }}>
+                    Failed
+                  </span>
+                ) : (
+                  <span style={{
+                    fontFamily: 'var(--mono)',
+                    fontSize: '0.68rem',
+                    letterSpacing: 1,
+                    color: 'var(--orange)',
+                    textTransform: 'uppercase',
+                  }}>
+                    Processing
+                  </span>
+                )}
               </div>
 
               {/* Issues count */}
@@ -124,7 +170,9 @@ export default function HistoryList({ scans }: { scans: ScanItem[] }) {
                 fontSize: '0.6rem',
                 color: issues.length > 0 ? 'var(--text-mid)' : 'var(--text-dim)',
               }}>
-                {issues.length > 0 ? `${issues.length} found` : 'None'}
+                {scan.status === 'error' ? 'Credit refunded' :
+                 !scan.mergedResult && scan.status !== 'complete' ? '—' :
+                 issues.length > 0 ? `${issues.length} found` : 'None'}
               </div>
 
               {/* Expand arrow */}

@@ -8,6 +8,13 @@ const BUCKET = process.env.S3_BUCKET!;
 
 // ── Types ──────────────────────────────────────────────────
 
+export interface FrameworkDetail {
+  name: string;
+  hasPrivacyManifest: boolean;
+  bundleId: string | null;
+  version: string | null;
+}
+
 export interface IpaMetadata {
   bundleId: string | null;
   appName: string | null;
@@ -24,6 +31,19 @@ export interface IpaMetadata {
   queriesSchemes: string[];
   entitlements: Record<string, unknown>;
   frameworks: string[];
+  xcodeVersion: string | null;        // DTXcode
+  xcodeBuild: string | null;          // DTXcodeBuild
+  sdkName: string | null;             // DTSDKName
+  sdkBuild: string | null;            // DTSDKBuild
+  platformVersion: string | null;     // DTPlatformVersion
+  atsConfig: Record<string, unknown> | null; // NSAppTransportSecurity
+  sceneManifest: Record<string, unknown> | null; // UIApplicationSceneManifest
+  launchStoryboard: string | null;    // UILaunchStoryboardName
+  privacyManifest: Record<string, unknown> | null; // Parsed PrivacyInfo.xcprivacy
+  frameworkDetails: FrameworkDetail[];
+  provisioningType: string | null;    // "app-store" | "ad-hoc" | "development" | "enterprise" | null
+  teamId: string | null;              // from embedded.mobileprovision
+  provisioningExpiry: string | null;  // ExpirationDate from mobileprovision
 }
 
 export interface UrlType {
@@ -133,6 +153,28 @@ function tokenToValue(token: PlistToken): unknown {
   }
 }
 
+// ── Plist File Parser ──────────────────────────────────────
+
+/**
+ * Parses a plist file from raw bytes, handling both binary (bplist) and XML formats.
+ * Returns null if parsing fails.
+ */
+function parsePlistBytes(data: Uint8Array): Record<string, unknown> | null {
+  const text = new TextDecoder("utf-8", { fatal: false }).decode(data);
+  if (text.startsWith("bplist")) {
+    try {
+      const parsed = bplist.parseBuffer(Buffer.from(data));
+      if (parsed && parsed.length > 0 && typeof parsed[0] === "object") {
+        return parsed[0] as Record<string, unknown>;
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  }
+  return parseXmlPlist(text);
+}
+
 // ── Entitlements Extractor ─────────────────────────────────
 
 /**
@@ -158,6 +200,21 @@ function extractEntitlementsFromProvision(raw: Uint8Array): Record<string, unkno
   }
 
   return {};
+}
+
+/**
+ * Extracts the full top-level provisioning plist from embedded.mobileprovision.
+ * Returns null if the embedded XML cannot be found or parsed.
+ */
+function extractProvisioningPlist(raw: Uint8Array): Record<string, unknown> | null {
+  const text = new TextDecoder("utf-8", { fatal: false }).decode(raw);
+  const plistStart = text.indexOf("<?xml");
+  const plistEnd = text.indexOf("</plist>");
+
+  if (plistStart === -1 || plistEnd === -1) return null;
+
+  const plistXml = text.slice(plistStart, plistEnd + "</plist>".length);
+  return parseXmlPlist(plistXml);
 }
 
 // ── Helpers ────────────────────────────────────────────────
@@ -188,6 +245,37 @@ function collectPrivacyUsageDescriptions(plist: Record<string, unknown>): Record
     }
   }
   return result;
+}
+
+function toObjectOrNull(val: unknown): Record<string, unknown> | null {
+  if (val && typeof val === "object" && !Array.isArray(val)) {
+    return val as Record<string, unknown>;
+  }
+  return null;
+}
+
+/**
+ * Determines provisioning type from the top-level provisioning plist dict.
+ *
+ * Rules:
+ *   ProvisionsAllDevices === true                              -> "enterprise"
+ *   ProvisionedDevices is array AND get-task-allow is true    -> "development"
+ *   ProvisionedDevices is array AND get-task-allow is not true -> "ad-hoc"
+ *   Otherwise                                                  -> "app-store"
+ */
+function determineProvisioningType(provisionPlist: Record<string, unknown>): string {
+  if (provisionPlist["ProvisionsAllDevices"] === true) {
+    return "enterprise";
+  }
+
+  const provisionedDevices = provisionPlist["ProvisionedDevices"];
+  if (Array.isArray(provisionedDevices)) {
+    const entitlements = toObjectOrNull(provisionPlist["Entitlements"]);
+    const getTaskAllow = entitlements?.["get-task-allow"];
+    return getTaskAllow === true ? "development" : "ad-hoc";
+  }
+
+  return "app-store";
 }
 
 // ── Main Parser ────────────────────────────────────────────
@@ -245,28 +333,95 @@ export async function parseIpa(s3Key: string): Promise<IpaParseResult> {
     throw new Error("Could not parse Info.plist. The file may be corrupted.");
   }
 
-  // 4. Extract embedded.mobileprovision entitlements
+  // 4. Extract embedded.mobileprovision — entitlements + provisioning metadata
   let entitlements: Record<string, unknown> = {};
+  let provisioningType: string | null = null;
+  let teamId: string | null = null;
+  let provisioningExpiry: string | null = null;
+
   const provisionFile = zip.file(`${appDir}embedded.mobileprovision`);
   if (provisionFile) {
-    const provisionData = await provisionFile.async("uint8array");
-    entitlements = extractEntitlementsFromProvision(provisionData);
+    try {
+      const provisionData = await provisionFile.async("uint8array");
+      entitlements = extractEntitlementsFromProvision(provisionData);
+
+      const provisionPlist = extractProvisioningPlist(provisionData);
+      if (provisionPlist) {
+        provisioningType = determineProvisioningType(provisionPlist);
+
+        const teamIdentifier = provisionPlist["TeamIdentifier"];
+        if (Array.isArray(teamIdentifier) && typeof teamIdentifier[0] === "string") {
+          teamId = teamIdentifier[0];
+        }
+
+        const expiry = provisionPlist["ExpirationDate"];
+        if (typeof expiry === "string") {
+          provisioningExpiry = expiry;
+        }
+      }
+    } catch {
+      // Non-fatal: provisioning metadata is supplementary
+    }
   }
 
-  // 5. List frameworks
+  // 5. List frameworks and collect framework details
   const frameworksPrefix = `${appDir}Frameworks/`;
   const frameworks: string[] = [];
+  const frameworkDetails: FrameworkDetail[] = [];
+
+  // Collect unique top-level framework names first
+  const frameworkNames = new Set<string>();
   for (const path of Object.keys(zip.files)) {
     if (path.startsWith(frameworksPrefix) && path.endsWith(".framework/")) {
       const name = path.slice(frameworksPrefix.length, -".framework/".length);
-      // Skip nested paths (only take top-level frameworks)
       if (!name.includes("/")) {
-        frameworks.push(name);
+        frameworkNames.add(name);
       }
     }
   }
 
-  // 6. Build metadata
+  for (const name of frameworkNames) {
+    frameworks.push(name);
+
+    try {
+      const fwPrefix = `${frameworksPrefix}${name}.framework/`;
+      const hasPrivacyManifest = zip.file(`${fwPrefix}PrivacyInfo.xcprivacy`) !== null;
+
+      let fwBundleId: string | null = null;
+      let fwVersion: string | null = null;
+
+      const fwInfoFile = zip.file(`${fwPrefix}Info.plist`);
+      if (fwInfoFile) {
+        const fwInfoData = await fwInfoFile.async("uint8array");
+        const fwPlist = parsePlistBytes(fwInfoData);
+        if (fwPlist) {
+          const bid = fwPlist["CFBundleIdentifier"];
+          fwBundleId = typeof bid === "string" ? bid : null;
+          const ver = fwPlist["CFBundleShortVersionString"];
+          fwVersion = typeof ver === "string" ? ver : null;
+        }
+      }
+
+      frameworkDetails.push({ name, hasPrivacyManifest, bundleId: fwBundleId, version: fwVersion });
+    } catch {
+      // Non-fatal: include framework with minimal info
+      frameworkDetails.push({ name, hasPrivacyManifest: false, bundleId: null, version: null });
+    }
+  }
+
+  // 6. Parse app-level PrivacyInfo.xcprivacy
+  let privacyManifest: Record<string, unknown> | null = null;
+  try {
+    const privacyFile = zip.file(`${appDir}PrivacyInfo.xcprivacy`);
+    if (privacyFile) {
+      const privacyData = await privacyFile.async("uint8array");
+      privacyManifest = parsePlistBytes(privacyData);
+    }
+  } catch {
+    // Non-fatal: privacy manifest is supplementary
+  }
+
+  // 7. Build metadata
   const getString = (key: string): string | null => {
     const v = plist[key];
     return typeof v === "string" ? v : null;
@@ -299,6 +454,19 @@ export async function parseIpa(s3Key: string): Promise<IpaParseResult> {
       queriesSchemes: toStringArray(plist["LSApplicationQueriesSchemes"]),
       entitlements,
       frameworks: frameworks.sort(),
+      xcodeVersion: getString("DTXcode"),
+      xcodeBuild: getString("DTXcodeBuild"),
+      sdkName: getString("DTSDKName"),
+      sdkBuild: getString("DTSDKBuild"),
+      platformVersion: getString("DTPlatformVersion"),
+      atsConfig: toObjectOrNull(plist["NSAppTransportSecurity"]),
+      sceneManifest: toObjectOrNull(plist["UIApplicationSceneManifest"]),
+      launchStoryboard: getString("UILaunchStoryboardName"),
+      privacyManifest,
+      frameworkDetails: frameworkDetails.sort((a, b) => a.name.localeCompare(b.name)),
+      provisioningType,
+      teamId,
+      provisioningExpiry,
     },
     sha256,
   };
