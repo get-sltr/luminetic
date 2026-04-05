@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
+const hoisted = vi.hoisted(() => ({
+  dbSend: vi.fn(),
+}));
+
 vi.mock("@/lib/auth", () => ({
   verifyToken: vi.fn(),
 }));
@@ -41,11 +45,9 @@ vi.mock("@aws-sdk/client-dynamodb", () => ({
   DynamoDBClient: class {},
 }));
 
-const dbSend = vi.fn();
-
 vi.mock("@aws-sdk/lib-dynamodb", () => ({
   DynamoDBDocumentClient: {
-    from: vi.fn(() => ({ send: dbSend })),
+    from: vi.fn(() => ({ send: hoisted.dbSend })),
   },
   PutCommand: class {},
 }));
@@ -103,6 +105,6 @@ describe("POST /api/analyze-stream", () => {
     expect(response.status).toBe(400);
     expect(deductScanCredit).toHaveBeenCalledWith("user-1");
     expect(refundScanCredit).toHaveBeenCalledWith("user-1");
-    expect(dbSend).not.toHaveBeenCalled();
+    expect(hoisted.dbSend).not.toHaveBeenCalled();
   });
 });
