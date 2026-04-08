@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const lambdaSend = vi.fn();
-const dbSend = vi.fn();
+const mocks = vi.hoisted(() => ({
+  lambdaSend: vi.fn(),
+  dbSend: vi.fn(),
+}));
 
 vi.mock("@/lib/auth", () => ({
   verifyToken: vi.fn(),
@@ -35,7 +37,7 @@ vi.mock("@/lib/ipa-parser", () => ({
 
 vi.mock("@aws-sdk/client-lambda", () => ({
   LambdaClient: class {
-    send = lambdaSend;
+    send = mocks.lambdaSend;
   },
   InvokeCommand: class {},
 }));
@@ -46,7 +48,7 @@ vi.mock("@aws-sdk/client-dynamodb", () => ({
 
 vi.mock("@aws-sdk/lib-dynamodb", () => ({
   DynamoDBDocumentClient: {
-    from: vi.fn(() => ({ send: dbSend })),
+    from: vi.fn(() => ({ send: mocks.dbSend })),
   },
   PutCommand: class {},
 }));
@@ -105,7 +107,7 @@ describe("POST /api/analyze-stream", () => {
     expect(res.status).toBe(400);
     expect(deductScanCredit).toHaveBeenCalledWith("user-1");
     expect(refundScanCredit).toHaveBeenCalledWith("user-1");
-    expect(dbSend).not.toHaveBeenCalled();
-    expect(lambdaSend).not.toHaveBeenCalled();
+    expect(mocks.dbSend).not.toHaveBeenCalled();
+    expect(mocks.lambdaSend).not.toHaveBeenCalled();
   });
 });
