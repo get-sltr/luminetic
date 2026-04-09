@@ -5,8 +5,8 @@ vi.mock("@/lib/auth", () => ({
 }));
 
 vi.mock("@/lib/db", () => ({
-  getUser: vi.fn(),
   canUserScan: vi.fn(),
+  claimFreeScan: vi.fn(),
   deductScanCredit: vi.fn(),
   putScan: vi.fn(),
 }));
@@ -74,7 +74,7 @@ vi.mock("@aws-sdk/client-secrets-manager", () => {
 
 import { POST } from "./route";
 import { verifyToken } from "@/lib/auth";
-import { getUser, canUserScan, deductScanCredit, putScan } from "@/lib/db";
+import { canUserScan, claimFreeScan, deductScanCredit, putScan } from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
 import { NextRequest } from "next/server";
 
@@ -94,6 +94,7 @@ describe("POST /api/analyze", () => {
     vi.clearAllMocks();
     vi.mocked(verifyToken).mockResolvedValue({ userId: "user-1", email: "test@test.com", plan: "free" });
     vi.mocked(canUserScan).mockResolvedValue({ allowed: true, reason: "Paid credit available.", isPaidScan: true, isFreeScan: false, credits: 5, scanCount: 2 });
+    vi.mocked(claimFreeScan).mockResolvedValue(true);
     vi.mocked(deductScanCredit).mockResolvedValue(true);
     vi.mocked(putScan).mockResolvedValue({ scanId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" as `${string}-${string}-${string}-${string}-${string}`, timestamp: "2026-01-01T00:00:00Z" });
     vi.mocked(analyzeLimiter.check).mockReturnValue({ allowed: true });
@@ -152,6 +153,21 @@ describe("POST /api/analyze", () => {
   it("deducts credit for non-founder users", async () => {
     await POST(makeRequest({ feedback: "My app was rejected for guideline 2.1 testing" }));
     expect(deductScanCredit).toHaveBeenCalledWith("user-1");
+  });
+
+  it("claims free scan atomically for free-scan users", async () => {
+    vi.mocked(canUserScan).mockResolvedValue({ allowed: true, reason: "Free scan available.", isPaidScan: false, isFreeScan: true, credits: 0, scanCount: 0 });
+    const res = await POST(makeRequest({ feedback: "My app was rejected for guideline 2.1 testing" }));
+    expect(res.status).toBe(200);
+    expect(claimFreeScan).toHaveBeenCalledWith("user-1");
+    expect(deductScanCredit).not.toHaveBeenCalled();
+  });
+
+  it("returns 402 when free scan claim loses race", async () => {
+    vi.mocked(canUserScan).mockResolvedValue({ allowed: true, reason: "Free scan available.", isPaidScan: false, isFreeScan: true, credits: 0, scanCount: 0 });
+    vi.mocked(claimFreeScan).mockResolvedValue(false);
+    const res = await POST(makeRequest({ feedback: "My app was rejected for guideline 2.1 testing" }));
+    expect(res.status).toBe(402);
   });
 
   it("accepts alternative field names (email, text)", async () => {

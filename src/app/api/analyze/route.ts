@@ -6,7 +6,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyToken } from "@/lib/auth";
-import { putScan, canUserScan, deductScanCredit } from "@/lib/db";
+import {
+  putScan,
+  canUserScan,
+  deductScanCredit,
+  claimFreeScan,
+  releaseFreeScanClaim,
+} from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 import {
@@ -460,6 +466,8 @@ function mergeResults(
 
 export async function POST(request: NextRequest) {
   const totalStart = Date.now();
+  let freeScanClaimed = false;
+  let currentUserId: string | null = null;
 
   try {
     const body = await request.json();
@@ -484,6 +492,7 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+    currentUserId = authUser.userId;
 
     // Rate limit by userId
     const rl = analyzeLimiter.check(authUser.userId);
@@ -513,7 +522,16 @@ export async function POST(request: NextRequest) {
             );
           }
         }
-        // Free scans: no credit to deduct (credits already 0), just proceed
+        if (gate.isFreeScan) {
+          const claimed = await claimFreeScan(authUser.userId);
+          if (!claimed) {
+            return NextResponse.json(
+              { error: "No scan credits remaining. Purchase a scan pack to continue.", code: "NO_CREDITS" },
+              { status: 402 },
+            );
+          }
+          freeScanClaimed = true;
+        }
       } catch (err) {
         console.error("Credit check error:", err);
         return NextResponse.json(
@@ -546,7 +564,14 @@ export async function POST(request: NextRequest) {
         scanId = saved.scanId;
       } catch (err) {
         console.error("Failed to save scan:", err);
+        if (freeScanClaimed) {
+          try { await releaseFreeScanClaim(authUser.userId); } catch { /* best effort */ }
+        }
       }
+    }
+
+    if (!scanId && freeScanClaimed) {
+      try { await releaseFreeScanClaim(authUser.userId); } catch { /* best effort */ }
     }
 
     return NextResponse.json({
@@ -555,6 +580,9 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
+    if (freeScanClaimed && currentUserId) {
+      try { await releaseFreeScanClaim(currentUserId); } catch { /* best effort */ }
+    }
     if (error instanceof z.ZodError) {
       return NextResponse.json(
         { error: error.issues[0]?.message || "Invalid input." },
