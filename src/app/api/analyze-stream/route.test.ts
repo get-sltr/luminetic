@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
+const dbSendMock = vi.fn();
+const lambdaSendMock = vi.fn();
+
 vi.mock("@/lib/auth", () => ({
   verifyToken: vi.fn(),
 }));
@@ -28,6 +31,24 @@ vi.mock("@/lib/vindicara", () => ({
 
 vi.mock("@/lib/ipa-parser", () => ({
   parseIpa: vi.fn(),
+}));
+
+vi.mock("@aws-sdk/client-dynamodb", () => ({
+  DynamoDBClient: class {},
+}));
+
+vi.mock("@aws-sdk/lib-dynamodb", () => ({
+  DynamoDBDocumentClient: {
+    from: vi.fn(() => ({ send: dbSendMock })),
+  },
+  PutCommand: class {},
+}));
+
+vi.mock("@aws-sdk/client-lambda", () => ({
+  LambdaClient: class {
+    send = lambdaSendMock;
+  },
+  InvokeCommand: class {},
 }));
 
 import { POST } from "./route";
@@ -71,6 +92,8 @@ describe("POST /api/analyze-stream", () => {
     vi.mocked(refundScanCredit).mockResolvedValue(undefined);
     vi.mocked(isAppFreeScanned).mockResolvedValue(false);
     vi.mocked(markFreeScannedApp).mockResolvedValue(undefined);
+    dbSendMock.mockResolvedValue({});
+    lambdaSendMock.mockResolvedValue({});
     vi.mocked(guardInput).mockResolvedValue({
       allowed: false,
       blocked: true,
@@ -103,5 +126,21 @@ describe("POST /api/analyze-stream", () => {
     expect(res.status).toBe(400);
     expect(deductScanCredit).not.toHaveBeenCalled();
     expect(refundScanCredit).not.toHaveBeenCalled();
+  });
+
+  it("refunds paid credit when scan record write fails after charging", async () => {
+    vi.mocked(guardInput).mockResolvedValue({
+      allowed: true,
+      blocked: false,
+      verdict: "allowed",
+      rules: [],
+    });
+    dbSendMock.mockRejectedValueOnce(new Error("DynamoDB unavailable"));
+
+    const res = await POST(makeRequest({ feedback: "This rejection message is definitely long enough to pass validation." }));
+
+    expect(res.status).toBe(500);
+    expect(deductScanCredit).toHaveBeenCalledWith("user-1");
+    expect(refundScanCredit).toHaveBeenCalledWith("user-1");
   });
 });

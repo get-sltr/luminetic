@@ -74,6 +74,9 @@ function buildMetadataContext(
 }
 
 export async function POST(request: NextRequest) {
+  let scanCreditCharged = false;
+  let chargedUserId: string | null = null;
+
   try {
     // ── Parse input ──
     const schema = z.object({
@@ -100,6 +103,7 @@ export async function POST(request: NextRequest) {
     const accessToken = request.cookies.get("access_token")?.value;
     const authUser = accessToken ? await verifyToken(accessToken) : null;
     if (!authUser) return Response.json({ error: "Sign in to run an analysis." }, { status: 401 });
+    chargedUserId = authUser.userId;
 
     // ── Rate limit ──
     const rl = analyzeLimiter.check(authUser.userId);
@@ -112,7 +116,6 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Scan gating: founder > paid credits > free scan > blocked ──
-    let scanCreditCharged = false;
     let isFreeScan = false;
     let gate;
     try {
@@ -245,6 +248,9 @@ export async function POST(request: NextRequest) {
     return Response.json({ scanId, status: "pending" });
   } catch (err) {
     console.error("[analyze-stream] Unhandled error:", err);
+    if (scanCreditCharged && chargedUserId) {
+      try { await refundScanCredit(chargedUserId); } catch { /* best effort */ }
+    }
     return Response.json({ error: "Analysis service error. Please try again." }, { status: 500 });
   }
 }
