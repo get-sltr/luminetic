@@ -141,6 +141,10 @@ export async function POST(request: NextRequest) {
     if (userText) {
       const guard = await guardInput(userText, "prompt-injection");
       if (guard.blocked) {
+        if (scanCreditCharged) {
+          try { await refundScanCredit(authUser.userId); } catch { /* best effort */ }
+          scanCreditCharged = false;
+        }
         return Response.json(
           { error: "Your input was flagged by our security system. Please revise and try again." },
           { status: 400 }
