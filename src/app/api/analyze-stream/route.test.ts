@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const dbSendMock = vi.fn();
-const lambdaSendMock = vi.fn();
+const { dbSendMock, lambdaSendMock } = vi.hoisted(() => ({
+  dbSendMock: vi.fn(),
+  lambdaSendMock: vi.fn(),
+}));
 
 vi.mock("@/lib/auth", () => ({
   verifyToken: vi.fn(),
