@@ -1,8 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
-const mockLambdaSend = vi.fn();
-const mockDbSend = vi.fn();
+const mocks = vi.hoisted(() => ({
+  lambdaSend: vi.fn(),
+  dbSend: vi.fn(),
+}));
 
 vi.mock("@/lib/auth", () => ({
   verifyToken: vi.fn(),
@@ -35,7 +37,7 @@ vi.mock("@/lib/analyzers/orchestrator", () => ({
 
 vi.mock("@aws-sdk/client-lambda", () => ({
   LambdaClient: class {
-    send = mockLambdaSend;
+    send = mocks.lambdaSend;
   },
   InvokeCommand: class {},
 }));
@@ -46,7 +48,7 @@ vi.mock("@aws-sdk/client-dynamodb", () => ({
 
 vi.mock("@aws-sdk/lib-dynamodb", () => ({
   DynamoDBDocumentClient: {
-    from: vi.fn(() => ({ send: mockDbSend })),
+    from: vi.fn(() => ({ send: mocks.dbSend })),
   },
   PutCommand: class {},
 }));
@@ -72,8 +74,8 @@ function makeRequest(body: unknown) {
 describe("POST /api/analyze-stream", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockLambdaSend.mockResolvedValue({});
-    mockDbSend.mockResolvedValue({});
+    mocks.lambdaSend.mockResolvedValue({});
+    mocks.dbSend.mockResolvedValue({});
     vi.mocked(verifyToken).mockResolvedValue({ userId: "user-1", email: "test@test.com", plan: "free" });
     vi.mocked(analyzeLimiter.check).mockReturnValue({ allowed: true });
     vi.mocked(canUserScan).mockResolvedValue({
@@ -99,7 +101,7 @@ describe("POST /api/analyze-stream", () => {
     expect(deductScanCredit).toHaveBeenCalledWith("user-1");
     expect(refundScanCredit).toHaveBeenCalledWith("user-1");
     expect(parseIpa).not.toHaveBeenCalled();
-    expect(mockDbSend).not.toHaveBeenCalled();
-    expect(mockLambdaSend).not.toHaveBeenCalled();
+    expect(mocks.dbSend).not.toHaveBeenCalled();
+    expect(mocks.lambdaSend).not.toHaveBeenCalled();
   });
 });
