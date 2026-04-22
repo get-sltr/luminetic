@@ -112,7 +112,6 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Scan gating: founder > paid credits > free scan > blocked ──
-    let scanCreditCharged = false;
     let isFreeScan = false;
     let gate;
     try {
@@ -122,11 +121,6 @@ export async function POST(request: NextRequest) {
           { error: "No scan credits remaining. Purchase a scan pack to continue.", code: "NO_CREDITS" },
           { status: 402 },
         );
-      }
-      if (gate.isPaidScan) {
-        const used = await deductScanCredit(authUser.userId);
-        if (!used) return Response.json({ error: "No scan credits remaining.", code: "NO_CREDITS" }, { status: 402 });
-        scanCreditCharged = true;
       }
       if (gate.isFreeScan) {
         isFreeScan = true;
@@ -162,9 +156,6 @@ export async function POST(request: NextRequest) {
         contextForAI = buildMetadataContext(ipaMetadata, parsed.synopsis || "No synopsis provided.", parsed.credentials);
       } catch (err) {
         console.error("[IPA parse error]", err);
-        if (scanCreditCharged) {
-          try { await refundScanCredit(authUser.userId); } catch { /* best effort */ }
-        }
         return Response.json({ error: "Failed to parse .ipa file." }, { status: 400 });
       }
 
@@ -186,57 +177,77 @@ export async function POST(request: NextRequest) {
     // ── Layer 1: Deep static analysis (IPA flow only) ──
     const layer1 = ipaMetadata ? runStaticAnalysis(ipaMetadata) : null;
 
+    // Charge paid credits only after validation has passed.
+    // This avoids consuming credits for guard-blocked/invalid requests.
+    let scanCreditCharged = false;
+    if (gate.isPaidScan) {
+      const used = await deductScanCredit(authUser.userId);
+      if (!used) return Response.json({ error: "No scan credits remaining.", code: "NO_CREDITS" }, { status: 402 });
+      scanCreditCharged = true;
+    }
+
     // ── Create scan record in DynamoDB ──
     const scanId = randomUUID();
     const timestamp = new Date().toISOString();
     const scanSK = `SCAN#${timestamp}#${scanId}`;
 
-    await db.send(new PutCommand({
-      TableName: TABLE,
-      Item: {
-        PK: `USER#${authUser.userId}`,
-        SK: scanSK,
-        GSI1PK: `USER#${authUser.userId}`,
-        GSI1SK: `SCAN#${timestamp}`,
-        scanId,
-        userId: authUser.userId,
-        status: "pending",
-        ttl: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
-        ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      },
-    }));
+    try {
+      await db.send(new PutCommand({
+        TableName: TABLE,
+        Item: {
+          PK: `USER#${authUser.userId}`,
+          SK: scanSK,
+          GSI1PK: `USER#${authUser.userId}`,
+          GSI1SK: `SCAN#${timestamp}`,
+          scanId,
+          userId: authUser.userId,
+          status: "pending",
+          ttl: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+          ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      }));
 
-    // ── Mark free-scanned app (only for free scans) ──
-    if (ipaHash && isFreeScan) {
-      try {
-        await markFreeScannedApp(ipaHash, ipaMetadata?.bundleId || parsed.bundleId, authUser.userId);
-      } catch { /* best effort */ }
+      // ── Mark free-scanned app (only for free scans) ──
+      if (ipaHash && isFreeScan) {
+        try {
+          await markFreeScannedApp(ipaHash, ipaMetadata?.bundleId || parsed.bundleId, authUser.userId);
+        } catch { /* best effort */ }
+      }
+
+      // ── Invoke Lambda async (fire-and-forget) ──
+      await lambda.send(new InvokeCommand({
+        FunctionName: LAMBDA_NAME,
+        InvocationType: "Event", // async — returns 202 immediately
+        Payload: Buffer.from(JSON.stringify({
+          userId: authUser.userId,
+          scanSK,
+          scanId,
+          contextForAI,
+          layer1,
+          ipaMetadata: ipaMetadata ? {
+            appName: ipaMetadata.appName,
+            bundleId: ipaMetadata.bundleId,
+            version: ipaMetadata.version,
+            buildNumber: ipaMetadata.buildNumber,
+            frameworks: ipaMetadata.frameworks,
+            privacyDescriptions: ipaMetadata.privacyUsageDescriptions,
+          } : null,
+          s3Key: parsed.s3Key,
+          bundleId: ipaMetadata?.bundleId || parsed.bundleId,
+        })),
+      }));
+    } catch (err) {
+      if (scanCreditCharged) {
+        try {
+          await refundScanCredit(authUser.userId);
+        } catch {
+          // best effort refund
+        }
+      }
+      throw err;
     }
-
-    // ── Invoke Lambda async (fire-and-forget) ──
-    await lambda.send(new InvokeCommand({
-      FunctionName: LAMBDA_NAME,
-      InvocationType: "Event", // async — returns 202 immediately
-      Payload: Buffer.from(JSON.stringify({
-        userId: authUser.userId,
-        scanSK,
-        scanId,
-        contextForAI,
-        layer1,
-        ipaMetadata: ipaMetadata ? {
-          appName: ipaMetadata.appName,
-          bundleId: ipaMetadata.bundleId,
-          version: ipaMetadata.version,
-          buildNumber: ipaMetadata.buildNumber,
-          frameworks: ipaMetadata.frameworks,
-          privacyDescriptions: ipaMetadata.privacyUsageDescriptions,
-        } : null,
-        s3Key: parsed.s3Key,
-        bundleId: ipaMetadata?.bundleId || parsed.bundleId,
-      })),
-    }));
 
     return Response.json({ scanId, status: "pending" });
   } catch (err) {
