@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 
+const { sendMock } = vi.hoisted(() => ({
+  sendMock: vi.fn(),
+}));
+
 vi.mock("@/lib/auth", () => ({
   verifyToken: vi.fn(),
 }));
@@ -42,7 +46,6 @@ vi.mock("@aws-sdk/client-dynamodb", () => ({
   DynamoDBClient: class {},
 }));
 
-const sendMock = vi.fn();
 vi.mock("@aws-sdk/lib-dynamodb", () => ({
   DynamoDBDocumentClient: {
     from: vi.fn(() => ({
