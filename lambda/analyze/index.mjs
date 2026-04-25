@@ -13,9 +13,11 @@ import {
 } from "@aws-sdk/client-bedrock-runtime";
 import {
   DynamoDBClient,
+  TransactionCanceledException,
 } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
+  TransactWriteCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import {
@@ -78,6 +80,47 @@ async function updateScanStatus(userId, scanSK, status, extra = {}) {
       ...Object.fromEntries(Object.entries(extra).map(([k, v], i) => [`:e${i}`, v])),
     },
   }));
+}
+
+async function refundScanCreditIfCharged(userId, scanSK) {
+  const now = new Date().toISOString();
+
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: scanSK },
+            UpdateExpression: "SET creditRefundedAt = :now, updatedAt = :now REMOVE creditCharged",
+            ConditionExpression: "creditCharged = :true AND attribute_not_exists(creditRefundedAt)",
+            ExpressionAttributeValues: {
+              ":true": true,
+              ":now": now,
+            },
+          },
+        },
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ExpressionAttributeValues: { ":one": 1, ":now": now },
+          },
+        },
+      ],
+    }));
+  } catch (err) {
+    if (
+      err instanceof TransactionCanceledException ||
+      err?.name === "TransactionCanceledException"
+    ) {
+      return false;
+    }
+    throw err;
+  }
+
+  return true;
 }
 
 // ── Prompts ────────────────────────────────────────────────
@@ -624,6 +667,7 @@ process.on("SIGTERM", async () => {
       await updateScanStatus(userId, scanSK, "error", {
         errorMessage: "Analysis timed out. Your credit has been preserved — please try again.",
       });
+      await refundScanCreditIfCharged(userId, scanSK);
       console.error(`[SIGTERM] Updated scan ${scanId} to error state`);
     } catch (e) {
       console.error("[SIGTERM] Failed to update DynamoDB:", e);
@@ -667,6 +711,7 @@ export const handler = async (event, context) => {
       await updateScanStatus(userId, scanSK, "error", {
         errorMessage: "All AI models failed in Stage 1. Please try again.",
       });
+      await refundScanCreditIfCharged(userId, scanSK);
       return { statusCode: 500, body: "All Stage 1 models failed" };
     }
 
@@ -707,9 +752,12 @@ export const handler = async (event, context) => {
       TableName: TABLE,
       Key: { PK: `USER#${userId}`, SK: scanSK },
       UpdateExpression: "SET #s = :s, mergedResult = :mr, score = :sc, updatedAt = :now",
+      ConditionExpression: "#s = :analyzing OR #s = :reconciling",
       ExpressionAttributeNames: { "#s": "status" },
       ExpressionAttributeValues: {
         ":s": "complete",
+        ":analyzing": "analyzing",
+        ":reconciling": "reconciling",
         ":mr": merged,
         ":sc": merged.assessment.score,
         ":now": new Date().toISOString(),
@@ -743,6 +791,9 @@ export const handler = async (event, context) => {
     await updateScanStatus(userId, scanSK, "error", {
       errorMessage: "Analysis failed unexpectedly. Please try again.",
     }).catch(() => {});
+    await refundScanCreditIfCharged(userId, scanSK).catch((refundErr) => {
+      console.error("[Lambda fatal] Credit refund failed:", refundErr);
+    });
     return { statusCode: 500, body: String(err) };
   }
 };

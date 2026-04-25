@@ -74,6 +74,10 @@ function buildMetadataContext(
 }
 
 export async function POST(request: NextRequest) {
+  let scanCreditCharged = false;
+  let scanQueued = false;
+  let refundUserId: string | null = null;
+
   try {
     // ── Parse input ──
     const schema = z.object({
@@ -100,6 +104,7 @@ export async function POST(request: NextRequest) {
     const accessToken = request.cookies.get("access_token")?.value;
     const authUser = accessToken ? await verifyToken(accessToken) : null;
     if (!authUser) return Response.json({ error: "Sign in to run an analysis." }, { status: 401 });
+    refundUserId = authUser.userId;
 
     // ── Rate limit ──
     const rl = analyzeLimiter.check(authUser.userId);
@@ -111,8 +116,19 @@ export async function POST(request: NextRequest) {
         return Response.json({ error: "Forbidden: invalid file reference." }, { status: 403 });
     }
 
+    // ── VINDICARA: Guard user-supplied text against prompt injection ──
+    const userText = parsed.synopsis || parsed.feedback || parsed.email || parsed.text;
+    if (userText) {
+      const guard = await guardInput(userText, "prompt-injection");
+      if (guard.blocked) {
+        return Response.json(
+          { error: "Your input was flagged by our security system. Please revise and try again." },
+          { status: 400 }
+        );
+      }
+    }
+
     // ── Scan gating: founder > paid credits > free scan > blocked ──
-    let scanCreditCharged = false;
     let isFreeScan = false;
     let gate;
     try {
@@ -134,18 +150,6 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error("Credit check error:", err);
       return Response.json({ error: "Unable to verify credits." }, { status: 503 });
-    }
-
-    // ── VINDICARA: Guard user-supplied text against prompt injection ──
-    const userText = parsed.synopsis || parsed.feedback || parsed.email || parsed.text;
-    if (userText) {
-      const guard = await guardInput(userText, "prompt-injection");
-      if (guard.blocked) {
-        return Response.json(
-          { error: "Your input was flagged by our security system. Please revise and try again." },
-          { status: 400 }
-        );
-      }
     }
 
     // ── Parse IPA / build context ──
@@ -201,6 +205,7 @@ export async function POST(request: NextRequest) {
         scanId,
         userId: authUser.userId,
         status: "pending",
+        creditCharged: scanCreditCharged,
         ttl: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
         ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
         createdAt: timestamp,
@@ -238,9 +243,14 @@ export async function POST(request: NextRequest) {
       })),
     }));
 
+    scanQueued = true;
     return Response.json({ scanId, status: "pending" });
   } catch (err) {
     console.error("[analyze-stream] Unhandled error:", err);
+    if (scanCreditCharged && !scanQueued && refundUserId) {
+      scanCreditCharged = false;
+      try { await refundScanCredit(refundUserId); } catch { /* best effort */ }
+    }
     return Response.json({ error: "Analysis service error. Please try again." }, { status: 500 });
   }
 }
