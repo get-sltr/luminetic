@@ -1,5 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, ScanCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, ScanCommand, TransactWriteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 
 const db = DynamoDBDocumentClient.from(
   new DynamoDBClient({ region: process.env.AWS_REGION || "us-east-1" })
@@ -21,7 +21,7 @@ export const handler = async () => {
       ":cutoff": cutoff,
       ":scanPrefix": "SCAN#",
     },
-    ProjectionExpression: "PK, SK, scanId, #s, updatedAt",
+    ProjectionExpression: "PK, SK, scanId, #s, updatedAt, creditCharged",
   }));
 
   const stuckScans = res.Items || [];
@@ -35,33 +35,53 @@ export const handler = async () => {
   let swept = 0;
   for (const scan of stuckScans) {
     try {
-      // Mark as error
-      await db.send(new UpdateCommand({
-        TableName: TABLE,
-        Key: { PK: scan.PK, SK: scan.SK },
-        UpdateExpression: "SET #s = :error, errorMessage = :msg, updatedAt = :now",
-        ConditionExpression: "#s = :currentStatus",
-        ExpressionAttributeNames: { "#s": "status" },
-        ExpressionAttributeValues: {
-          ":error": "error",
-          ":msg": "Analysis timed out. Your credit has been preserved — please try again.",
-          ":currentStatus": scan.status,
-          ":now": new Date().toISOString(),
-        },
-      }));
-
-      // Refund credit — extract userId from PK (format: USER#<userId>)
       const userId = scan.PK.replace("USER#", "");
-      try {
-        await db.send(new UpdateCommand({
-          TableName: TABLE,
-          Key: { PK: scan.PK, SK: "PROFILE" },
-          UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
-          ExpressionAttributeValues: { ":one": 1, ":now": new Date().toISOString() },
+      const now = new Date().toISOString();
+
+      if (scan.creditCharged === true) {
+        await db.send(new TransactWriteCommand({
+          TransactItems: [
+            {
+              Update: {
+                TableName: TABLE,
+                Key: { PK: scan.PK, SK: scan.SK },
+                UpdateExpression: "SET #s = :error, errorMessage = :msg, updatedAt = :now, creditRefundedAt = :now",
+                ConditionExpression: "#s = :currentStatus AND creditCharged = :true AND attribute_not_exists(creditRefundedAt)",
+                ExpressionAttributeNames: { "#s": "status" },
+                ExpressionAttributeValues: {
+                  ":error": "error",
+                  ":msg": "Analysis timed out. Your credit has been preserved — please try again.",
+                  ":currentStatus": scan.status,
+                  ":true": true,
+                  ":now": now,
+                },
+              },
+            },
+            {
+              Update: {
+                TableName: TABLE,
+                Key: { PK: scan.PK, SK: "PROFILE" },
+                UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+                ExpressionAttributeValues: { ":one": 1, ":now": now },
+              },
+            },
+          ],
         }));
         console.log(`[Sweeper] Refunded credit for user ${userId}, scan ${scan.scanId}`);
-      } catch (refundErr) {
-        console.warn(`[Sweeper] Credit refund failed for ${userId}:`, refundErr);
+      } else {
+        await db.send(new UpdateCommand({
+          TableName: TABLE,
+          Key: { PK: scan.PK, SK: scan.SK },
+          UpdateExpression: "SET #s = :error, errorMessage = :msg, updatedAt = :now",
+          ConditionExpression: "#s = :currentStatus",
+          ExpressionAttributeNames: { "#s": "status" },
+          ExpressionAttributeValues: {
+            ":error": "error",
+            ":msg": "Analysis timed out. Please try again.",
+            ":currentStatus": scan.status,
+            ":now": now,
+          },
+        }));
       }
 
       swept++;
