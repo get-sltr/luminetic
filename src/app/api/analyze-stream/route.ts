@@ -74,6 +74,19 @@ function buildMetadataContext(
 }
 
 export async function POST(request: NextRequest) {
+  let authUser: Awaited<ReturnType<typeof verifyToken>> = null;
+  let scanCreditCharged = false;
+
+  async function refundChargedCredit() {
+    if (!scanCreditCharged || !authUser) return;
+    try {
+      await refundScanCredit(authUser.userId);
+      scanCreditCharged = false;
+    } catch (refundErr) {
+      console.error("[analyze-stream] Failed to refund scan credit:", refundErr);
+    }
+  }
+
   try {
     // ── Parse input ──
     const schema = z.object({
@@ -98,7 +111,7 @@ export async function POST(request: NextRequest) {
 
     // ── Auth ──
     const accessToken = request.cookies.get("access_token")?.value;
-    const authUser = accessToken ? await verifyToken(accessToken) : null;
+    authUser = accessToken ? await verifyToken(accessToken) : null;
     if (!authUser) return Response.json({ error: "Sign in to run an analysis." }, { status: 401 });
 
     // ── Rate limit ──
@@ -111,8 +124,19 @@ export async function POST(request: NextRequest) {
         return Response.json({ error: "Forbidden: invalid file reference." }, { status: 403 });
     }
 
+    // ── VINDICARA: Guard user-supplied text against prompt injection ──
+    const userText = parsed.synopsis || parsed.feedback || parsed.email || parsed.text;
+    if (userText) {
+      const guard = await guardInput(userText, "prompt-injection");
+      if (guard.blocked) {
+        return Response.json(
+          { error: "Your input was flagged by our security system. Please revise and try again." },
+          { status: 400 }
+        );
+      }
+    }
+
     // ── Scan gating: founder > paid credits > free scan > blocked ──
-    let scanCreditCharged = false;
     let isFreeScan = false;
     let gate;
     try {
@@ -136,18 +160,6 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Unable to verify credits." }, { status: 503 });
     }
 
-    // ── VINDICARA: Guard user-supplied text against prompt injection ──
-    const userText = parsed.synopsis || parsed.feedback || parsed.email || parsed.text;
-    if (userText) {
-      const guard = await guardInput(userText, "prompt-injection");
-      if (guard.blocked) {
-        return Response.json(
-          { error: "Your input was flagged by our security system. Please revise and try again." },
-          { status: 400 }
-        );
-      }
-    }
-
     // ── Parse IPA / build context ──
     const isIpaFlow = !!parsed.s3Key;
     let contextForAI: string;
@@ -162,9 +174,7 @@ export async function POST(request: NextRequest) {
         contextForAI = buildMetadataContext(ipaMetadata, parsed.synopsis || "No synopsis provided.", parsed.credentials);
       } catch (err) {
         console.error("[IPA parse error]", err);
-        if (scanCreditCharged) {
-          try { await refundScanCredit(authUser.userId); } catch { /* best effort */ }
-        }
+        await refundChargedCredit();
         return Response.json({ error: "Failed to parse .ipa file." }, { status: 400 });
       }
 
@@ -241,6 +251,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ scanId, status: "pending" });
   } catch (err) {
     console.error("[analyze-stream] Unhandled error:", err);
+    await refundChargedCredit();
     return Response.json({ error: "Analysis service error. Please try again." }, { status: 500 });
   }
 }
