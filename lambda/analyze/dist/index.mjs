@@ -1042,6 +1042,7 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
+  TransactWriteCommand,
   UpdateCommand
 } from "@aws-sdk/lib-dynamodb";
 import {
@@ -1097,6 +1098,65 @@ async function updateScanStatus(userId, scanSK, status, extra = {}) {
       ...Object.fromEntries(Object.entries(extra).map(([k, v], i) => [`:e${i}`, v]))
     }
   }));
+}
+async function failScanAndRefundIfCharged(userId, scanSK, errorMessage) {
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: scanSK },
+            UpdateExpression: "SET #s = :error, errorMessage = :msg, updatedAt = :now, creditRefunded = :true",
+            ConditionExpression: "creditCharged = :true AND (#s = :pending OR #s = :analyzing OR #s = :reconciling) AND (attribute_not_exists(creditRefunded) OR creditRefunded = :false)",
+            ExpressionAttributeNames: { "#s": "status" },
+            ExpressionAttributeValues: {
+              ":error": "error",
+              ":msg": errorMessage,
+              ":now": now,
+              ":true": true,
+              ":false": false,
+              ":pending": "pending",
+              ":analyzing": "analyzing",
+              ":reconciling": "reconciling"
+            }
+          }
+        },
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ExpressionAttributeValues: {
+              ":one": 1,
+              ":now": now
+            }
+          }
+        }
+      ]
+    }));
+    console.log(`[Credit] Refunded charged scan ${scanSK} for user ${userId}`);
+  } catch (err) {
+    if (err?.name !== "TransactionCanceledException") {
+      throw err;
+    }
+    await db.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: `USER#${userId}`, SK: scanSK },
+      UpdateExpression: "SET #s = :error, errorMessage = :msg, updatedAt = :now",
+      ConditionExpression: "attribute_not_exists(#s) OR #s <> :complete",
+      ExpressionAttributeNames: { "#s": "status" },
+      ExpressionAttributeValues: {
+        ":error": "error",
+        ":msg": errorMessage,
+        ":now": now,
+        ":complete": "complete"
+      }
+    })).catch((updateErr) => {
+      if (updateErr?.name !== "ConditionalCheckFailedException") throw updateErr;
+    });
+  }
 }
 var GEMINI_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst. You analyze .ipa app metadata to identify App Store Review Guideline violations, missing configurations, and submission risks BEFORE the developer submits to Apple.
 
@@ -1618,9 +1678,7 @@ process.on("SIGTERM", async () => {
   if (_activeContext) {
     const { userId, scanSK, scanId } = _activeContext;
     try {
-      await updateScanStatus(userId, scanSK, "error", {
-        errorMessage: "Analysis timed out. Your credit has been preserved \u2014 please try again."
-      });
+      await failScanAndRefundIfCharged(userId, scanSK, "Analysis timed out. Your credit has been preserved \u2014 please try again.");
       console.error(`[SIGTERM] Updated scan ${scanId} to error state`);
     } catch (e) {
       console.error("[SIGTERM] Failed to update DynamoDB:", e);
@@ -1654,9 +1712,7 @@ These findings are proven from the binary. Do NOT dispute them. Focus on providi
     ]);
     console.log(`[Stage 1] Gemini=${gemini.success}(${gemini.latency}ms) Sonnet=${sonnet.success}(${sonnet.latency}ms) DeepSeek=${deepseek.success}(${deepseek.latency}ms)`);
     if (!gemini.success && !sonnet.success && !deepseek.success) {
-      await updateScanStatus(userId, scanSK, "error", {
-        errorMessage: "All AI models failed in Stage 1. Please try again."
-      });
+      await failScanAndRefundIfCharged(userId, scanSK, "All AI models failed in Stage 1. Please try again.");
       return { statusCode: 500, body: "All Stage 1 models failed" };
     }
     await updateScanStatus(userId, scanSK, "reconciling");
@@ -1684,18 +1740,31 @@ These findings are proven from the binary. Do NOT dispute them. Focus on providi
       console.warn(`[Device Farm] Skipped \u2014 only ${remaining}ms remaining, need ${SAVE_BUFFER_MS}ms buffer`);
     }
     const merged = mergeResults({ gemini, deepseek, sonnet, opus, contextForAI, ipaMetadata, layer1, layer2: deviceFarmResult, totalStart });
-    await db.send(new UpdateCommand({
-      TableName: TABLE,
-      Key: { PK: `USER#${userId}`, SK: scanSK },
-      UpdateExpression: "SET #s = :s, mergedResult = :mr, score = :sc, updatedAt = :now",
-      ExpressionAttributeNames: { "#s": "status" },
-      ExpressionAttributeValues: {
-        ":s": "complete",
-        ":mr": merged,
-        ":sc": merged.assessment.score,
-        ":now": (/* @__PURE__ */ new Date()).toISOString()
+    try {
+      await db.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: `USER#${userId}`, SK: scanSK },
+        UpdateExpression: "SET #s = :s, mergedResult = :mr, score = :sc, updatedAt = :now",
+        ConditionExpression: "(#s = :analyzing OR #s = :reconciling) AND (attribute_not_exists(creditRefunded) OR creditRefunded = :notRefunded)",
+        ExpressionAttributeNames: { "#s": "status" },
+        ExpressionAttributeValues: {
+          ":s": "complete",
+          ":mr": merged,
+          ":sc": merged.assessment.score,
+          ":now": (/* @__PURE__ */ new Date()).toISOString(),
+          ":analyzing": "analyzing",
+          ":reconciling": "reconciling",
+          ":notRefunded": false
+        }
+      }));
+    } catch (err) {
+      if (err?.name === "ConditionalCheckFailedException") {
+        console.warn(`[Done] scanId=${scanId} was no longer active; skipping complete write`);
+        _activeContext = null;
+        return { statusCode: 409, body: "Scan no longer active" };
       }
-    }));
+      throw err;
+    }
     await db.send(new UpdateCommand({
       TableName: TABLE,
       Key: { PK: `USER#${userId}`, SK: "PROFILE" },
@@ -1716,9 +1785,7 @@ These findings are proven from the binary. Do NOT dispute them. Focus on providi
   } catch (err) {
     console.error("[Lambda fatal]", err);
     _activeContext = null;
-    await updateScanStatus(userId, scanSK, "error", {
-      errorMessage: "Analysis failed unexpectedly. Please try again."
-    }).catch(() => {
+    await failScanAndRefundIfCharged(userId, scanSK, "Analysis failed unexpectedly. Please try again.").catch(() => {
     });
     return { statusCode: 500, body: String(err) };
   }
