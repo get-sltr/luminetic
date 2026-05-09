@@ -74,6 +74,20 @@ function buildMetadataContext(
 }
 
 export async function POST(request: NextRequest) {
+  let chargedUserId: string | null = null;
+  let scanCreditCharged = false;
+  let scanCreditRefunded = false;
+
+  async function refundChargedCreditOnce() {
+    if (!scanCreditCharged || scanCreditRefunded || !chargedUserId) return;
+    scanCreditRefunded = true;
+    try {
+      await refundScanCredit(chargedUserId);
+    } catch (err) {
+      console.error("[analyze-stream] Credit refund failed:", err);
+    }
+  }
+
   try {
     // ── Parse input ──
     const schema = z.object({
@@ -111,8 +125,19 @@ export async function POST(request: NextRequest) {
         return Response.json({ error: "Forbidden: invalid file reference." }, { status: 403 });
     }
 
+    // ── VINDICARA: Guard user-supplied text against prompt injection ──
+    const userText = parsed.synopsis || parsed.feedback || parsed.email || parsed.text;
+    if (userText) {
+      const guard = await guardInput(userText, "prompt-injection");
+      if (guard.blocked) {
+        return Response.json(
+          { error: "Your input was flagged by our security system. Please revise and try again." },
+          { status: 400 }
+        );
+      }
+    }
+
     // ── Scan gating: founder > paid credits > free scan > blocked ──
-    let scanCreditCharged = false;
     let isFreeScan = false;
     let gate;
     try {
@@ -127,6 +152,7 @@ export async function POST(request: NextRequest) {
         const used = await deductScanCredit(authUser.userId);
         if (!used) return Response.json({ error: "No scan credits remaining.", code: "NO_CREDITS" }, { status: 402 });
         scanCreditCharged = true;
+        chargedUserId = authUser.userId;
       }
       if (gate.isFreeScan) {
         isFreeScan = true;
@@ -134,18 +160,6 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error("Credit check error:", err);
       return Response.json({ error: "Unable to verify credits." }, { status: 503 });
-    }
-
-    // ── VINDICARA: Guard user-supplied text against prompt injection ──
-    const userText = parsed.synopsis || parsed.feedback || parsed.email || parsed.text;
-    if (userText) {
-      const guard = await guardInput(userText, "prompt-injection");
-      if (guard.blocked) {
-        return Response.json(
-          { error: "Your input was flagged by our security system. Please revise and try again." },
-          { status: 400 }
-        );
-      }
     }
 
     // ── Parse IPA / build context ──
@@ -162,9 +176,7 @@ export async function POST(request: NextRequest) {
         contextForAI = buildMetadataContext(ipaMetadata, parsed.synopsis || "No synopsis provided.", parsed.credentials);
       } catch (err) {
         console.error("[IPA parse error]", err);
-        if (scanCreditCharged) {
-          try { await refundScanCredit(authUser.userId); } catch { /* best effort */ }
-        }
+        await refundChargedCreditOnce();
         return Response.json({ error: "Failed to parse .ipa file." }, { status: 400 });
       }
 
@@ -202,6 +214,8 @@ export async function POST(request: NextRequest) {
         userId: authUser.userId,
         status: "pending",
         ttl: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+        creditCharged: scanCreditCharged,
+        creditRefunded: false,
         ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -225,6 +239,7 @@ export async function POST(request: NextRequest) {
         scanId,
         contextForAI,
         layer1,
+        creditCharged: scanCreditCharged,
         ipaMetadata: ipaMetadata ? {
           appName: ipaMetadata.appName,
           bundleId: ipaMetadata.bundleId,
@@ -241,6 +256,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ scanId, status: "pending" });
   } catch (err) {
     console.error("[analyze-stream] Unhandled error:", err);
+    await refundChargedCreditOnce();
     return Response.json({ error: "Analysis service error. Please try again." }, { status: 500 });
   }
 }

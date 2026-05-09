@@ -1,4 +1,4 @@
-import { createRequire } from "module";const require = createRequire(import.meta.url);
+import { createRequire } from 'module';const require = createRequire(import.meta.url);
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __esm = (fn, res) => function __init() {
@@ -1042,7 +1042,8 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
-  UpdateCommand
+  UpdateCommand,
+  TransactWriteCommand
 } from "@aws-sdk/lib-dynamodb";
 import {
   SecretsManagerClient,
@@ -1097,6 +1098,51 @@ async function updateScanStatus(userId, scanSK, status, extra = {}) {
       ...Object.fromEntries(Object.entries(extra).map(([k, v], i) => [`:e${i}`, v]))
     }
   }));
+}
+async function refundChargedCredit(userId, scanSK, reason) {
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: scanSK },
+            UpdateExpression: "SET creditRefunded = :true, creditRefundReason = :reason, creditRefundedAt = :now, updatedAt = :now",
+            ConditionExpression: "creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded = :false)",
+            ExpressionAttributeValues: {
+              ":true": true,
+              ":false": false,
+              ":reason": reason,
+              ":now": now
+            }
+          }
+        },
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ConditionExpression: "attribute_exists(PK)",
+            ExpressionAttributeValues: {
+              ":one": 1,
+              ":now": now
+            }
+          }
+        }
+      ]
+    }));
+    return true;
+  } catch (err) {
+    if (err?.name === "TransactionCanceledException" || err?.name === "ConditionalCheckFailedException") {
+      return false;
+    }
+    console.error("[Credit refund failed]", err);
+    return false;
+  }
+}
+function refundedErrorMessage(refunded, fallback = "Analysis failed. Please try again.") {
+  return refunded ? "Analysis failed. Your credit has been preserved \u2014 please try again." : fallback;
 }
 var GEMINI_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst. You analyze .ipa app metadata to identify App Store Review Guideline violations, missing configurations, and submission risks BEFORE the developer submits to Apple.
 
@@ -1616,10 +1662,11 @@ var _activeContext = null;
 process.on("SIGTERM", async () => {
   console.error("[SIGTERM] Lambda timeout imminent \u2014 saving error state");
   if (_activeContext) {
-    const { userId, scanSK, scanId } = _activeContext;
+    const { userId, scanSK, scanId, creditCharged } = _activeContext;
     try {
+      const refunded = creditCharged ? await refundChargedCredit(userId, scanSK, "lambda-timeout") : false;
       await updateScanStatus(userId, scanSK, "error", {
-        errorMessage: "Analysis timed out. Your credit has been preserved \u2014 please try again."
+        errorMessage: refundedErrorMessage(refunded, "Analysis timed out. Please try again.")
       });
       console.error(`[SIGTERM] Updated scan ${scanId} to error state`);
     } catch (e) {
@@ -1629,8 +1676,8 @@ process.on("SIGTERM", async () => {
   process.exit(1);
 });
 var handler = async (event, context) => {
-  const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId } = event;
-  _activeContext = { userId, scanSK, scanId };
+  const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId, creditCharged } = event;
+  _activeContext = { userId, scanSK, scanId, creditCharged };
   const totalStart = Date.now();
   try {
     let enhancedContext = contextForAI;
@@ -1654,8 +1701,9 @@ These findings are proven from the binary. Do NOT dispute them. Focus on providi
     ]);
     console.log(`[Stage 1] Gemini=${gemini.success}(${gemini.latency}ms) Sonnet=${sonnet.success}(${sonnet.latency}ms) DeepSeek=${deepseek.success}(${deepseek.latency}ms)`);
     if (!gemini.success && !sonnet.success && !deepseek.success) {
+      const refunded = creditCharged ? await refundChargedCredit(userId, scanSK, "all-stage-1-models-failed") : false;
       await updateScanStatus(userId, scanSK, "error", {
-        errorMessage: "All AI models failed in Stage 1. Please try again."
+        errorMessage: refundedErrorMessage(refunded, "All AI models failed in Stage 1. Please try again.")
       });
       return { statusCode: 500, body: "All Stage 1 models failed" };
     }
@@ -1688,9 +1736,11 @@ These findings are proven from the binary. Do NOT dispute them. Focus on providi
       TableName: TABLE,
       Key: { PK: `USER#${userId}`, SK: scanSK },
       UpdateExpression: "SET #s = :s, mergedResult = :mr, score = :sc, updatedAt = :now",
+      ConditionExpression: "#s = :reconciling",
       ExpressionAttributeNames: { "#s": "status" },
       ExpressionAttributeValues: {
         ":s": "complete",
+        ":reconciling": "reconciling",
         ":mr": merged,
         ":sc": merged.assessment.score,
         ":now": (/* @__PURE__ */ new Date()).toISOString()
@@ -1716,8 +1766,9 @@ These findings are proven from the binary. Do NOT dispute them. Focus on providi
   } catch (err) {
     console.error("[Lambda fatal]", err);
     _activeContext = null;
+    const refunded = creditCharged ? await refundChargedCredit(userId, scanSK, "lambda-fatal-error") : false;
     await updateScanStatus(userId, scanSK, "error", {
-      errorMessage: "Analysis failed unexpectedly. Please try again."
+      errorMessage: refundedErrorMessage(refunded, "Analysis failed unexpectedly. Please try again.")
     }).catch(() => {
     });
     return { statusCode: 500, body: String(err) };
