@@ -77,8 +77,6 @@ import {
   canUserScan,
   deductScanCredit,
   refundScanCredit,
-  isAppFreeScanned,
-  markFreeScannedApp,
 } from "@/lib/db";
 import { guardInput } from "@/lib/vindicara";
 
