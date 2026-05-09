@@ -17,6 +17,7 @@ import {
 import {
   DynamoDBDocumentClient,
   UpdateCommand,
+  TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
 import {
   SecretsManagerClient,
@@ -78,6 +79,55 @@ async function updateScanStatus(userId, scanSK, status, extra = {}) {
       ...Object.fromEntries(Object.entries(extra).map(([k, v], i) => [`:e${i}`, v])),
     },
   }));
+}
+
+async function refundChargedCredit(userId, scanSK, reason) {
+  const now = new Date().toISOString();
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: scanSK },
+            UpdateExpression: "SET creditRefunded = :true, creditRefundReason = :reason, creditRefundedAt = :now, updatedAt = :now",
+            ConditionExpression: "creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded = :false)",
+            ExpressionAttributeValues: {
+              ":true": true,
+              ":false": false,
+              ":reason": reason,
+              ":now": now,
+            },
+          },
+        },
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ConditionExpression: "attribute_exists(PK)",
+            ExpressionAttributeValues: {
+              ":one": 1,
+              ":now": now,
+            },
+          },
+        },
+      ],
+    }));
+    return true;
+  } catch (err) {
+    if (err?.name === "TransactionCanceledException" || err?.name === "ConditionalCheckFailedException") {
+      return false;
+    }
+    console.error("[Credit refund failed]", err);
+    return false;
+  }
+}
+
+function refundedErrorMessage(refunded, fallback = "Analysis failed. Please try again.") {
+  return refunded
+    ? "Analysis failed. Your credit has been preserved — please try again."
+    : fallback;
 }
 
 // ── Prompts ────────────────────────────────────────────────
@@ -619,10 +669,13 @@ let _activeContext = null;
 process.on("SIGTERM", async () => {
   console.error("[SIGTERM] Lambda timeout imminent — saving error state");
   if (_activeContext) {
-    const { userId, scanSK, scanId } = _activeContext;
+    const { userId, scanSK, scanId, creditCharged } = _activeContext;
     try {
+      const refunded = creditCharged
+        ? await refundChargedCredit(userId, scanSK, "lambda-timeout")
+        : false;
       await updateScanStatus(userId, scanSK, "error", {
-        errorMessage: "Analysis timed out. Your credit has been preserved — please try again.",
+        errorMessage: refundedErrorMessage(refunded, "Analysis timed out. Please try again."),
       });
       console.error(`[SIGTERM] Updated scan ${scanId} to error state`);
     } catch (e) {
@@ -634,8 +687,8 @@ process.on("SIGTERM", async () => {
 
 // ── Handler ────────────────────────────────────────────────
 export const handler = async (event, context) => {
-  const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId } = event;
-  _activeContext = { userId, scanSK, scanId };
+  const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId, creditCharged } = event;
+  _activeContext = { userId, scanSK, scanId, creditCharged };
   const totalStart = Date.now();
 
   try {
@@ -664,8 +717,11 @@ export const handler = async (event, context) => {
     console.log(`[Stage 1] Gemini=${gemini.success}(${gemini.latency}ms) Sonnet=${sonnet.success}(${sonnet.latency}ms) DeepSeek=${deepseek.success}(${deepseek.latency}ms)`);
 
     if (!gemini.success && !sonnet.success && !deepseek.success) {
+      const refunded = creditCharged
+        ? await refundChargedCredit(userId, scanSK, "all-stage-1-models-failed")
+        : false;
       await updateScanStatus(userId, scanSK, "error", {
-        errorMessage: "All AI models failed in Stage 1. Please try again.",
+        errorMessage: refundedErrorMessage(refunded, "All AI models failed in Stage 1. Please try again."),
       });
       return { statusCode: 500, body: "All Stage 1 models failed" };
     }
@@ -707,9 +763,11 @@ export const handler = async (event, context) => {
       TableName: TABLE,
       Key: { PK: `USER#${userId}`, SK: scanSK },
       UpdateExpression: "SET #s = :s, mergedResult = :mr, score = :sc, updatedAt = :now",
+      ConditionExpression: "#s = :reconciling",
       ExpressionAttributeNames: { "#s": "status" },
       ExpressionAttributeValues: {
         ":s": "complete",
+        ":reconciling": "reconciling",
         ":mr": merged,
         ":sc": merged.assessment.score,
         ":now": new Date().toISOString(),
@@ -740,8 +798,11 @@ export const handler = async (event, context) => {
   } catch (err) {
     console.error("[Lambda fatal]", err);
     _activeContext = null; // Prevent SIGTERM from double-updating
+    const refunded = creditCharged
+      ? await refundChargedCredit(userId, scanSK, "lambda-fatal-error")
+      : false;
     await updateScanStatus(userId, scanSK, "error", {
-      errorMessage: "Analysis failed unexpectedly. Please try again.",
+      errorMessage: refundedErrorMessage(refunded, "Analysis failed unexpectedly. Please try again."),
     }).catch(() => {});
     return { statusCode: 500, body: String(err) };
   }
