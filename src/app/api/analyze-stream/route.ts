@@ -111,10 +111,30 @@ export async function POST(request: NextRequest) {
         return Response.json({ error: "Forbidden: invalid file reference." }, { status: 403 });
     }
 
+    // ── VINDICARA: Guard user-supplied text against prompt injection ──
+    const userText = parsed.synopsis || parsed.feedback || parsed.email || parsed.text;
+    if (userText) {
+      const guard = await guardInput(userText, "prompt-injection");
+      if (guard.blocked) {
+        return Response.json(
+          { error: "Your input was flagged by our security system. Please revise and try again." },
+          { status: 400 }
+        );
+      }
+    }
+
     // ── Scan gating: founder > paid credits > free scan > blocked ──
     let scanCreditCharged = false;
     let isFreeScan = false;
     let gate;
+    const refundChargedCredit = async () => {
+      if (!scanCreditCharged) return;
+      try {
+        await refundScanCredit(authUser.userId);
+      } catch {
+        /* best effort */
+      }
+    };
     try {
       gate = await canUserScan(authUser.userId);
       if (!gate.allowed) {
@@ -136,18 +156,6 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: "Unable to verify credits." }, { status: 503 });
     }
 
-    // ── VINDICARA: Guard user-supplied text against prompt injection ──
-    const userText = parsed.synopsis || parsed.feedback || parsed.email || parsed.text;
-    if (userText) {
-      const guard = await guardInput(userText, "prompt-injection");
-      if (guard.blocked) {
-        return Response.json(
-          { error: "Your input was flagged by our security system. Please revise and try again." },
-          { status: 400 }
-        );
-      }
-    }
-
     // ── Parse IPA / build context ──
     const isIpaFlow = !!parsed.s3Key;
     let contextForAI: string;
@@ -162,9 +170,7 @@ export async function POST(request: NextRequest) {
         contextForAI = buildMetadataContext(ipaMetadata, parsed.synopsis || "No synopsis provided.", parsed.credentials);
       } catch (err) {
         console.error("[IPA parse error]", err);
-        if (scanCreditCharged) {
-          try { await refundScanCredit(authUser.userId); } catch { /* best effort */ }
-        }
+        await refundChargedCredit();
         return Response.json({ error: "Failed to parse .ipa file." }, { status: 400 });
       }
 
@@ -191,52 +197,64 @@ export async function POST(request: NextRequest) {
     const timestamp = new Date().toISOString();
     const scanSK = `SCAN#${timestamp}#${scanId}`;
 
-    await db.send(new PutCommand({
-      TableName: TABLE,
-      Item: {
-        PK: `USER#${authUser.userId}`,
-        SK: scanSK,
-        GSI1PK: `USER#${authUser.userId}`,
-        GSI1SK: `SCAN#${timestamp}`,
-        scanId,
-        userId: authUser.userId,
-        status: "pending",
-        ttl: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
-        ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      },
-    }));
+    try {
+      await db.send(new PutCommand({
+        TableName: TABLE,
+        Item: {
+          PK: `USER#${authUser.userId}`,
+          SK: scanSK,
+          GSI1PK: `USER#${authUser.userId}`,
+          GSI1SK: `SCAN#${timestamp}`,
+          scanId,
+          userId: authUser.userId,
+          status: "pending",
+          ttl: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+          ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      }));
+    } catch (err) {
+      console.error("[scan record create error]", err);
+      await refundChargedCredit();
+      return Response.json({ error: "Unable to start analysis. Please try again." }, { status: 503 });
+    }
 
-    // ── Mark free-scanned app (only for free scans) ──
+    // ── Invoke Lambda async (fire-and-forget) ──
+    try {
+      await lambda.send(new InvokeCommand({
+        FunctionName: LAMBDA_NAME,
+        InvocationType: "Event", // async — returns 202 immediately
+        Payload: Buffer.from(JSON.stringify({
+          userId: authUser.userId,
+          scanSK,
+          scanId,
+          contextForAI,
+          layer1,
+          ipaMetadata: ipaMetadata ? {
+            appName: ipaMetadata.appName,
+            bundleId: ipaMetadata.bundleId,
+            version: ipaMetadata.version,
+            buildNumber: ipaMetadata.buildNumber,
+            frameworks: ipaMetadata.frameworks,
+            privacyDescriptions: ipaMetadata.privacyUsageDescriptions,
+          } : null,
+          s3Key: parsed.s3Key,
+          bundleId: ipaMetadata?.bundleId || parsed.bundleId,
+        })),
+      }));
+    } catch (err) {
+      console.error("[lambda invoke error]", err);
+      await refundChargedCredit();
+      return Response.json({ error: "Unable to start analysis. Please try again." }, { status: 503 });
+    }
+
+    // ── Mark free-scanned app (only after the analysis has been accepted) ──
     if (ipaHash && isFreeScan) {
       try {
         await markFreeScannedApp(ipaHash, ipaMetadata?.bundleId || parsed.bundleId, authUser.userId);
       } catch { /* best effort */ }
     }
-
-    // ── Invoke Lambda async (fire-and-forget) ──
-    await lambda.send(new InvokeCommand({
-      FunctionName: LAMBDA_NAME,
-      InvocationType: "Event", // async — returns 202 immediately
-      Payload: Buffer.from(JSON.stringify({
-        userId: authUser.userId,
-        scanSK,
-        scanId,
-        contextForAI,
-        layer1,
-        ipaMetadata: ipaMetadata ? {
-          appName: ipaMetadata.appName,
-          bundleId: ipaMetadata.bundleId,
-          version: ipaMetadata.version,
-          buildNumber: ipaMetadata.buildNumber,
-          frameworks: ipaMetadata.frameworks,
-          privacyDescriptions: ipaMetadata.privacyUsageDescriptions,
-        } : null,
-        s3Key: parsed.s3Key,
-        bundleId: ipaMetadata?.bundleId || parsed.bundleId,
-      })),
-    }));
 
     return Response.json({ scanId, status: "pending" });
   } catch (err) {
