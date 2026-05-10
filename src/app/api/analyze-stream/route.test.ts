@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const awsMocks = vi.hoisted(() => ({
+  dynamoSend: vi.fn(),
+  lambdaSend: vi.fn(),
+}));
+
 vi.mock("@/lib/auth", () => ({
   verifyToken: vi.fn(),
 }));
@@ -31,7 +36,7 @@ vi.mock("@/lib/analyzers/orchestrator", () => ({
 
 vi.mock("@aws-sdk/client-lambda", () => ({
   LambdaClient: class {
-    send = vi.fn();
+    send = awsMocks.lambdaSend;
   },
   InvokeCommand: class {},
 }));
@@ -42,14 +47,14 @@ vi.mock("@aws-sdk/client-dynamodb", () => ({
 
 vi.mock("@aws-sdk/lib-dynamodb", () => ({
   DynamoDBDocumentClient: {
-    from: vi.fn(() => ({ send: vi.fn() })),
+    from: vi.fn(() => ({ send: awsMocks.dynamoSend })),
   },
   PutCommand: class {},
 }));
 
 import { POST } from "./route";
 import { verifyToken } from "@/lib/auth";
-import { canUserScan, deductScanCredit } from "@/lib/db";
+import { canUserScan, deductScanCredit, refundScanCredit } from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
 import { guardInput } from "@/lib/vindicara";
 import { NextRequest } from "next/server";
@@ -80,6 +85,9 @@ describe("POST /api/analyze-stream", () => {
       scanCount: 1,
     });
     vi.mocked(deductScanCredit).mockResolvedValue(true);
+    vi.mocked(refundScanCredit).mockResolvedValue(undefined);
+    awsMocks.dynamoSend.mockResolvedValue({});
+    awsMocks.lambdaSend.mockResolvedValue({});
   });
 
   it("does not deduct a paid scan credit when Vindicara blocks input", async () => {
@@ -96,5 +104,17 @@ describe("POST /api/analyze-stream", () => {
     );
     expect(canUserScan).not.toHaveBeenCalled();
     expect(deductScanCredit).not.toHaveBeenCalled();
+  });
+
+  it("refunds a paid scan credit when Lambda startup fails", async () => {
+    awsMocks.lambdaSend.mockRejectedValue(new Error("Lambda unavailable"));
+
+    const res = await POST(makeRequest({
+      feedback: "My app was rejected for guideline 2.1 because login failed during review.",
+    }));
+
+    expect(res.status).toBe(503);
+    expect(deductScanCredit).toHaveBeenCalledWith("user-1");
+    expect(refundScanCredit).toHaveBeenCalledWith("user-1");
   });
 });
