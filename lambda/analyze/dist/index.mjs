@@ -9,7 +9,7 @@ var __export = (target, all) => {
     __defProp(target, name, { get: all[name], enumerable: true });
 };
 
-// ../../node_modules/@google/generative-ai/dist/index.mjs
+// node_modules/@google/generative-ai/dist/index.mjs
 var dist_exports = {};
 __export(dist_exports, {
   BlockReason: () => BlockReason,
@@ -621,7 +621,7 @@ async function batchEmbedContents(apiKey, model, params, requestOptions) {
 }
 var SchemaType, ExecutableCodeLanguage, Outcome, POSSIBLE_ROLES, HarmCategory, HarmBlockThreshold, HarmProbability, BlockReason, FinishReason, TaskType, FunctionCallingMode, DynamicRetrievalMode, GoogleGenerativeAIError, GoogleGenerativeAIResponseError, GoogleGenerativeAIFetchError, GoogleGenerativeAIRequestInputError, GoogleGenerativeAIAbortError, DEFAULT_BASE_URL, DEFAULT_API_VERSION, PACKAGE_VERSION, PACKAGE_LOG_HEADER, Task, RequestUrl, badFinishReasons, responseLineRE, VALID_PART_FIELDS, VALID_PARTS_PER_ROLE, SILENT_ERROR, ChatSession, GenerativeModel, GoogleGenerativeAI;
 var init_dist = __esm({
-  "../../node_modules/@google/generative-ai/dist/index.mjs"() {
+  "node_modules/@google/generative-ai/dist/index.mjs"() {
     (function(SchemaType2) {
       SchemaType2["STRING"] = "string";
       SchemaType2["NUMBER"] = "number";
@@ -1032,7 +1032,7 @@ var init_dist = __esm({
   }
 });
 
-// index.mjs
+// lambda/analyze/index.mjs
 import {
   BedrockRuntimeClient,
   InvokeModelCommand
@@ -1042,6 +1042,8 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
+  PutCommand,
+  TransactWriteCommand,
   UpdateCommand
 } from "@aws-sdk/lib-dynamodb";
 import {
@@ -1082,7 +1084,7 @@ async function getGeminiKey() {
   cachedGeminiKey = key;
   return key;
 }
-async function updateScanStatus(userId, scanSK, status, extra = {}) {
+async function updateScanStatus(userId, scanSK, status, extra = {}, expectedStatus) {
   await db.send(new UpdateCommand({
     TableName: TABLE,
     Key: { PK: `USER#${userId}`, SK: scanSK },
@@ -1094,9 +1096,96 @@ async function updateScanStatus(userId, scanSK, status, extra = {}) {
     ExpressionAttributeValues: {
       ":s": status,
       ":now": (/* @__PURE__ */ new Date()).toISOString(),
+      ...expectedStatus !== void 0 ? { ":expectedStatus": expectedStatus } : {},
       ...Object.fromEntries(Object.entries(extra).map(([k, v], i) => [`:e${i}`, v]))
+    },
+    ...expectedStatus !== void 0 ? { ConditionExpression: "#s = :expectedStatus" } : {}
+  }));
+}
+function isConditionalCheckFailed(err) {
+  return err?.name === "ConditionalCheckFailedException";
+}
+async function refundPaidScanFailure(userId, scanSK, errorMessage, reason) {
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: scanSK },
+            UpdateExpression: "SET #s = :error, errorMessage = :msg, creditRefunded = :true, creditRefundReason = :reason, creditRefundedAt = :now, updatedAt = :now",
+            ConditionExpression: "creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded = :false)",
+            ExpressionAttributeNames: { "#s": "status" },
+            ExpressionAttributeValues: {
+              ":error": "error",
+              ":msg": errorMessage,
+              ":true": true,
+              ":false": false,
+              ":reason": reason,
+              ":now": now
+            }
+          }
+        },
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ConditionExpression: "attribute_exists(PK)",
+            ExpressionAttributeValues: { ":one": 1, ":now": now }
+          }
+        }
+      ]
+    }));
+    console.log(`[Refund] Preserved paid credit for user ${userId}, scan ${scanSK}, reason=${reason}`);
+    return true;
+  } catch (err) {
+    if (isConditionalCheckFailed(err)) {
+      console.log(`[Refund] Scan ${scanSK} was already refunded or was not paid`);
+      return false;
+    }
+    console.error("[Refund] Failed to preserve paid credit:", err);
+    throw err;
+  }
+}
+async function failScan(userId, scanSK, creditCharged, errorMessage, reason) {
+  if (creditCharged) {
+    try {
+      const refunded = await refundPaidScanFailure(userId, scanSK, errorMessage, reason);
+      if (refunded) return;
+    } catch {
+    }
+  }
+  await updateScanStatus(userId, scanSK, "error", { errorMessage }).catch((err) => {
+    console.error("[Failure] Failed to update scan status:", err);
+  });
+}
+async function markFreeScannedApp(ipaHash, bundleId, userId) {
+  if (!ipaHash) return;
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  await db.send(new PutCommand({
+    TableName: TABLE,
+    Item: {
+      PK: `FREE_SCAN#${ipaHash}`,
+      SK: "HASH",
+      userId,
+      bundleId: bundleId || "unknown",
+      createdAt: now
     }
   }));
+  if (bundleId) {
+    await db.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: `FREE_SCAN#${bundleId}`,
+        SK: "BUNDLE",
+        userId,
+        ipaHash,
+        createdAt: now
+      }
+    }));
+  }
 }
 var GEMINI_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst. You analyze .ipa app metadata to identify App Store Review Guideline violations, missing configurations, and submission risks BEFORE the developer submits to Apple.
 
@@ -1616,11 +1705,9 @@ var _activeContext = null;
 process.on("SIGTERM", async () => {
   console.error("[SIGTERM] Lambda timeout imminent \u2014 saving error state");
   if (_activeContext) {
-    const { userId, scanSK, scanId } = _activeContext;
+    const { userId, scanSK, scanId, creditCharged } = _activeContext;
     try {
-      await updateScanStatus(userId, scanSK, "error", {
-        errorMessage: "Analysis timed out. Your credit has been preserved \u2014 please try again."
-      });
+      await failScan(userId, scanSK, creditCharged, "Analysis timed out. Your credit has been preserved \u2014 please try again.", "lambda-sigterm");
       console.error(`[SIGTERM] Updated scan ${scanId} to error state`);
     } catch (e) {
       console.error("[SIGTERM] Failed to update DynamoDB:", e);
@@ -1629,8 +1716,8 @@ process.on("SIGTERM", async () => {
   process.exit(1);
 });
 var handler = async (event, context) => {
-  const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId } = event;
-  _activeContext = { userId, scanSK, scanId };
+  const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId, creditCharged, freeScan, ipaHash } = event;
+  _activeContext = { userId, scanSK, scanId, creditCharged: creditCharged === true };
   const totalStart = Date.now();
   try {
     let enhancedContext = contextForAI;
@@ -1645,7 +1732,7 @@ These findings are proven from the binary. Do NOT dispute them. Focus on providi
 ## STATIC ANALYSIS METADATA
 ` + JSON.stringify(layer1.metadata, null, 2);
     }
-    await updateScanStatus(userId, scanSK, "analyzing");
+    await updateScanStatus(userId, scanSK, "analyzing", {}, "pending");
     const deviceFarmPromise = runDeviceFarm(s3Key, S3_BUCKET);
     const [gemini, sonnet, deepseek] = await Promise.all([
       callGemini(enhancedContext),
@@ -1654,12 +1741,10 @@ These findings are proven from the binary. Do NOT dispute them. Focus on providi
     ]);
     console.log(`[Stage 1] Gemini=${gemini.success}(${gemini.latency}ms) Sonnet=${sonnet.success}(${sonnet.latency}ms) DeepSeek=${deepseek.success}(${deepseek.latency}ms)`);
     if (!gemini.success && !sonnet.success && !deepseek.success) {
-      await updateScanStatus(userId, scanSK, "error", {
-        errorMessage: "All AI models failed in Stage 1. Please try again."
-      });
+      await failScan(userId, scanSK, creditCharged === true, "All AI models failed in Stage 1. Please try again.", "stage1-model-failure");
       return { statusCode: 500, body: "All Stage 1 models failed" };
     }
-    await updateScanStatus(userId, scanSK, "reconciling");
+    await updateScanStatus(userId, scanSK, "reconciling", {}, "analyzing");
     const opus = await callOpus(contextForAI, gemini.data, deepseek.data, sonnet.data);
     console.log(`[Stage 2] Opus=${opus.success}(${opus.latency}ms)`);
     const SAVE_BUFFER_MS = 3e4;
@@ -1684,24 +1769,42 @@ These findings are proven from the binary. Do NOT dispute them. Focus on providi
       console.warn(`[Device Farm] Skipped \u2014 only ${remaining}ms remaining, need ${SAVE_BUFFER_MS}ms buffer`);
     }
     const merged = mergeResults({ gemini, deepseek, sonnet, opus, contextForAI, ipaMetadata, layer1, layer2: deviceFarmResult, totalStart });
-    await db.send(new UpdateCommand({
-      TableName: TABLE,
-      Key: { PK: `USER#${userId}`, SK: scanSK },
-      UpdateExpression: "SET #s = :s, mergedResult = :mr, score = :sc, updatedAt = :now",
-      ExpressionAttributeNames: { "#s": "status" },
-      ExpressionAttributeValues: {
-        ":s": "complete",
-        ":mr": merged,
-        ":sc": merged.assessment.score,
-        ":now": (/* @__PURE__ */ new Date()).toISOString()
+    try {
+      await db.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: `USER#${userId}`, SK: scanSK },
+        UpdateExpression: "SET #s = :s, mergedResult = :mr, score = :sc, updatedAt = :now",
+        ConditionExpression: "#s = :expectedStatus",
+        ExpressionAttributeNames: { "#s": "status" },
+        ExpressionAttributeValues: {
+          ":s": "complete",
+          ":mr": merged,
+          ":sc": merged.assessment.score,
+          ":expectedStatus": "reconciling",
+          ":now": (/* @__PURE__ */ new Date()).toISOString()
+        }
+      }));
+    } catch (err) {
+      if (isConditionalCheckFailed(err)) {
+        console.warn(`[Done] Scan ${scanId} was already finalized before completion write`);
+        _activeContext = null;
+        return { statusCode: 409, body: "Scan already finalized" };
       }
-    }));
+      throw err;
+    }
     await db.send(new UpdateCommand({
       TableName: TABLE,
       Key: { PK: `USER#${userId}`, SK: "PROFILE" },
       UpdateExpression: "ADD scanCount :inc SET updatedAt = :now",
       ExpressionAttributeValues: { ":inc": 1, ":now": (/* @__PURE__ */ new Date()).toISOString() }
     }));
+    if (freeScan && ipaHash) {
+      try {
+        await markFreeScannedApp(ipaHash, bundleId, userId);
+      } catch (markErr) {
+        console.warn(`[Free Scan] Failed to mark ${ipaHash} as scanned:`, markErr);
+      }
+    }
     if (s3Key && S3_BUCKET) {
       try {
         await s3.send(new DeleteObjectCommand({ Bucket: S3_BUCKET, Key: s3Key }));
@@ -1716,9 +1819,7 @@ These findings are proven from the binary. Do NOT dispute them. Focus on providi
   } catch (err) {
     console.error("[Lambda fatal]", err);
     _activeContext = null;
-    await updateScanStatus(userId, scanSK, "error", {
-      errorMessage: "Analysis failed unexpectedly. Please try again."
-    }).catch(() => {
+    await failScan(userId, scanSK, creditCharged === true, "Analysis failed unexpectedly. Please try again.", "lambda-fatal").catch(() => {
     });
     return { statusCode: 500, body: String(err) };
   }

@@ -57,13 +57,26 @@ async function isEventProcessed(eventId: string): Promise<boolean> {
   return !!res.Item;
 }
 
+/** Check if credits were already granted for this Square payment/order. */
+async function isPaymentProcessed(paymentKey: string): Promise<boolean> {
+  const res = await db.send(
+    new GetCommand({
+      TableName: TABLE,
+      Key: { PK: `PAYMENT#${paymentKey}`, SK: "CREDIT_GRANT" },
+      ProjectionExpression: "PK",
+    })
+  );
+  return !!res.Item;
+}
+
 async function grantCreditsAtomically(params: {
   eventId: string;
+  paymentKey: string;
   userId: string;
   scans: number;
   packId: string;
 }) {
-  const { eventId, userId, scans, packId } = params;
+  const { eventId, paymentKey, userId, scans, packId } = params;
   const now = new Date().toISOString();
 
   await db.send(
@@ -99,6 +112,21 @@ async function grantCreditsAtomically(params: {
             ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
           },
         },
+        {
+          Put: {
+            TableName: TABLE,
+            Item: {
+              PK: `PAYMENT#${paymentKey}`,
+              SK: "CREDIT_GRANT",
+              eventId,
+              userId,
+              scans,
+              packId,
+              processedAt: now,
+            },
+            ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)",
+          },
+        },
       ],
     })
   );
@@ -119,6 +147,15 @@ type OrderMeta = { userId?: string; scans?: string; packId?: string };
 
 function metadataComplete(m: OrderMeta | undefined): m is Required<Pick<OrderMeta, "userId" | "scans">> & OrderMeta {
   return !!(m?.userId && m?.scans);
+}
+
+function getPaymentIdempotencyKey(payment: Record<string, unknown> | undefined): string | null {
+  const paymentId = typeof payment?.id === "string" ? payment.id : undefined;
+  const orderId =
+    (typeof payment?.orderId === "string" && payment.orderId) ||
+    (typeof payment?.order_id === "string" && payment.order_id) ||
+    undefined;
+  return paymentId || orderId || null;
 }
 
 /**
@@ -225,6 +262,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ received: true });
       }
 
+      const paymentKey = getPaymentIdempotencyKey(payment);
+      if (!paymentKey) {
+        console.error("[square-webhook] COMPLETED payment missing payment/order id — cannot safely grant credits");
+        return NextResponse.json({ error: "Missing payment id." }, { status: 400 });
+      }
+      if (await isPaymentProcessed(paymentKey)) {
+        return NextResponse.json({ received: true, duplicate: true });
+      }
+
       const orderMetadata = await resolveOrderMetadata(
         payment as Record<string, unknown> | undefined,
         event.data?.object as Record<string, unknown> | undefined
@@ -263,6 +309,7 @@ export async function POST(request: NextRequest) {
         try {
           await grantCreditsAtomically({
             eventId,
+            paymentKey,
             userId,
             scans: scansToAdd,
             packId,
@@ -271,7 +318,7 @@ export async function POST(request: NextRequest) {
           if (isTransactionCanceled(error)) {
             const reasons = error.CancellationReasons?.map((reason) => reason.Code).filter(Boolean) || [];
             if (reasons.includes("ConditionalCheckFailed")) {
-              if (await isEventProcessed(eventId)) {
+              if (await isEventProcessed(eventId) || await isPaymentProcessed(paymentKey)) {
                 console.warn("[square-webhook] Duplicate event raced during processing:", eventId);
                 return NextResponse.json({ received: true, duplicate: true });
               }
