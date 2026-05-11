@@ -64,6 +64,7 @@ function completedPaymentEvent(metadataOverrides: Record<string, unknown> = {}) 
     data: {
       object: {
         payment: {
+          id: "payment-abc-123",
           status: "COMPLETED",
           order: {
             metadata: {
@@ -155,22 +156,22 @@ describe("POST /api/webhooks/square", () => {
   it("grants scan credits for completed starter payment", async () => {
     const res = await POST(makeWebhookRequest(completedPaymentEvent()));
     expect(res.status).toBe(200);
-    // 2 DB calls: check idempotency → atomic credit grant + event marker
-    expect(dbSend).toHaveBeenCalledTimes(2);
+    // 3 DB calls: check event, check payment, then atomic credit grant + markers
+    expect(dbSend).toHaveBeenCalledTimes(3);
   });
 
   it("grants scan credits for completed pro payment (3 scans)", async () => {
     const event = completedPaymentEvent({ packId: "pro", scans: "3" });
     const res = await POST(makeWebhookRequest(event));
     expect(res.status).toBe(200);
-    expect(dbSend).toHaveBeenCalledTimes(2);
+    expect(dbSend).toHaveBeenCalledTimes(3);
   });
 
   it("grants scan credits for completed agency payment (10 scans)", async () => {
     const event = completedPaymentEvent({ packId: "agency", scans: "10" });
     const res = await POST(makeWebhookRequest(event));
     expect(res.status).toBe(200);
-    expect(dbSend).toHaveBeenCalledTimes(2);
+    expect(dbSend).toHaveBeenCalledTimes(3);
   });
 
   it("grants credits when webhook has only orderId (fetches Order metadata via Square API)", async () => {
@@ -193,6 +194,7 @@ describe("POST /api/webhooks/square", () => {
       data: {
         object: {
           payment: {
+            id: "payment-order-fetch-001",
             status: "COMPLETED",
             orderId: "order_test_abc",
           },
@@ -202,7 +204,7 @@ describe("POST /api/webhooks/square", () => {
     const res = await POST(makeWebhookRequest(event));
     expect(res.status).toBe(200);
     expect(getSquareClientMock).toHaveBeenCalled();
-    expect(dbSend).toHaveBeenCalledTimes(2);
+    expect(dbSend).toHaveBeenCalledTimes(3);
   });
 
   it("handles payment.updated event type the same as payment.created", async () => {
@@ -210,6 +212,21 @@ describe("POST /api/webhooks/square", () => {
     event.type = "payment.updated";
     const res = await POST(makeWebhookRequest(event));
     expect(res.status).toBe(200);
+    expect(dbSend).toHaveBeenCalledTimes(3);
+  });
+
+  it("does not grant credits twice for the same payment with a different event id", async () => {
+    dbSend
+      .mockResolvedValueOnce({ Item: undefined }) // event not processed
+      .mockResolvedValueOnce({ Item: { PK: "PAYMENT#payment-abc-123" } }); // payment already granted
+
+    const event = completedPaymentEvent();
+    event.event_id = "evt-second-delivery";
+    event.type = "payment.updated";
+
+    const res = await POST(makeWebhookRequest(event));
+    expect(res.status).toBe(200);
+    expect((await res.json()).duplicate).toBe(true);
     expect(dbSend).toHaveBeenCalledTimes(2);
   });
 
