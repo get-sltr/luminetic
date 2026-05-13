@@ -16,6 +16,8 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
+  PutCommand,
+  TransactWriteCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import {
@@ -78,6 +80,79 @@ async function updateScanStatus(userId, scanSK, status, extra = {}) {
       ...Object.fromEntries(Object.entries(extra).map(([k, v], i) => [`:e${i}`, v])),
     },
   }));
+}
+
+async function refundChargedCredit(userId, scanSK) {
+  const now = new Date().toISOString();
+  await db.send(new TransactWriteCommand({
+    TransactItems: [
+      {
+        Update: {
+          TableName: TABLE,
+          Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+          UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+          ConditionExpression: "attribute_exists(PK)",
+          ExpressionAttributeValues: {
+            ":one": 1,
+            ":now": now,
+          },
+        },
+      },
+      {
+        Update: {
+          TableName: TABLE,
+          Key: { PK: `USER#${userId}`, SK: scanSK },
+          UpdateExpression: "SET creditRefunded = :true, updatedAt = :now",
+          ConditionExpression: "creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded = :false)",
+          ExpressionAttributeValues: {
+            ":true": true,
+            ":false": false,
+            ":now": now,
+          },
+        },
+      },
+    ],
+  }));
+}
+
+async function refundIfCharged(userId, scanSK) {
+  try {
+    await refundChargedCredit(userId, scanSK);
+    console.log(`[Credit] Refunded charged scan ${scanSK} for user ${userId}`);
+  } catch (err) {
+    if (err?.name === "TransactionCanceledException") {
+      console.log(`[Credit] Scan ${scanSK} was not charged or was already refunded`);
+      return;
+    }
+    console.warn(`[Credit] Failed to refund scan ${scanSK}:`, err);
+  }
+}
+
+async function markFreeScannedApp(ipaHash, bundleId, userId) {
+  const now = new Date().toISOString();
+  await db.send(new PutCommand({
+    TableName: TABLE,
+    Item: {
+      PK: `FREE_SCAN#${ipaHash}`,
+      SK: "HASH",
+      userId,
+      bundleId: bundleId || "unknown",
+      createdAt: now,
+    },
+  }));
+
+  if (bundleId) {
+    await db.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: `FREE_SCAN#${bundleId}`,
+        SK: "BUNDLE",
+        userId,
+        ipaHash,
+        createdAt: now,
+      },
+    }));
+  }
 }
 
 // ── Prompts ────────────────────────────────────────────────
@@ -624,6 +699,7 @@ process.on("SIGTERM", async () => {
       await updateScanStatus(userId, scanSK, "error", {
         errorMessage: "Analysis timed out. Your credit has been preserved — please try again.",
       });
+      await refundIfCharged(userId, scanSK);
       console.error(`[SIGTERM] Updated scan ${scanId} to error state`);
     } catch (e) {
       console.error("[SIGTERM] Failed to update DynamoDB:", e);
@@ -634,9 +710,10 @@ process.on("SIGTERM", async () => {
 
 // ── Handler ────────────────────────────────────────────────
 export const handler = async (event, context) => {
-  const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId } = event;
+  const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId, isFreeScan, ipaHash, freeScanBundleId } = event;
   _activeContext = { userId, scanSK, scanId };
   const totalStart = Date.now();
+  let completionSaved = false;
 
   try {
     // ── Build enhanced context with Layer 1 structured findings ──
@@ -667,6 +744,7 @@ export const handler = async (event, context) => {
       await updateScanStatus(userId, scanSK, "error", {
         errorMessage: "All AI models failed in Stage 1. Please try again.",
       });
+      await refundIfCharged(userId, scanSK);
       return { statusCode: 500, body: "All Stage 1 models failed" };
     }
 
@@ -703,18 +781,33 @@ export const handler = async (event, context) => {
     // ── Merge + save ──
     const merged = mergeResults({ gemini, deepseek, sonnet, opus, contextForAI, ipaMetadata, layer1, layer2: deviceFarmResult, totalStart });
 
-    await db.send(new UpdateCommand({
-      TableName: TABLE,
-      Key: { PK: `USER#${userId}`, SK: scanSK },
-      UpdateExpression: "SET #s = :s, mergedResult = :mr, score = :sc, updatedAt = :now",
-      ExpressionAttributeNames: { "#s": "status" },
-      ExpressionAttributeValues: {
-        ":s": "complete",
-        ":mr": merged,
-        ":sc": merged.assessment.score,
-        ":now": new Date().toISOString(),
-      },
-    }));
+    try {
+      await db.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: `USER#${userId}`, SK: scanSK },
+        UpdateExpression: "SET #s = :s, mergedResult = :mr, score = :sc, updatedAt = :now",
+        ConditionExpression: "#s IN (:pending, :analyzing, :reconciling)",
+        ExpressionAttributeNames: { "#s": "status" },
+        ExpressionAttributeValues: {
+          ":s": "complete",
+          ":pending": "pending",
+          ":analyzing": "analyzing",
+          ":reconciling": "reconciling",
+          ":mr": merged,
+          ":sc": merged.assessment.score,
+          ":now": new Date().toISOString(),
+        },
+      }));
+    } catch (err) {
+      if (err?.name === "ConditionalCheckFailedException") {
+        console.warn(`[Done] Scan ${scanId} is no longer in progress; skipping late completion write`);
+        _activeContext = null;
+        return { statusCode: 409, body: "Scan is no longer in progress" };
+      }
+      throw err;
+    }
+    completionSaved = true;
+    _activeContext = null;
 
     // Increment scan count
     await db.send(new UpdateCommand({
@@ -723,6 +816,14 @@ export const handler = async (event, context) => {
       UpdateExpression: "ADD scanCount :inc SET updatedAt = :now",
       ExpressionAttributeValues: { ":inc": 1, ":now": new Date().toISOString() },
     }));
+
+    if (isFreeScan && ipaHash) {
+      try {
+        await markFreeScannedApp(ipaHash, freeScanBundleId || bundleId, userId);
+      } catch (markErr) {
+        console.warn(`[FreeScan] Failed to mark ${ipaHash} as scanned:`, markErr);
+      }
+    }
 
     // Delete IPA from S3 — metadata is extracted, original file no longer needed
     if (s3Key && S3_BUCKET) {
@@ -735,14 +836,16 @@ export const handler = async (event, context) => {
     }
 
     console.log(`[Done] scanId=${scanId} score=${merged.assessment.score} total=${Date.now() - totalStart}ms`);
-    _activeContext = null;
     return { statusCode: 200, body: JSON.stringify({ scanId, score: merged.assessment.score }) };
   } catch (err) {
     console.error("[Lambda fatal]", err);
     _activeContext = null; // Prevent SIGTERM from double-updating
-    await updateScanStatus(userId, scanSK, "error", {
-      errorMessage: "Analysis failed unexpectedly. Please try again.",
-    }).catch(() => {});
+    if (!completionSaved) {
+      await updateScanStatus(userId, scanSK, "error", {
+        errorMessage: "Analysis failed unexpectedly. Please try again.",
+      }).catch(() => {});
+      await refundIfCharged(userId, scanSK);
+    }
     return { statusCode: 500, body: String(err) };
   }
 };
