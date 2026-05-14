@@ -12,8 +12,8 @@ import {
   canUserScan,
   deductScanCredit,
   refundScanCredit,
+  refundScanCreditForScan,
   isAppFreeScanned,
-  markFreeScannedApp,
 } from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
 import { runStaticAnalysis } from "@/lib/analyzers/orchestrator";
@@ -22,7 +22,7 @@ import { guardInput } from "@/lib/vindicara";
 import { parseIpa, type IpaMetadata } from "@/lib/ipa-parser";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 
 const lambda = new LambdaClient({ region: process.env.AWS_REGION || "us-east-1" });
@@ -74,6 +74,45 @@ function buildMetadataContext(
 }
 
 export async function POST(request: NextRequest) {
+  let chargedUserId: string | null = null;
+  let chargedScanSK: string | null = null;
+  let scanOwnerUserId: string | null = null;
+  let scanRecordCreated = false;
+  let startupCreditRefunded = false;
+
+  async function refundStartupCredit() {
+    if (!chargedUserId || startupCreditRefunded) return;
+    try {
+      if (scanRecordCreated && chargedScanSK) {
+        await refundScanCreditForScan(chargedUserId, chargedScanSK);
+      } else {
+        await refundScanCredit(chargedUserId);
+      }
+      startupCreditRefunded = true;
+    } catch (refundErr) {
+      console.error("[analyze-stream] Credit refund failed:", refundErr);
+    }
+  }
+
+  async function markStartupError(message: string) {
+    if (!scanRecordCreated || !scanOwnerUserId || !chargedScanSK) return;
+    try {
+      await db.send(new UpdateCommand({
+        TableName: TABLE,
+        Key: { PK: `USER#${scanOwnerUserId}`, SK: chargedScanSK },
+        UpdateExpression: "SET #s = :error, errorMessage = :msg, updatedAt = :now",
+        ExpressionAttributeNames: { "#s": "status" },
+        ExpressionAttributeValues: {
+          ":error": "error",
+          ":msg": message,
+          ":now": new Date().toISOString(),
+        },
+      }));
+    } catch (err) {
+      console.warn("[analyze-stream] Failed to mark startup error:", err);
+    }
+  }
+
   try {
     // ── Parse input ──
     const schema = z.object({
@@ -100,6 +139,7 @@ export async function POST(request: NextRequest) {
     const accessToken = request.cookies.get("access_token")?.value;
     const authUser = accessToken ? await verifyToken(accessToken) : null;
     if (!authUser) return Response.json({ error: "Sign in to run an analysis." }, { status: 401 });
+    scanOwnerUserId = authUser.userId;
 
     // ── Rate limit ──
     const rl = analyzeLimiter.check(authUser.userId);
@@ -109,6 +149,18 @@ export async function POST(request: NextRequest) {
     if (parsed.s3Key) {
       if (parsed.s3Key.includes("..") || !parsed.s3Key.startsWith(`ipa-uploads/${authUser.userId}/`))
         return Response.json({ error: "Forbidden: invalid file reference." }, { status: 403 });
+    }
+
+    // ── VINDICARA: Guard user-supplied text against prompt injection before billing ──
+    const userText = parsed.synopsis || parsed.feedback || parsed.email || parsed.text;
+    if (userText) {
+      const guard = await guardInput(userText, "prompt-injection");
+      if (guard.blocked) {
+        return Response.json(
+          { error: "Your input was flagged by our security system. Please revise and try again." },
+          { status: 400 }
+        );
+      }
     }
 
     // ── Scan gating: founder > paid credits > free scan > blocked ──
@@ -127,6 +179,7 @@ export async function POST(request: NextRequest) {
         const used = await deductScanCredit(authUser.userId);
         if (!used) return Response.json({ error: "No scan credits remaining.", code: "NO_CREDITS" }, { status: 402 });
         scanCreditCharged = true;
+        chargedUserId = authUser.userId;
       }
       if (gate.isFreeScan) {
         isFreeScan = true;
@@ -134,18 +187,6 @@ export async function POST(request: NextRequest) {
     } catch (err) {
       console.error("Credit check error:", err);
       return Response.json({ error: "Unable to verify credits." }, { status: 503 });
-    }
-
-    // ── VINDICARA: Guard user-supplied text against prompt injection ──
-    const userText = parsed.synopsis || parsed.feedback || parsed.email || parsed.text;
-    if (userText) {
-      const guard = await guardInput(userText, "prompt-injection");
-      if (guard.blocked) {
-        return Response.json(
-          { error: "Your input was flagged by our security system. Please revise and try again." },
-          { status: 400 }
-        );
-      }
     }
 
     // ── Parse IPA / build context ──
@@ -162,9 +203,7 @@ export async function POST(request: NextRequest) {
         contextForAI = buildMetadataContext(ipaMetadata, parsed.synopsis || "No synopsis provided.", parsed.credentials);
       } catch (err) {
         console.error("[IPA parse error]", err);
-        if (scanCreditCharged) {
-          try { await refundScanCredit(authUser.userId); } catch { /* best effort */ }
-        }
+        await refundStartupCredit();
         return Response.json({ error: "Failed to parse .ipa file." }, { status: 400 });
       }
 
@@ -190,6 +229,7 @@ export async function POST(request: NextRequest) {
     const scanId = randomUUID();
     const timestamp = new Date().toISOString();
     const scanSK = `SCAN#${timestamp}#${scanId}`;
+    chargedScanSK = scanSK;
 
     await db.send(new PutCommand({
       TableName: TABLE,
@@ -201,19 +241,18 @@ export async function POST(request: NextRequest) {
         scanId,
         userId: authUser.userId,
         status: "pending",
+        creditCharged: scanCreditCharged,
+        creditRefunded: false,
+        isFreeScan,
+        ...(ipaHash && isFreeScan ? { freeScanIpaHash: ipaHash } : {}),
+        ...(ipaHash && isFreeScan ? { freeScanBundleId: ipaMetadata?.bundleId || parsed.bundleId || "unknown" } : {}),
         ttl: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
         ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
         createdAt: timestamp,
         updatedAt: timestamp,
       },
     }));
-
-    // ── Mark free-scanned app (only for free scans) ──
-    if (ipaHash && isFreeScan) {
-      try {
-        await markFreeScannedApp(ipaHash, ipaMetadata?.bundleId || parsed.bundleId, authUser.userId);
-      } catch { /* best effort */ }
-    }
+    scanRecordCreated = true;
 
     // ── Invoke Lambda async (fire-and-forget) ──
     await lambda.send(new InvokeCommand({
@@ -235,12 +274,19 @@ export async function POST(request: NextRequest) {
         } : null,
         s3Key: parsed.s3Key,
         bundleId: ipaMetadata?.bundleId || parsed.bundleId,
+        freeScanIpaHash: ipaHash && isFreeScan ? ipaHash : null,
+        freeScanBundleId: ipaHash && isFreeScan ? ipaMetadata?.bundleId || parsed.bundleId : null,
       })),
     }));
 
+    chargedUserId = null;
+    scanOwnerUserId = null;
+    scanRecordCreated = false;
     return Response.json({ scanId, status: "pending" });
   } catch (err) {
     console.error("[analyze-stream] Unhandled error:", err);
+    await refundStartupCredit();
+    await markStartupError("Analysis failed to start. Your credit has been preserved — please try again.");
     return Response.json({ error: "Analysis service error. Please try again." }, { status: 500 });
   }
 }
