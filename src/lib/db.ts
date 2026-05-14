@@ -6,6 +6,7 @@ import {
   QueryCommand,
   UpdateCommand,
   ScanCommand,
+  TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 
@@ -66,6 +67,46 @@ export async function refundScanCredit(userId: string): Promise<void> {
       ":now": new Date().toISOString(),
     },
   }));
+}
+
+/** Restore a paid scan credit once, using the scan record as the idempotency key. */
+export async function refundScanCreditForScan(userId: string, scanSK: string): Promise<boolean> {
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: scanSK },
+            UpdateExpression: "SET creditRefunded = :true, creditRefundedAt = :now",
+            ConditionExpression: "creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded <> :true)",
+            ExpressionAttributeValues: {
+              ":true": true,
+              ":now": new Date().toISOString(),
+            },
+          },
+        },
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ConditionExpression: "attribute_exists(PK)",
+            ExpressionAttributeValues: {
+              ":one": 1,
+              ":now": new Date().toISOString(),
+            },
+          },
+        },
+      ],
+    }));
+    return true;
+  } catch (err) {
+    if ((err as { name?: string }).name === "TransactionCanceledException") {
+      return false;
+    }
+    throw err;
+  }
 }
 
 export async function getUser(userId: string) {
