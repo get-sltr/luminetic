@@ -21,7 +21,7 @@ export const handler = async () => {
       ":cutoff": cutoff,
       ":scanPrefix": "SCAN#",
     },
-    ProjectionExpression: "PK, SK, scanId, #s, updatedAt",
+    ProjectionExpression: "PK, SK, scanId, #s, updatedAt, paidCreditCharged",
   }));
 
   const stuckScans = res.Items || [];
@@ -50,18 +50,22 @@ export const handler = async () => {
         },
       }));
 
-      // Refund credit — extract userId from PK (format: USER#<userId>)
+      // Refund only scans that actually consumed a paid credit.
       const userId = scan.PK.replace("USER#", "");
-      try {
-        await db.send(new UpdateCommand({
-          TableName: TABLE,
-          Key: { PK: scan.PK, SK: "PROFILE" },
-          UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
-          ExpressionAttributeValues: { ":one": 1, ":now": new Date().toISOString() },
-        }));
-        console.log(`[Sweeper] Refunded credit for user ${userId}, scan ${scan.scanId}`);
-      } catch (refundErr) {
-        console.warn(`[Sweeper] Credit refund failed for ${userId}:`, refundErr);
+      if (scan.paidCreditCharged === true) {
+        try {
+          await db.send(new UpdateCommand({
+            TableName: TABLE,
+            Key: { PK: scan.PK, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ExpressionAttributeValues: { ":one": 1, ":now": new Date().toISOString() },
+          }));
+          console.log(`[Sweeper] Refunded credit for user ${userId}, scan ${scan.scanId}`);
+        } catch (refundErr) {
+          console.warn(`[Sweeper] Credit refund failed for ${userId}:`, refundErr);
+        }
+      } else {
+        console.log(`[Sweeper] Scan ${scan.scanId} did not consume a paid credit; skipping refund`);
       }
 
       swept++;
