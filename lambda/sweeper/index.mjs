@@ -1,5 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, ScanCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, ScanCommand, TransactWriteCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 
 const db = DynamoDBDocumentClient.from(
   new DynamoDBClient({ region: process.env.AWS_REGION || "us-east-1" })
@@ -9,22 +9,31 @@ const STUCK_THRESHOLD_MS = 15 * 60 * 1000; // 15 minutes
 
 export const handler = async () => {
   const cutoff = new Date(Date.now() - STUCK_THRESHOLD_MS).toISOString();
+  const stuckScans = [];
+  let lastKey;
 
-  // Find stuck scans — status is analyzing/reconciling AND updatedAt is old
-  const res = await db.send(new ScanCommand({
-    TableName: TABLE,
-    FilterExpression: "(#s = :analyzing OR #s = :reconciling) AND updatedAt < :cutoff AND begins_with(SK, :scanPrefix)",
-    ExpressionAttributeNames: { "#s": "status" },
-    ExpressionAttributeValues: {
-      ":analyzing": "analyzing",
-      ":reconciling": "reconciling",
-      ":cutoff": cutoff,
-      ":scanPrefix": "SCAN#",
-    },
-    ProjectionExpression: "PK, SK, scanId, #s, updatedAt",
-  }));
+  // Find stuck scans across all pages. Pending scans can get stranded if async Lambda invoke never starts.
+  do {
+    const res = await db.send(new ScanCommand({
+      TableName: TABLE,
+      FilterExpression: "((#s = :pending OR #s = :analyzing OR #s = :reconciling) OR (#s = :error AND creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded <> :true))) AND updatedAt < :cutoff AND begins_with(SK, :scanPrefix)",
+      ExpressionAttributeNames: { "#s": "status" },
+      ExpressionAttributeValues: {
+        ":pending": "pending",
+        ":analyzing": "analyzing",
+        ":reconciling": "reconciling",
+        ":error": "error",
+        ":true": true,
+        ":cutoff": cutoff,
+        ":scanPrefix": "SCAN#",
+      },
+      ProjectionExpression: "PK, SK, scanId, #s, updatedAt, creditCharged, creditRefunded",
+      ExclusiveStartKey: lastKey,
+    }));
+    stuckScans.push(...(res.Items || []));
+    lastKey = res.LastEvaluatedKey;
+  } while (lastKey);
 
-  const stuckScans = res.Items || [];
   if (stuckScans.length === 0) {
     console.log("[Sweeper] No stuck scans found");
     return { swept: 0 };
@@ -35,33 +44,54 @@ export const handler = async () => {
   let swept = 0;
   for (const scan of stuckScans) {
     try {
-      // Mark as error
-      await db.send(new UpdateCommand({
-        TableName: TABLE,
-        Key: { PK: scan.PK, SK: scan.SK },
-        UpdateExpression: "SET #s = :error, errorMessage = :msg, updatedAt = :now",
-        ConditionExpression: "#s = :currentStatus",
-        ExpressionAttributeNames: { "#s": "status" },
-        ExpressionAttributeValues: {
-          ":error": "error",
-          ":msg": "Analysis timed out. Your credit has been preserved — please try again.",
-          ":currentStatus": scan.status,
-          ":now": new Date().toISOString(),
-        },
-      }));
+      const now = new Date().toISOString();
+      const shouldRefund = scan.creditCharged === true && scan.creditRefunded !== true;
 
-      // Refund credit — extract userId from PK (format: USER#<userId>)
-      const userId = scan.PK.replace("USER#", "");
-      try {
+      if (shouldRefund) {
+        await db.send(new TransactWriteCommand({
+          TransactItems: [
+            {
+              Update: {
+                TableName: TABLE,
+                Key: { PK: scan.PK, SK: scan.SK },
+                UpdateExpression: "SET #s = :error, errorMessage = :msg, creditRefunded = :true, creditRefundedAt = :now, updatedAt = :now",
+                ConditionExpression: "#s = :currentStatus AND creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded <> :true)",
+                ExpressionAttributeNames: { "#s": "status" },
+                ExpressionAttributeValues: {
+                  ":error": "error",
+                  ":msg": "Analysis timed out. Your credit has been refunded — please try again.",
+                  ":currentStatus": scan.status,
+                  ":true": true,
+                  ":now": now,
+                },
+              },
+            },
+            {
+              Update: {
+                TableName: TABLE,
+                Key: { PK: scan.PK, SK: "PROFILE" },
+                UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+                ConditionExpression: "attribute_exists(PK)",
+                ExpressionAttributeValues: { ":one": 1, ":now": now },
+              },
+            },
+          ],
+        }));
+        console.log(`[Sweeper] Refunded credit for ${scan.PK}, scan ${scan.scanId}`);
+      } else {
         await db.send(new UpdateCommand({
           TableName: TABLE,
-          Key: { PK: scan.PK, SK: "PROFILE" },
-          UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
-          ExpressionAttributeValues: { ":one": 1, ":now": new Date().toISOString() },
+          Key: { PK: scan.PK, SK: scan.SK },
+          UpdateExpression: "SET #s = :error, errorMessage = :msg, updatedAt = :now",
+          ConditionExpression: "#s = :currentStatus",
+          ExpressionAttributeNames: { "#s": "status" },
+          ExpressionAttributeValues: {
+            ":error": "error",
+            ":msg": "Analysis timed out. Please try again.",
+            ":currentStatus": scan.status,
+            ":now": now,
+          },
         }));
-        console.log(`[Sweeper] Refunded credit for user ${userId}, scan ${scan.scanId}`);
-      } catch (refundErr) {
-        console.warn(`[Sweeper] Credit refund failed for ${userId}:`, refundErr);
       }
 
       swept++;
