@@ -6,6 +6,7 @@ import {
   QueryCommand,
   UpdateCommand,
   ScanCommand,
+  TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 
@@ -66,6 +67,46 @@ export async function refundScanCredit(userId: string): Promise<void> {
       ":now": new Date().toISOString(),
     },
   }));
+}
+
+/** Idempotently refund a paid scan that failed after its scan record was created. */
+export async function refundChargedScanCredit(userId: string, scanSK: string, errorMessage?: string): Promise<boolean> {
+  const now = new Date().toISOString();
+  const setErrorState = errorMessage ? ", #s = :error, errorMessage = :msg" : "";
+
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: scanSK },
+            UpdateExpression: `SET creditRefunded = :true, creditRefundedAt = :now, updatedAt = :now${setErrorState}`,
+            ConditionExpression: "creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded <> :true) AND #s <> :complete",
+            ExpressionAttributeNames: { "#s": "status" },
+            ExpressionAttributeValues: {
+              ":true": true,
+              ":complete": "complete",
+              ":now": now,
+              ...(errorMessage ? { ":error": "error", ":msg": errorMessage } : {}),
+            },
+          },
+        },
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ConditionExpression: "attribute_exists(PK)",
+            ExpressionAttributeValues: { ":one": 1, ":now": now },
+          },
+        },
+      ],
+    }));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function getUser(userId: string) {
