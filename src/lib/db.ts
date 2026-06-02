@@ -6,6 +6,7 @@ import {
   QueryCommand,
   UpdateCommand,
   ScanCommand,
+  TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 
@@ -66,6 +67,56 @@ export async function refundScanCredit(userId: string): Promise<void> {
       ":now": new Date().toISOString(),
     },
   }));
+}
+
+/**
+ * Refund a paid scan exactly once. The scan record is the source of truth for
+ * whether a credit was actually charged, which prevents free/founder scans from
+ * being over-refunded by async failure handlers.
+ */
+export async function refundScanCreditForScan(userId: string, scanSK: string): Promise<boolean> {
+  const now = new Date().toISOString();
+
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: scanSK },
+            UpdateExpression: "SET creditRefunded = :true, creditRefundedAt = :now, updatedAt = :now",
+            ConditionExpression: "creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded = :false) AND (attribute_not_exists(#s) OR #s <> :complete)",
+            ExpressionAttributeNames: { "#s": "status" },
+            ExpressionAttributeValues: {
+              ":true": true,
+              ":false": false,
+              ":complete": "complete",
+              ":now": now,
+            },
+          },
+        },
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ConditionExpression: "attribute_exists(PK)",
+            ExpressionAttributeValues: {
+              ":one": 1,
+              ":now": now,
+            },
+          },
+        },
+      ],
+    }));
+    return true;
+  } catch (error) {
+    const name = error instanceof Error ? error.name : "";
+    if (name === "TransactionCanceledException" || name === "ConditionalCheckFailedException") {
+      return false;
+    }
+    throw error;
+  }
 }
 
 export async function getUser(userId: string) {
