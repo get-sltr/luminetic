@@ -12,8 +12,8 @@ import {
   canUserScan,
   deductScanCredit,
   refundScanCredit,
+  refundScanCreditForScan,
   isAppFreeScanned,
-  markFreeScannedApp,
 } from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
 import { runStaticAnalysis } from "@/lib/analyzers/orchestrator";
@@ -111,31 +111,6 @@ export async function POST(request: NextRequest) {
         return Response.json({ error: "Forbidden: invalid file reference." }, { status: 403 });
     }
 
-    // ── Scan gating: founder > paid credits > free scan > blocked ──
-    let scanCreditCharged = false;
-    let isFreeScan = false;
-    let gate;
-    try {
-      gate = await canUserScan(authUser.userId);
-      if (!gate.allowed) {
-        return Response.json(
-          { error: "No scan credits remaining. Purchase a scan pack to continue.", code: "NO_CREDITS" },
-          { status: 402 },
-        );
-      }
-      if (gate.isPaidScan) {
-        const used = await deductScanCredit(authUser.userId);
-        if (!used) return Response.json({ error: "No scan credits remaining.", code: "NO_CREDITS" }, { status: 402 });
-        scanCreditCharged = true;
-      }
-      if (gate.isFreeScan) {
-        isFreeScan = true;
-      }
-    } catch (err) {
-      console.error("Credit check error:", err);
-      return Response.json({ error: "Unable to verify credits." }, { status: 503 });
-    }
-
     // ── VINDICARA: Guard user-supplied text against prompt injection ──
     const userText = parsed.synopsis || parsed.feedback || parsed.email || parsed.text;
     if (userText) {
@@ -162,15 +137,30 @@ export async function POST(request: NextRequest) {
         contextForAI = buildMetadataContext(ipaMetadata, parsed.synopsis || "No synopsis provided.", parsed.credentials);
       } catch (err) {
         console.error("[IPA parse error]", err);
-        if (scanCreditCharged) {
-          try { await refundScanCredit(authUser.userId); } catch { /* best effort */ }
-        }
         return Response.json({ error: "Failed to parse .ipa file." }, { status: 400 });
+      }
+    } else {
+      contextForAI = (parsed.feedback || parsed.email || parsed.text)!.trim().slice(0, 10000);
+    }
+
+    // ── Scan gating: founder > paid credits > free scan > blocked ──
+    let scanCreditCharged = false;
+    let isFreeScan = false;
+    try {
+      const gate = await canUserScan(authUser.userId);
+      if (!gate.allowed) {
+        return Response.json(
+          { error: "No scan credits remaining. Purchase a scan pack to continue.", code: "NO_CREDITS" },
+          { status: 402 },
+        );
+      }
+      if (gate.isFreeScan) {
+        isFreeScan = true;
       }
 
       // Anti-abuse: block free-tier duplicate scans (paid scans skip this entirely)
       if (isFreeScan && ipaHash) {
-        const bundleId = ipaMetadata.bundleId || parsed.bundleId;
+        const bundleId = ipaMetadata?.bundleId || parsed.bundleId;
         const alreadyScanned = await isAppFreeScanned(ipaHash, bundleId || undefined);
         if (alreadyScanned) {
           return Response.json({
@@ -179,8 +169,15 @@ export async function POST(request: NextRequest) {
           }, { status: 409 });
         }
       }
-    } else {
-      contextForAI = (parsed.feedback || parsed.email || parsed.text)!.trim().slice(0, 10000);
+
+      if (gate.isPaidScan) {
+        const used = await deductScanCredit(authUser.userId);
+        if (!used) return Response.json({ error: "No scan credits remaining.", code: "NO_CREDITS" }, { status: 402 });
+        scanCreditCharged = true;
+      }
+    } catch (err) {
+      console.error("Credit check error:", err);
+      return Response.json({ error: "Unable to verify credits." }, { status: 503 });
     }
 
     // ── Layer 1: Deep static analysis (IPA flow only) ──
@@ -191,52 +188,82 @@ export async function POST(request: NextRequest) {
     const timestamp = new Date().toISOString();
     const scanSK = `SCAN#${timestamp}#${scanId}`;
 
-    await db.send(new PutCommand({
-      TableName: TABLE,
-      Item: {
-        PK: `USER#${authUser.userId}`,
-        SK: scanSK,
-        GSI1PK: `USER#${authUser.userId}`,
-        GSI1SK: `SCAN#${timestamp}`,
-        scanId,
-        userId: authUser.userId,
-        status: "pending",
-        ttl: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
-        ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      },
-    }));
-
-    // ── Mark free-scanned app (only for free scans) ──
-    if (ipaHash && isFreeScan) {
+    let scanRecordCreated = false;
+    const refundStartupCredit = async () => {
+      if (!scanCreditCharged) return true;
       try {
-        await markFreeScannedApp(ipaHash, ipaMetadata?.bundleId || parsed.bundleId, authUser.userId);
-      } catch { /* best effort */ }
-    }
+        if (scanRecordCreated) {
+          return await refundScanCreditForScan(authUser.userId, scanSK);
+        }
+        await refundScanCredit(authUser.userId);
+        return true;
+      } catch (refundErr) {
+        console.error("[analyze-stream] Failed to refund startup failure:", refundErr);
+        return false;
+      }
+    };
 
-    // ── Invoke Lambda async (fire-and-forget) ──
-    await lambda.send(new InvokeCommand({
-      FunctionName: LAMBDA_NAME,
-      InvocationType: "Event", // async — returns 202 immediately
-      Payload: Buffer.from(JSON.stringify({
-        userId: authUser.userId,
-        scanSK,
-        scanId,
-        contextForAI,
-        layer1,
-        ipaMetadata: ipaMetadata ? {
-          appName: ipaMetadata.appName,
-          bundleId: ipaMetadata.bundleId,
-          version: ipaMetadata.version,
-          buildNumber: ipaMetadata.buildNumber,
-          frameworks: ipaMetadata.frameworks,
-          privacyDescriptions: ipaMetadata.privacyUsageDescriptions,
-        } : null,
-        s3Key: parsed.s3Key,
-        bundleId: ipaMetadata?.bundleId || parsed.bundleId,
-      })),
-    }));
+    try {
+      await db.send(new PutCommand({
+        TableName: TABLE,
+        Item: {
+          PK: `USER#${authUser.userId}`,
+          SK: scanSK,
+          GSI1PK: `USER#${authUser.userId}`,
+          GSI1SK: `SCAN#${timestamp}`,
+          scanId,
+          userId: authUser.userId,
+          status: "pending",
+          ttl: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
+          creditCharged: scanCreditCharged,
+          creditRefunded: false,
+          isFreeScan,
+          ...(ipaHash && isFreeScan ? { freeScanIpaHash: ipaHash } : {}),
+          ...(ipaHash && isFreeScan && (ipaMetadata?.bundleId || parsed.bundleId) ? { freeScanBundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
+          ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        },
+      }));
+      scanRecordCreated = true;
+
+      // ── Invoke Lambda async (fire-and-forget) ──
+      await lambda.send(new InvokeCommand({
+        FunctionName: LAMBDA_NAME,
+        InvocationType: "Event", // async — returns 202 immediately
+        Payload: Buffer.from(JSON.stringify({
+          userId: authUser.userId,
+          scanSK,
+          scanId,
+          contextForAI,
+          layer1,
+          ipaMetadata: ipaMetadata ? {
+            appName: ipaMetadata.appName,
+            bundleId: ipaMetadata.bundleId,
+            version: ipaMetadata.version,
+            buildNumber: ipaMetadata.buildNumber,
+            frameworks: ipaMetadata.frameworks,
+            privacyDescriptions: ipaMetadata.privacyUsageDescriptions,
+          } : null,
+          s3Key: parsed.s3Key,
+          bundleId: ipaMetadata?.bundleId || parsed.bundleId,
+          isFreeScan,
+          freeScanIpaHash: ipaHash,
+          freeScanBundleId: ipaMetadata?.bundleId || parsed.bundleId,
+        })),
+      }));
+    } catch (startupErr) {
+      console.error("[analyze-stream] Failed to start async analysis:", startupErr);
+      const refunded = await refundStartupCredit();
+      return Response.json(
+        {
+          error: refunded
+            ? "Analysis could not be started. Your credit has been preserved — please try again."
+            : "Analysis could not be started. Please contact support if your credit was not restored.",
+        },
+        { status: 500 },
+      );
+    }
 
     return Response.json({ scanId, status: "pending" });
   } catch (err) {

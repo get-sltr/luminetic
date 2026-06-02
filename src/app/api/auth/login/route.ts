@@ -39,9 +39,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Authentication failed." }, { status: 401 });
     }
 
-    // Get userId from Cognito instead of JWT parsing
+    // Keep DynamoDB profile keys aligned with verifyToken(), which uses JWT sub.
     const cognitoUser = await getCognitoUser(tokens.AccessToken);
-    const userId = cognitoUser.Username;
+    const userId = cognitoUser.UserAttributes?.find((attr) => attr.Name === "sub")?.Value || cognitoUser.Username;
     if (!userId) {
       return NextResponse.json({ error: "Authentication failed." }, { status: 401 });
     }

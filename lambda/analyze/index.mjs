@@ -16,6 +16,8 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
+  PutCommand,
+  TransactWriteCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import {
@@ -50,6 +52,10 @@ const DF_DEVICE_POOL_ARN = process.env.DEVICE_FARM_DEVICE_POOL_ARN;
 
 let cachedGeminiKey = null;
 
+function isConditionalFailure(error) {
+  return error?.name === "ConditionalCheckFailedException" || error?.name === "TransactionCanceledException";
+}
+
 async function getGeminiKey() {
   const envKey = process.env.GEMINI_API_KEY;
   if (envKey) return envKey;
@@ -62,8 +68,18 @@ async function getGeminiKey() {
 }
 
 // ── Status helper ──────────────────────────────────────────
-async function updateScanStatus(userId, scanSK, status, extra = {}) {
-  await db.send(new UpdateCommand({
+async function updateScanStatus(userId, scanSK, status, extra = {}, allowedCurrentStatuses = null) {
+  const statusConditions = allowedCurrentStatuses?.map((_, i) => `:allowed${i}`) || [];
+  const values = {
+    ":s": status,
+    ":now": new Date().toISOString(),
+    ...Object.fromEntries(Object.entries(extra).map(([k, v], i) => [`:e${i}`, v])),
+  };
+  allowedCurrentStatuses?.forEach((allowedStatus, i) => {
+    values[`:allowed${i}`] = allowedStatus;
+  });
+
+  const command = {
     TableName: TABLE,
     Key: { PK: `USER#${userId}`, SK: scanSK },
     UpdateExpression: "SET #s = :s, updatedAt = :now" +
@@ -72,11 +88,131 @@ async function updateScanStatus(userId, scanSK, status, extra = {}) {
       "#s": "status",
       ...Object.fromEntries(Object.keys(extra).map((k, i) => [`#e${i}`, k])),
     },
-    ExpressionAttributeValues: {
-      ":s": status,
-      ":now": new Date().toISOString(),
-      ...Object.fromEntries(Object.entries(extra).map(([k, v], i) => [`:e${i}`, v])),
+    ExpressionAttributeValues: values,
+  };
+
+  if (statusConditions.length > 0) {
+    command.ConditionExpression = `#s IN (${statusConditions.join(", ")})`;
+  }
+
+  await db.send(new UpdateCommand(command));
+}
+
+async function refundScanCreditForScan(userId, scanSK) {
+  const now = new Date().toISOString();
+
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: scanSK },
+            UpdateExpression: "SET creditRefunded = :true, creditRefundedAt = :now, updatedAt = :now",
+            ConditionExpression: "creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded = :false) AND (attribute_not_exists(#s) OR #s <> :complete)",
+            ExpressionAttributeNames: { "#s": "status" },
+            ExpressionAttributeValues: {
+              ":true": true,
+              ":false": false,
+              ":complete": "complete",
+              ":now": now,
+            },
+          },
+        },
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ConditionExpression: "attribute_exists(PK)",
+            ExpressionAttributeValues: {
+              ":one": 1,
+              ":now": now,
+            },
+          },
+        },
+      ],
+    }));
+    return true;
+  } catch (error) {
+    if (isConditionalFailure(error)) return false;
+    throw error;
+  }
+}
+
+async function failScanAndRefund(userId, scanSK, errorMessage) {
+  try {
+    await updateScanStatus(userId, scanSK, "error", { errorMessage }, ["pending", "analyzing", "reconciling"]);
+  } catch (error) {
+    if (!isConditionalFailure(error)) throw error;
+  }
+
+  const refunded = await refundScanCreditForScan(userId, scanSK);
+  if (refunded) {
+    console.log(`[Refund] Restored charged credit for scan ${scanSK}`);
+  }
+}
+
+async function markFreeScannedApp(ipaHash, bundleId, userId) {
+  const now = new Date().toISOString();
+
+  await db.send(new PutCommand({
+    TableName: TABLE,
+    Item: {
+      PK: `FREE_SCAN#${ipaHash}`,
+      SK: "HASH",
+      userId,
+      bundleId: bundleId || "unknown",
+      createdAt: now,
     },
+  }));
+
+  if (bundleId) {
+    await db.send(new PutCommand({
+      TableName: TABLE,
+      Item: {
+        PK: `FREE_SCAN#${bundleId}`,
+        SK: "BUNDLE",
+        userId,
+        ipaHash,
+        createdAt: now,
+      },
+    }));
+  }
+}
+
+async function completeScan(userId, scanSK, merged) {
+  const now = new Date().toISOString();
+
+  await db.send(new TransactWriteCommand({
+    TransactItems: [
+      {
+        Update: {
+          TableName: TABLE,
+          Key: { PK: `USER#${userId}`, SK: scanSK },
+          UpdateExpression: "SET #s = :complete, mergedResult = :mr, score = :sc, updatedAt = :now",
+          ConditionExpression: "#s IN (:pending, :analyzing, :reconciling)",
+          ExpressionAttributeNames: { "#s": "status" },
+          ExpressionAttributeValues: {
+            ":complete": "complete",
+            ":pending": "pending",
+            ":analyzing": "analyzing",
+            ":reconciling": "reconciling",
+            ":mr": merged,
+            ":sc": merged.assessment.score,
+            ":now": now,
+          },
+        },
+      },
+      {
+        Update: {
+          TableName: TABLE,
+          Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+          UpdateExpression: "ADD scanCount :inc SET updatedAt = :now",
+          ExpressionAttributeValues: { ":inc": 1, ":now": now },
+        },
+      },
+    ],
   }));
 }
 
@@ -621,10 +757,8 @@ process.on("SIGTERM", async () => {
   if (_activeContext) {
     const { userId, scanSK, scanId } = _activeContext;
     try {
-      await updateScanStatus(userId, scanSK, "error", {
-        errorMessage: "Analysis timed out. Your credit has been preserved — please try again.",
-      });
-      console.error(`[SIGTERM] Updated scan ${scanId} to error state`);
+      await failScanAndRefund(userId, scanSK, "Analysis timed out. Your credit has been preserved — please try again.");
+      console.error(`[SIGTERM] Updated scan ${scanId} to error state and refunded if charged`);
     } catch (e) {
       console.error("[SIGTERM] Failed to update DynamoDB:", e);
     }
@@ -634,7 +768,19 @@ process.on("SIGTERM", async () => {
 
 // ── Handler ────────────────────────────────────────────────
 export const handler = async (event, context) => {
-  const { userId, scanSK, scanId, contextForAI, layer1, ipaMetadata, s3Key, bundleId } = event;
+  const {
+    userId,
+    scanSK,
+    scanId,
+    contextForAI,
+    layer1,
+    ipaMetadata,
+    s3Key,
+    bundleId,
+    isFreeScan,
+    freeScanIpaHash,
+    freeScanBundleId,
+  } = event;
   _activeContext = { userId, scanSK, scanId };
   const totalStart = Date.now();
 
@@ -651,7 +797,7 @@ export const handler = async (event, context) => {
     }
 
     // ── Stage 1: AI models + Device Farm in parallel ──
-    await updateScanStatus(userId, scanSK, "analyzing");
+    await updateScanStatus(userId, scanSK, "analyzing", {}, ["pending", "analyzing"]);
 
     const deviceFarmPromise = runDeviceFarm(s3Key, S3_BUCKET);
 
@@ -664,14 +810,12 @@ export const handler = async (event, context) => {
     console.log(`[Stage 1] Gemini=${gemini.success}(${gemini.latency}ms) Sonnet=${sonnet.success}(${sonnet.latency}ms) DeepSeek=${deepseek.success}(${deepseek.latency}ms)`);
 
     if (!gemini.success && !sonnet.success && !deepseek.success) {
-      await updateScanStatus(userId, scanSK, "error", {
-        errorMessage: "All AI models failed in Stage 1. Please try again.",
-      });
+      await failScanAndRefund(userId, scanSK, "All AI models failed in Stage 1. Your credit has been preserved — please try again.");
       return { statusCode: 500, body: "All Stage 1 models failed" };
     }
 
     // ── Stage 2: Opus reconciles all three ──
-    await updateScanStatus(userId, scanSK, "reconciling");
+    await updateScanStatus(userId, scanSK, "reconciling", {}, ["pending", "analyzing", "reconciling"]);
 
     const opus = await callOpus(contextForAI, gemini.data, deepseek.data, sonnet.data);
     console.log(`[Stage 2] Opus=${opus.success}(${opus.latency}ms)`);
@@ -703,26 +847,24 @@ export const handler = async (event, context) => {
     // ── Merge + save ──
     const merged = mergeResults({ gemini, deepseek, sonnet, opus, contextForAI, ipaMetadata, layer1, layer2: deviceFarmResult, totalStart });
 
-    await db.send(new UpdateCommand({
-      TableName: TABLE,
-      Key: { PK: `USER#${userId}`, SK: scanSK },
-      UpdateExpression: "SET #s = :s, mergedResult = :mr, score = :sc, updatedAt = :now",
-      ExpressionAttributeNames: { "#s": "status" },
-      ExpressionAttributeValues: {
-        ":s": "complete",
-        ":mr": merged,
-        ":sc": merged.assessment.score,
-        ":now": new Date().toISOString(),
-      },
-    }));
+    try {
+      await completeScan(userId, scanSK, merged);
+    } catch (error) {
+      if (isConditionalFailure(error)) {
+        console.warn(`[Complete] Scan ${scanId} is no longer active; skipping late completion`);
+        _activeContext = null;
+        return { statusCode: 409, body: "Scan no longer active" };
+      }
+      throw error;
+    }
 
-    // Increment scan count
-    await db.send(new UpdateCommand({
-      TableName: TABLE,
-      Key: { PK: `USER#${userId}`, SK: "PROFILE" },
-      UpdateExpression: "ADD scanCount :inc SET updatedAt = :now",
-      ExpressionAttributeValues: { ":inc": 1, ":now": new Date().toISOString() },
-    }));
+    if (isFreeScan && freeScanIpaHash) {
+      try {
+        await markFreeScannedApp(freeScanIpaHash, freeScanBundleId || bundleId, userId);
+      } catch (markerErr) {
+        console.warn(`[Free Scan] Failed to record free-scan marker for ${scanId}:`, markerErr);
+      }
+    }
 
     // Delete IPA from S3 — metadata is extracted, original file no longer needed
     if (s3Key && S3_BUCKET) {
@@ -740,9 +882,7 @@ export const handler = async (event, context) => {
   } catch (err) {
     console.error("[Lambda fatal]", err);
     _activeContext = null; // Prevent SIGTERM from double-updating
-    await updateScanStatus(userId, scanSK, "error", {
-      errorMessage: "Analysis failed unexpectedly. Please try again.",
-    }).catch(() => {});
+    await failScanAndRefund(userId, scanSK, "Analysis failed unexpectedly. Your credit has been preserved — please try again.").catch(() => {});
     return { statusCode: 500, body: String(err) };
   }
 };
