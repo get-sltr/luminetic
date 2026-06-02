@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
 
       // Anti-abuse: block free-tier duplicate scans (paid scans skip this entirely)
       if (isFreeScan && ipaHash) {
-        const bundleId = ipaMetadata.bundleId || parsed.bundleId;
+        const bundleId = ipaMetadata?.bundleId || parsed.bundleId;
         const alreadyScanned = await isAppFreeScanned(ipaHash, bundleId || undefined);
         if (alreadyScanned) {
           return Response.json({
