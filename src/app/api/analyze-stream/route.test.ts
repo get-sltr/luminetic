@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-const dbSend = vi.fn();
-const lambdaSend = vi.fn();
+const mocks = vi.hoisted(() => ({
+  dbSend: vi.fn(),
+  lambdaSend: vi.fn(),
+}));
 
 vi.mock("@aws-sdk/client-dynamodb", () => ({
   DynamoDBClient: class {},
@@ -10,7 +12,7 @@ vi.mock("@aws-sdk/client-dynamodb", () => ({
 
 vi.mock("@aws-sdk/lib-dynamodb", () => ({
   DynamoDBDocumentClient: {
-    from: vi.fn(() => ({ send: dbSend })),
+    from: vi.fn(() => ({ send: mocks.dbSend })),
   },
   PutCommand: class {
     input: unknown;
@@ -22,7 +24,7 @@ vi.mock("@aws-sdk/lib-dynamodb", () => ({
 
 vi.mock("@aws-sdk/client-lambda", () => ({
   LambdaClient: class {
-    send = lambdaSend;
+    send = mocks.lambdaSend;
   },
   InvokeCommand: class {
     input: unknown;
@@ -124,8 +126,8 @@ const ipaResult = {
 describe("POST /api/analyze-stream", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    dbSend.mockResolvedValue({});
-    lambdaSend.mockResolvedValue({});
+    mocks.dbSend.mockResolvedValue({});
+    mocks.lambdaSend.mockResolvedValue({});
     vi.mocked(verifyToken).mockResolvedValue({ userId: "user-1", email: "test@example.com", plan: "free" });
     vi.mocked(analyzeLimiter.check).mockReturnValue({ allowed: true });
     vi.mocked(guardInput).mockResolvedValue({ blocked: false } as never);
@@ -147,8 +149,8 @@ describe("POST /api/analyze-stream", () => {
     expect(res.status).toBe(400);
     expect(canUserScan).not.toHaveBeenCalled();
     expect(deductScanCredit).not.toHaveBeenCalled();
-    expect(dbSend).not.toHaveBeenCalled();
-    expect(lambdaSend).not.toHaveBeenCalled();
+    expect(mocks.dbSend).not.toHaveBeenCalled();
+    expect(mocks.lambdaSend).not.toHaveBeenCalled();
   });
 
   it("does not deduct credits when IPA parsing fails", async () => {
@@ -167,7 +169,7 @@ describe("POST /api/analyze-stream", () => {
   });
 
   it("refunds a paid credit with the scan marker when Lambda startup fails", async () => {
-    lambdaSend.mockRejectedValue(new Error("lambda unavailable"));
+    mocks.lambdaSend.mockRejectedValue(new Error("lambda unavailable"));
 
     const res = await POST(makeRequest({
       s3Key: "ipa-uploads/user-1/app.ipa",
@@ -177,7 +179,7 @@ describe("POST /api/analyze-stream", () => {
     expect(res.status).toBe(500);
     expect(deductScanCredit).toHaveBeenCalledWith("user-1");
 
-    const putCommand = dbSend.mock.calls[0]?.[0] as { input: { Item: { SK: string; creditCharged: boolean; creditRefunded: boolean } } };
+    const putCommand = mocks.dbSend.mock.calls[0]?.[0] as { input: { Item: { SK: string; creditCharged: boolean; creditRefunded: boolean } } };
     expect(putCommand.input.Item.creditCharged).toBe(true);
     expect(putCommand.input.Item.creditRefunded).toBe(false);
     expect(refundScanCreditForScan).toHaveBeenCalledWith("user-1", putCommand.input.Item.SK);
@@ -196,11 +198,11 @@ describe("POST /api/analyze-stream", () => {
     expect(deductScanCredit).not.toHaveBeenCalled();
     expect(isAppFreeScanned).toHaveBeenCalledWith("ipa-sha", "com.example.app");
 
-    const putCommand = dbSend.mock.calls[0]?.[0] as { input: { Item: { isFreeScan: boolean; freeScanIpaHash: string } } };
+    const putCommand = mocks.dbSend.mock.calls[0]?.[0] as { input: { Item: { isFreeScan: boolean; freeScanIpaHash: string } } };
     expect(putCommand.input.Item.isFreeScan).toBe(true);
     expect(putCommand.input.Item.freeScanIpaHash).toBe("ipa-sha");
 
-    const invokeCommand = lambdaSend.mock.calls[0]?.[0] as { input: { Payload: Buffer } };
+    const invokeCommand = mocks.lambdaSend.mock.calls[0]?.[0] as { input: { Payload: Buffer } };
     const payload = JSON.parse(Buffer.from(invokeCommand.input.Payload).toString("utf8"));
     expect(payload.isFreeScan).toBe(true);
     expect(payload.freeScanIpaHash).toBe("ipa-sha");
