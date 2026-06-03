@@ -7,7 +7,8 @@ import { authLimiter, getClientIp } from "@/lib/rate-limit";
 
 const schema = z.object({
   email: z.string().email(),
-  password: z.string().min(12),
+  // Do not enforce length at login: existing users may have older valid passwords.
+  password: z.string().min(1),
 });
 
 export async function POST(request: NextRequest) {
