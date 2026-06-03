@@ -6,6 +6,7 @@ import {
   QueryCommand,
   UpdateCommand,
   ScanCommand,
+  TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 
@@ -40,10 +41,11 @@ export async function deductScanCredit(userId: string): Promise<boolean> {
     await db.send(new UpdateCommand({
       TableName: TABLE,
       Key: { PK: `USER#${userId}`, SK: "PROFILE" },
-      UpdateExpression: "ADD scanCredits :dec SET updatedAt = :now",
+      UpdateExpression: "ADD scanCredits :dec, scanReservations :inc SET updatedAt = :now",
       ConditionExpression: "scanCredits > :zero",
       ExpressionAttributeValues: {
         ":dec": -1,
+        ":inc": 1,
         ":zero": 0,
         ":now": new Date().toISOString(),
       },
@@ -54,8 +56,58 @@ export async function deductScanCredit(userId: string): Promise<boolean> {
   }
 }
 
+/** Reserve the one-time free scan while async analysis is in flight. */
+export async function reserveFreeScan(userId: string): Promise<boolean> {
+  try {
+    await db.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+      UpdateExpression: "ADD scanReservations :inc SET updatedAt = :now",
+      ConditionExpression: "attribute_exists(PK) AND (attribute_not_exists(scanCount) OR scanCount = :zero) AND (attribute_not_exists(scanReservations) OR scanReservations = :zero) AND (attribute_not_exists(scanCredits) OR scanCredits <= :zero)",
+      ExpressionAttributeValues: {
+        ":inc": 1,
+        ":zero": 0,
+        ":now": new Date().toISOString(),
+      },
+    }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function releaseScanReservation(userId: string): Promise<void> {
+  await db.send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+    UpdateExpression: "ADD scanReservations :dec SET updatedAt = :now",
+    ConditionExpression: "attribute_exists(PK) AND scanReservations > :zero",
+    ExpressionAttributeValues: {
+      ":dec": -1,
+      ":zero": 0,
+      ":now": new Date().toISOString(),
+    },
+  }));
+}
+
 /** Restore one credit (e.g. analysis failed after deduct). */
-export async function refundScanCredit(userId: string): Promise<void> {
+export async function refundScanCredit(userId: string, options: { releaseReservation?: boolean } = {}): Promise<void> {
+  if (options.releaseReservation) {
+    await db.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+      UpdateExpression: "ADD scanCredits :one, scanReservations :dec SET updatedAt = :now",
+      ConditionExpression: "attribute_exists(PK) AND scanReservations > :zero",
+      ExpressionAttributeValues: {
+        ":one": 1,
+        ":dec": -1,
+        ":zero": 0,
+        ":now": new Date().toISOString(),
+      },
+    }));
+    return;
+  }
+
   await db.send(new UpdateCommand({
     TableName: TABLE,
     Key: { PK: `USER#${userId}`, SK: "PROFILE" },
@@ -66,6 +118,51 @@ export async function refundScanCredit(userId: string): Promise<void> {
       ":now": new Date().toISOString(),
     },
   }));
+}
+
+export async function refundChargedScan(
+  userId: string,
+  scanSK: string,
+  errorMessage = "Analysis failed. Your credit has been restored — please try again."
+): Promise<boolean> {
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: scanSK },
+            UpdateExpression: "SET #s = :error, errorMessage = :msg, creditRefunded = :true, reservationReleased = :true, updatedAt = :now",
+            ConditionExpression: "creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded <> :true)",
+            ExpressionAttributeNames: { "#s": "status" },
+            ExpressionAttributeValues: {
+              ":error": "error",
+              ":msg": errorMessage,
+              ":true": true,
+              ":now": new Date().toISOString(),
+            },
+          },
+        },
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one, scanReservations :dec SET updatedAt = :now",
+            ConditionExpression: "attribute_exists(PK) AND scanReservations > :zero",
+            ExpressionAttributeValues: {
+              ":one": 1,
+              ":dec": -1,
+              ":zero": 0,
+              ":now": new Date().toISOString(),
+            },
+          },
+        },
+      ],
+    }));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export async function getUser(userId: string) {
@@ -88,6 +185,7 @@ export async function putScan(userId: string, data: {
   score: number;
   s3Key?: string;
   bundleId?: string;
+  releaseReservation?: boolean;
 }) {
   const scanId = randomUUID();
   const timestamp = new Date().toISOString();
@@ -115,12 +213,17 @@ export async function putScan(userId: string, data: {
     },
   }));
 
-  // Increment scan count
+  // Increment scan count and release any entitlement reserved before analysis.
   await db.send(new UpdateCommand({
     TableName: TABLE,
     Key: { PK: `USER#${userId}`, SK: "PROFILE" },
-    UpdateExpression: "ADD scanCount :inc SET updatedAt = :now",
-    ExpressionAttributeValues: { ":inc": 1, ":now": new Date().toISOString() },
+    UpdateExpression: data.releaseReservation
+      ? "ADD scanCount :inc, scanReservations :dec SET updatedAt = :now"
+      : "ADD scanCount :inc SET updatedAt = :now",
+    ...(data.releaseReservation ? { ConditionExpression: "scanReservations > :zero" } : {}),
+    ExpressionAttributeValues: data.releaseReservation
+      ? { ":inc": 1, ":dec": -1, ":zero": 0, ":now": new Date().toISOString() }
+      : { ":inc": 1, ":now": new Date().toISOString() },
   }));
 
   return { scanId, timestamp };
@@ -211,6 +314,7 @@ export async function canUserScan(userId: string): Promise<ScanGateResult> {
 
   const credits = (user.scanCredits as number) || 0;
   const scanCount = (user.scanCount as number) || 0;
+  const scanReservations = (user.scanReservations as number) || 0;
   const isFounder = user.plan === "founder" || user.role === "founder" || user.role === "admin";
 
   if (isFounder) {
@@ -222,7 +326,7 @@ export async function canUserScan(userId: string): Promise<ScanGateResult> {
   }
 
   // No credits: check if free scan is available (never scanned before)
-  if (scanCount === 0) {
+  if (scanCount === 0 && scanReservations === 0) {
     return { allowed: true, reason: "Free scan available.", isPaidScan: false, isFreeScan: true, credits, scanCount };
   }
 
