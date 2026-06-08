@@ -10,6 +10,10 @@ const schema = z.object({
   password: z.string().min(12),
 });
 
+function getCognitoSub(user: Awaited<ReturnType<typeof getCognitoUser>>) {
+  return user.UserAttributes?.find((attr) => attr.Name === "sub")?.Value;
+}
+
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
   const rl = authLimiter.check(ip);
@@ -39,9 +43,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Authentication failed." }, { status: 401 });
     }
 
-    // Get userId from Cognito instead of JWT parsing
+    // Use the same stable Cognito subject that verifyToken exposes to every
+    // authenticated route; Username is email in this pool.
     const cognitoUser = await getCognitoUser(tokens.AccessToken);
-    const userId = cognitoUser.Username;
+    const userId = getCognitoSub(cognitoUser);
     if (!userId) {
       return NextResponse.json({ error: "Authentication failed." }, { status: 401 });
     }
