@@ -116,6 +116,10 @@ const WEBHOOK_NOTIFICATION_URL =
   process.env.SQUARE_WEBHOOK_NOTIFICATION_URL || "https://luminetic.io/api/webhooks/square";
 
 type OrderMeta = { userId?: string; scans?: string; packId?: string };
+type OrderMetaResolution =
+  | { metadata: OrderMeta; retryable: false }
+  | { metadata: null; retryable: false }
+  | { metadata: null; retryable: true; reason: string };
 
 function metadataComplete(m: OrderMeta | undefined): m is Required<Pick<OrderMeta, "userId" | "scans">> & OrderMeta {
   return !!(m?.userId && m?.scans);
@@ -127,12 +131,12 @@ function metadataComplete(m: OrderMeta | undefined): m is Required<Pick<OrderMet
 async function resolveOrderMetadata(
   payment: Record<string, unknown> | undefined,
   eventDataObject: Record<string, unknown> | undefined
-): Promise<OrderMeta | null> {
+): Promise<OrderMetaResolution> {
   const fromPaymentOrder = (payment?.order as { metadata?: OrderMeta } | undefined)?.metadata;
-  if (metadataComplete(fromPaymentOrder)) return fromPaymentOrder;
+  if (metadataComplete(fromPaymentOrder)) return { metadata: fromPaymentOrder, retryable: false };
 
   const fromEventOrder = (eventDataObject?.order as { metadata?: OrderMeta } | undefined)?.metadata;
-  if (metadataComplete(fromEventOrder)) return fromEventOrder;
+  if (metadataComplete(fromEventOrder)) return { metadata: fromEventOrder, retryable: false };
 
   const orderId =
     (typeof payment?.orderId === "string" && payment.orderId) ||
@@ -141,19 +145,28 @@ async function resolveOrderMetadata(
 
   if (!orderId) {
     console.warn("[square-webhook] COMPLETED payment has no embedded order metadata and no orderId — cannot grant credits");
-    return null;
+    return { metadata: null, retryable: false };
   }
 
   try {
     const square = await getSquareClient();
     const res = await square.orders.get({ orderId });
     const meta = res.order?.metadata as OrderMeta | undefined;
-    if (metadataComplete(meta)) return meta;
+    if (metadataComplete(meta)) return { metadata: meta, retryable: false };
     console.warn("[square-webhook] Retrieved order but metadata incomplete:", orderId);
+    return {
+      metadata: null,
+      retryable: true,
+      reason: "Order metadata missing after retrieval",
+    };
   } catch (e) {
     console.error("[square-webhook] orders.get failed for", orderId, e);
+    return {
+      metadata: null,
+      retryable: true,
+      reason: "Temporary failure fetching Square order metadata",
+    };
   }
-  return null;
 }
 
 export async function POST(request: NextRequest) {
@@ -225,10 +238,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ received: true });
       }
 
-      const orderMetadata = await resolveOrderMetadata(
+      const metadataResolution = await resolveOrderMetadata(
         payment as Record<string, unknown> | undefined,
         event.data?.object as Record<string, unknown> | undefined
       );
+      if (metadataResolution.retryable) {
+        console.error("[square-webhook] Retryable metadata resolution failure:", metadataResolution.reason);
+        return NextResponse.json(
+          { error: "Could not resolve order metadata. Ask Square to retry this webhook." },
+          { status: 503 }
+        );
+      }
+      const orderMetadata = metadataResolution.metadata;
 
       if (orderMetadata?.userId && orderMetadata?.scans) {
         const userId = orderMetadata.userId;
