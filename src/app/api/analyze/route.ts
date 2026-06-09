@@ -6,7 +6,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyToken } from "@/lib/auth";
-import { putScan, canUserScan, deductScanCredit } from "@/lib/db";
+import {
+  putScan,
+  canUserScan,
+  deductScanCredit,
+  refundScanCredit,
+  reserveFreeScan,
+  releaseScanReservation,
+} from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
 import { z } from "zod";
 import {
@@ -460,6 +467,18 @@ function mergeResults(
 
 export async function POST(request: NextRequest) {
   const totalStart = Date.now();
+  let authUserId: string | null = null;
+  let scanCreditCharged = false;
+  let scanReserved = false;
+
+  async function cleanupAnalysisFailure() {
+    if (!authUserId) return;
+    if (scanCreditCharged) {
+      await refundScanCredit(authUserId, { releaseReservation: true }).catch(() => {});
+    } else if (scanReserved) {
+      await releaseScanReservation(authUserId).catch(() => {});
+    }
+  }
 
   try {
     const body = await request.json();
@@ -484,6 +503,7 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+    authUserId = authUser.userId;
 
     // Rate limit by userId
     const rl = analyzeLimiter.check(authUser.userId);
@@ -512,10 +532,21 @@ export async function POST(request: NextRequest) {
               { status: 402 },
             );
           }
+          scanCreditCharged = true;
+          scanReserved = true;
+        } else if (gate.isFreeScan) {
+          const reserved = await reserveFreeScan(authUser.userId);
+          if (!reserved) {
+            return NextResponse.json(
+              { error: "No scan credits remaining. Purchase a scan pack to continue.", code: "NO_CREDITS" },
+              { status: 402 },
+            );
+          }
+          scanReserved = true;
         }
-        // Free scans: no credit to deduct (credits already 0), just proceed
       } catch (err) {
         console.error("Credit check error:", err);
+        await cleanupAnalysisFailure();
         return NextResponse.json(
           { error: "Unable to verify credits. Please try again." },
           { status: 503 }
@@ -531,10 +562,17 @@ export async function POST(request: NextRequest) {
 
     // MERGE: Reconcile both analyses
     const merged = mergeResults(geminiResult, claudeResult, totalStart);
+    if (merged.assessment.score <= 0) {
+      await cleanupAnalysisFailure();
+      return NextResponse.json(
+        { error: "Analysis could not be completed. Please try again." },
+        { status: 502 },
+      );
+    }
 
     // Save scan to DynamoDB if authenticated
     let scanId: string | undefined;
-    if (authUser && merged.assessment.score > 0) {
+    if (authUser) {
       try {
         const saved = await putScan(authUser.userId, {
           inputText: trimmedFeedback,
@@ -542,10 +580,16 @@ export async function POST(request: NextRequest) {
           geminiResult: geminiResult.data,
           claudeResult: claudeResult.data,
           score: merged.assessment.score,
+          releaseReservation: scanReserved,
         });
         scanId = saved.scanId;
       } catch (err) {
         console.error("Failed to save scan:", err);
+        await cleanupAnalysisFailure();
+        return NextResponse.json(
+          { error: "Analysis could not be saved. Your credit has been restored — please try again." },
+          { status: 500 },
+        );
       }
     }
 
@@ -562,6 +606,7 @@ export async function POST(request: NextRequest) {
       );
     }
     console.error("Analysis route error:", error);
+    await cleanupAnalysisFailure();
     return NextResponse.json(
       { error: "Analysis failed. Please try again." },
       { status: 500 }
