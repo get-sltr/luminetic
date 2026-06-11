@@ -39,9 +39,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Authentication failed." }, { status: 401 });
     }
 
-    // Get userId from Cognito instead of JWT parsing
+    // Use Cognito's immutable subject as the DynamoDB key; Username may be email.
     const cognitoUser = await getCognitoUser(tokens.AccessToken);
-    const userId = cognitoUser.Username;
+    const userId = cognitoUser.UserAttributes?.find((attr) => attr.Name === "sub")?.Value;
     if (!userId) {
       return NextResponse.json({ error: "Authentication failed." }, { status: 401 });
     }
