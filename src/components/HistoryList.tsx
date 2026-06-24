@@ -7,6 +7,8 @@ interface ScanItem {
   scanId: string;
   status?: string;
   ttl?: number;
+  creditRefunded?: boolean;
+  errorMessage?: string;
   score: number;
   createdAt: string;
   mergedResult?: {
@@ -170,7 +172,7 @@ export default function HistoryList({ scans }: { scans: ScanItem[] }) {
                 fontSize: '0.6rem',
                 color: issues.length > 0 ? 'var(--text-mid)' : 'var(--text-dim)',
               }}>
-                {scan.status === 'error' ? 'Credit refunded' :
+                {scan.status === 'error' ? (scan.creditRefunded ? 'Credit refunded' : 'Failed') :
                  !scan.mergedResult && scan.status !== 'complete' ? '—' :
                  issues.length > 0 ? `${issues.length} found` : 'None'}
               </div>
@@ -382,23 +384,35 @@ export default function HistoryList({ scans }: { scans: ScanItem[] }) {
                 )}
 
                 {/* View full report link */}
-                <Link
-                  href={`/history/${scan.scanId}`}
-                  className="no-underline"
-                  style={{
-                    display: 'inline-block',
+                {scan.status === 'complete' && scan.mergedResult ? (
+                  <Link
+                    href={`/history/${scan.scanId}`}
+                    className="no-underline"
+                    style={{
+                      display: 'inline-block',
+                      fontFamily: 'var(--mono)',
+                      fontSize: '0.58rem',
+                      letterSpacing: 3,
+                      textTransform: 'uppercase',
+                      color: 'var(--orange)',
+                      border: '1px solid rgba(255,106,0,0.25)',
+                      padding: '10px 24px',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    View full report →
+                  </Link>
+                ) : (
+                  <div style={{
                     fontFamily: 'var(--mono)',
                     fontSize: '0.58rem',
-                    letterSpacing: 3,
+                    letterSpacing: 2,
                     textTransform: 'uppercase',
-                    color: 'var(--orange)',
-                    border: '1px solid rgba(255,106,0,0.25)',
-                    padding: '10px 24px',
-                    transition: 'all 0.2s',
-                  }}
-                >
-                  View full report →
-                </Link>
+                    color: 'var(--text-dim)',
+                  }}>
+                    {scan.status === 'error' ? (scan.errorMessage || 'Analysis failed. Please try again.') : 'Analysis still processing.'}
+                  </div>
+                )}
               </div>
             )}
           </div>

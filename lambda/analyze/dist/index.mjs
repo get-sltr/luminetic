@@ -1042,7 +1042,8 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
-  UpdateCommand
+  UpdateCommand,
+  TransactWriteCommand
 } from "@aws-sdk/lib-dynamodb";
 import {
   SecretsManagerClient,
@@ -1097,6 +1098,47 @@ async function updateScanStatus(userId, scanSK, status, extra = {}) {
       ...Object.fromEntries(Object.entries(extra).map(([k, v], i) => [`:e${i}`, v]))
     }
   }));
+}
+async function refundChargedScanCredit(userId, scanSK) {
+  const now = (/* @__PURE__ */ new Date()).toISOString();
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: scanSK },
+            UpdateExpression: "SET creditRefunded = :true, creditRefundedAt = :now, updatedAt = :now",
+            ConditionExpression: "creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded <> :true)",
+            ExpressionAttributeValues: {
+              ":true": true,
+              ":now": now
+            }
+          }
+        },
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ConditionExpression: "attribute_exists(PK)",
+            ExpressionAttributeValues: {
+              ":one": 1,
+              ":now": now
+            }
+          }
+        }
+      ]
+    }));
+    console.log(`[Credit] Refunded paid credit for scan ${scanSK}`);
+    return true;
+  } catch (err) {
+    if (err?.name === "TransactionCanceledException") {
+      console.log(`[Credit] No paid credit refund needed for scan ${scanSK}`);
+      return false;
+    }
+    throw err;
+  }
 }
 var GEMINI_SYSTEM_PROMPT = `You are an expert iOS App Store submission analyst. You analyze .ipa app metadata to identify App Store Review Guideline violations, missing configurations, and submission risks BEFORE the developer submits to Apple.
 
@@ -1619,8 +1661,9 @@ process.on("SIGTERM", async () => {
     const { userId, scanSK, scanId } = _activeContext;
     try {
       await updateScanStatus(userId, scanSK, "error", {
-        errorMessage: "Analysis timed out. Your credit has been preserved \u2014 please try again."
+        errorMessage: "Analysis timed out. If a paid credit was used, it has been restored \u2014 please try again."
       });
+      await refundChargedScanCredit(userId, scanSK);
       console.error(`[SIGTERM] Updated scan ${scanId} to error state`);
     } catch (e) {
       console.error("[SIGTERM] Failed to update DynamoDB:", e);
@@ -1656,6 +1699,9 @@ These findings are proven from the binary. Do NOT dispute them. Focus on providi
     if (!gemini.success && !sonnet.success && !deepseek.success) {
       await updateScanStatus(userId, scanSK, "error", {
         errorMessage: "All AI models failed in Stage 1. Please try again."
+      });
+      await refundChargedScanCredit(userId, scanSK).catch((err) => {
+        console.warn("[Credit] Refund failed after Stage 1 failure:", err);
       });
       return { statusCode: 500, body: "All Stage 1 models failed" };
     }
@@ -1719,6 +1765,9 @@ These findings are proven from the binary. Do NOT dispute them. Focus on providi
     await updateScanStatus(userId, scanSK, "error", {
       errorMessage: "Analysis failed unexpectedly. Please try again."
     }).catch(() => {
+    });
+    await refundChargedScanCredit(userId, scanSK).catch((refundErr) => {
+      console.warn("[Credit] Refund failed after Lambda fatal:", refundErr);
     });
     return { statusCode: 500, body: String(err) };
   }
