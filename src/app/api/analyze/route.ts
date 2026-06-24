@@ -6,8 +6,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { verifyToken } from "@/lib/auth";
-import { putScan, canUserScan, deductScanCredit } from "@/lib/db";
+import { putScan, canUserScan, deductScanCredit, refundScanCredit } from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
+import { guardInput } from "@/lib/vindicara";
 import { z } from "zod";
 import {
   BedrockRuntimeClient,
@@ -460,6 +461,8 @@ function mergeResults(
 
 export async function POST(request: NextRequest) {
   const totalStart = Date.now();
+  let scanCreditCharged = false;
+  let chargedUserId: string | null = null;
 
   try {
     const body = await request.json();
@@ -494,6 +497,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const guard = await guardInput(trimmedFeedback, "prompt-injection");
+    if (guard.blocked) {
+      return NextResponse.json(
+        { error: "Your input was flagged by our security system. Please revise and try again." },
+        { status: 400 }
+      );
+    }
+
     // Scan gating: founder > paid credits > free scan > blocked
     {
       try {
@@ -512,6 +523,8 @@ export async function POST(request: NextRequest) {
               { status: 402 },
             );
           }
+          scanCreditCharged = true;
+          chargedUserId = authUser.userId;
         }
         // Free scans: no credit to deduct (credits already 0), just proceed
       } catch (err) {
@@ -562,6 +575,13 @@ export async function POST(request: NextRequest) {
       );
     }
     console.error("Analysis route error:", error);
+    if (scanCreditCharged && chargedUserId) {
+      try {
+        await refundScanCredit(chargedUserId);
+      } catch (refundErr) {
+        console.warn("Credit refund failed after analysis error:", refundErr);
+      }
+    }
     return NextResponse.json(
       { error: "Analysis failed. Please try again." },
       { status: 500 }

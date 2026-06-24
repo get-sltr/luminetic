@@ -6,6 +6,7 @@ import {
   QueryCommand,
   UpdateCommand,
   ScanCommand,
+  TransactWriteCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 
@@ -66,6 +67,50 @@ export async function refundScanCredit(userId: string): Promise<void> {
       ":now": new Date().toISOString(),
     },
   }));
+}
+
+/**
+ * Restore a paid scan credit exactly once by marking the scan row refunded in
+ * the same DynamoDB transaction that increments the user's credit balance.
+ */
+export async function refundChargedScanCredit(userId: string, scanSK: string): Promise<boolean> {
+  const now = new Date().toISOString();
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: scanSK },
+            UpdateExpression: "SET creditRefunded = :true, creditRefundedAt = :now, updatedAt = :now",
+            ConditionExpression: "creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded <> :true)",
+            ExpressionAttributeValues: {
+              ":true": true,
+              ":now": now,
+            },
+          },
+        },
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: `USER#${userId}`, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ConditionExpression: "attribute_exists(PK)",
+            ExpressionAttributeValues: {
+              ":one": 1,
+              ":now": now,
+            },
+          },
+        },
+      ],
+    }));
+    return true;
+  } catch (err) {
+    if (err instanceof Error && err.name === "TransactionCanceledException") {
+      return false;
+    }
+    throw err;
+  }
 }
 
 export async function getUser(userId: string) {
@@ -167,7 +212,7 @@ export async function getAllScansWithIssues(userId: string) {
     },
     ScanIndexForward: false,
     ExpressionAttributeNames: { "#s": "status" },
-    ProjectionExpression: "scanId, score, createdAt, mergedResult, #s, ttl",
+    ProjectionExpression: "scanId, score, createdAt, mergedResult, #s, ttl, creditRefunded, errorMessage",
   }));
   return res.Items || [];
 }

@@ -14,6 +14,51 @@ export default async function ScanDetailPage({ params }: { params: Promise<{ sca
   if (!scan) notFound();
 
   const mergedResult = scan.mergedResult as Parameters<typeof AnalysisResults>[0]['result'];
+  if (!mergedResult) {
+    const status = scan.status === 'error' ? 'Analysis failed' : 'Analysis still processing';
+    const detail = scan.errorMessage as string | undefined;
+
+    return (
+      <div style={{ minHeight: '100vh', background: 'transparent' }}>
+        <div style={{ maxWidth: 900, margin: '0 auto', padding: '60px 48px 80px' }}>
+          <Link
+            href="/history"
+            className="no-underline"
+            style={{
+              fontFamily: 'var(--mono)',
+              fontSize: '0.6rem',
+              letterSpacing: 2,
+              textTransform: 'uppercase',
+              color: 'var(--text-dim)',
+              display: 'inline-block',
+              marginBottom: 28,
+            }}
+          >
+            ← HISTORY
+          </Link>
+          <h1 style={{
+            fontFamily: 'var(--display)',
+            fontSize: '4rem',
+            letterSpacing: 3,
+            lineHeight: 0.9,
+            margin: 0,
+            color: 'var(--text)',
+          }}>
+            {status}
+          </h1>
+          <p style={{
+            fontFamily: 'var(--body)',
+            fontSize: '1rem',
+            lineHeight: 1.7,
+            color: 'var(--text-mid)',
+            marginTop: 24,
+          }}>
+            {detail || 'This scan does not have a completed report yet.'}
+          </p>
+        </div>
+      </div>
+    );
+  }
   const hasIssues = (mergedResult?.issues?.length || 0) > 0;
 
   return (

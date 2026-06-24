@@ -1,11 +1,49 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, ScanCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, ScanCommand, UpdateCommand, TransactWriteCommand } from "@aws-sdk/lib-dynamodb";
 
 const db = DynamoDBDocumentClient.from(
   new DynamoDBClient({ region: process.env.AWS_REGION || "us-east-1" })
 );
 const TABLE = process.env.DYNAMODB_TABLE || "appready";
 const STUCK_THRESHOLD_MS = 15 * 60 * 1000; // 15 minutes
+
+async function refundChargedScanCredit(userPk, scanSK) {
+  const now = new Date().toISOString();
+  try {
+    await db.send(new TransactWriteCommand({
+      TransactItems: [
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: userPk, SK: scanSK },
+            UpdateExpression: "SET creditRefunded = :true, creditRefundedAt = :now, updatedAt = :now",
+            ConditionExpression: "creditCharged = :true AND (attribute_not_exists(creditRefunded) OR creditRefunded <> :true)",
+            ExpressionAttributeValues: {
+              ":true": true,
+              ":now": now,
+            },
+          },
+        },
+        {
+          Update: {
+            TableName: TABLE,
+            Key: { PK: userPk, SK: "PROFILE" },
+            UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
+            ConditionExpression: "attribute_exists(PK)",
+            ExpressionAttributeValues: {
+              ":one": 1,
+              ":now": now,
+            },
+          },
+        },
+      ],
+    }));
+    return true;
+  } catch (err) {
+    if (err?.name === "TransactionCanceledException") return false;
+    throw err;
+  }
+}
 
 export const handler = async () => {
   const cutoff = new Date(Date.now() - STUCK_THRESHOLD_MS).toISOString();
@@ -21,7 +59,7 @@ export const handler = async () => {
       ":cutoff": cutoff,
       ":scanPrefix": "SCAN#",
     },
-    ProjectionExpression: "PK, SK, scanId, #s, updatedAt",
+    ProjectionExpression: "PK, SK, scanId, #s, updatedAt, creditCharged, creditRefunded",
   }));
 
   const stuckScans = res.Items || [];
@@ -44,22 +82,21 @@ export const handler = async () => {
         ExpressionAttributeNames: { "#s": "status" },
         ExpressionAttributeValues: {
           ":error": "error",
-          ":msg": "Analysis timed out. Your credit has been preserved — please try again.",
+          ":msg": "Analysis timed out. If a paid credit was used, it has been restored — please try again.",
           ":currentStatus": scan.status,
           ":now": new Date().toISOString(),
         },
       }));
 
-      // Refund credit — extract userId from PK (format: USER#<userId>)
+      // Refund only scans that actually consumed a paid credit.
       const userId = scan.PK.replace("USER#", "");
       try {
-        await db.send(new UpdateCommand({
-          TableName: TABLE,
-          Key: { PK: scan.PK, SK: "PROFILE" },
-          UpdateExpression: "ADD scanCredits :one SET updatedAt = :now",
-          ExpressionAttributeValues: { ":one": 1, ":now": new Date().toISOString() },
-        }));
-        console.log(`[Sweeper] Refunded credit for user ${userId}, scan ${scan.scanId}`);
+        const refunded = await refundChargedScanCredit(scan.PK, scan.SK);
+        console.log(
+          refunded
+            ? `[Sweeper] Refunded paid credit for user ${userId}, scan ${scan.scanId}`
+            : `[Sweeper] No paid credit refund needed for user ${userId}, scan ${scan.scanId}`
+        );
       } catch (refundErr) {
         console.warn(`[Sweeper] Credit refund failed for ${userId}:`, refundErr);
       }
