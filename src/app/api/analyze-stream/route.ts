@@ -12,8 +12,10 @@ import {
   canUserScan,
   deductScanCredit,
   refundScanCredit,
+  refundChargedScan,
+  reserveFreeScan,
+  releaseScanReservation,
   isAppFreeScanned,
-  markFreeScannedApp,
 } from "@/lib/db";
 import { analyzeLimiter } from "@/lib/rate-limit";
 import { runStaticAnalysis } from "@/lib/analyzers/orchestrator";
@@ -22,13 +24,29 @@ import { guardInput } from "@/lib/vindicara";
 import { parseIpa, type IpaMetadata } from "@/lib/ipa-parser";
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 
 const lambda = new LambdaClient({ region: process.env.AWS_REGION || "us-east-1" });
 const db = DynamoDBDocumentClient.from(new DynamoDBClient({ region: process.env.AWS_REGION || "us-east-1" }));
 const TABLE = process.env.DYNAMODB_TABLE || "appready";
 const LAMBDA_NAME = process.env.ANALYZE_LAMBDA_NAME || "luminetic-analyze";
+
+async function markScanStartupError(userId: string, scanSK: string, errorMessage: string) {
+  await db.send(new UpdateCommand({
+    TableName: TABLE,
+    Key: { PK: `USER#${userId}`, SK: scanSK },
+    UpdateExpression: "SET #s = :error, errorMessage = :msg, updatedAt = :now",
+    ConditionExpression: "#s <> :complete",
+    ExpressionAttributeNames: { "#s": "status" },
+    ExpressionAttributeValues: {
+      ":error": "error",
+      ":complete": "complete",
+      ":msg": errorMessage,
+      ":now": new Date().toISOString(),
+    },
+  }));
+}
 
 function buildMetadataContext(
   metadata: IpaMetadata,
@@ -74,6 +92,34 @@ function buildMetadataContext(
 }
 
 export async function POST(request: NextRequest) {
+  let authUserId: string | null = null;
+  let scanCreditCharged = false;
+  let scanReserved = false;
+  let scanRecordCreated = false;
+  let scanSK: string | null = null;
+
+  async function cleanupStartupFailure(errorMessage: string) {
+    if (!authUserId) return;
+    if (scanRecordCreated && scanSK) {
+      if (scanCreditCharged) {
+        await refundChargedScan(authUserId, scanSK, errorMessage);
+        return;
+      }
+      if (scanReserved) {
+        await markScanStartupError(authUserId, scanSK, errorMessage).catch(() => {});
+        await releaseScanReservation(authUserId).catch(() => {});
+        return;
+      }
+      await markScanStartupError(authUserId, scanSK, errorMessage).catch(() => {});
+      return;
+    }
+    if (scanCreditCharged) {
+      await refundScanCredit(authUserId, { releaseReservation: true }).catch(() => {});
+    } else if (scanReserved) {
+      await releaseScanReservation(authUserId).catch(() => {});
+    }
+  }
+
   try {
     // ── Parse input ──
     const schema = z.object({
@@ -100,6 +146,7 @@ export async function POST(request: NextRequest) {
     const accessToken = request.cookies.get("access_token")?.value;
     const authUser = accessToken ? await verifyToken(accessToken) : null;
     if (!authUser) return Response.json({ error: "Sign in to run an analysis." }, { status: 401 });
+    authUserId = authUser.userId;
 
     // ── Rate limit ──
     const rl = analyzeLimiter.check(authUser.userId);
@@ -109,31 +156,6 @@ export async function POST(request: NextRequest) {
     if (parsed.s3Key) {
       if (parsed.s3Key.includes("..") || !parsed.s3Key.startsWith(`ipa-uploads/${authUser.userId}/`))
         return Response.json({ error: "Forbidden: invalid file reference." }, { status: 403 });
-    }
-
-    // ── Scan gating: founder > paid credits > free scan > blocked ──
-    let scanCreditCharged = false;
-    let isFreeScan = false;
-    let gate;
-    try {
-      gate = await canUserScan(authUser.userId);
-      if (!gate.allowed) {
-        return Response.json(
-          { error: "No scan credits remaining. Purchase a scan pack to continue.", code: "NO_CREDITS" },
-          { status: 402 },
-        );
-      }
-      if (gate.isPaidScan) {
-        const used = await deductScanCredit(authUser.userId);
-        if (!used) return Response.json({ error: "No scan credits remaining.", code: "NO_CREDITS" }, { status: 402 });
-        scanCreditCharged = true;
-      }
-      if (gate.isFreeScan) {
-        isFreeScan = true;
-      }
-    } catch (err) {
-      console.error("Credit check error:", err);
-      return Response.json({ error: "Unable to verify credits." }, { status: 503 });
     }
 
     // ── VINDICARA: Guard user-supplied text against prompt injection ──
@@ -162,22 +184,7 @@ export async function POST(request: NextRequest) {
         contextForAI = buildMetadataContext(ipaMetadata, parsed.synopsis || "No synopsis provided.", parsed.credentials);
       } catch (err) {
         console.error("[IPA parse error]", err);
-        if (scanCreditCharged) {
-          try { await refundScanCredit(authUser.userId); } catch { /* best effort */ }
-        }
         return Response.json({ error: "Failed to parse .ipa file." }, { status: 400 });
-      }
-
-      // Anti-abuse: block free-tier duplicate scans (paid scans skip this entirely)
-      if (isFreeScan && ipaHash) {
-        const bundleId = ipaMetadata.bundleId || parsed.bundleId;
-        const alreadyScanned = await isAppFreeScanned(ipaHash, bundleId || undefined);
-        if (alreadyScanned) {
-          return Response.json({
-            error: "This app has already been analyzed with a free scan. Purchase a scan pack to analyze it again.",
-            code: "FREE_SCAN_DUPLICATE",
-          }, { status: 409 });
-        }
       }
     } else {
       contextForAI = (parsed.feedback || parsed.email || parsed.text)!.trim().slice(0, 10000);
@@ -186,10 +193,54 @@ export async function POST(request: NextRequest) {
     // ── Layer 1: Deep static analysis (IPA flow only) ──
     const layer1 = ipaMetadata ? runStaticAnalysis(ipaMetadata) : null;
 
+    // ── Scan gating: founder > paid credits > free scan > blocked ──
+    let isFreeScan = false;
+    try {
+      const gate = await canUserScan(authUser.userId);
+      if (!gate.allowed) {
+        return Response.json(
+          { error: "No scan credits remaining. Purchase a scan pack to continue.", code: "NO_CREDITS" },
+          { status: 402 },
+        );
+      }
+
+      if (gate.isFreeScan && ipaHash) {
+        const bundleId = ipaMetadata?.bundleId || parsed.bundleId;
+        const alreadyScanned = await isAppFreeScanned(ipaHash, bundleId || undefined);
+        if (alreadyScanned) {
+          return Response.json({
+            error: "This app has already been analyzed with a free scan. Purchase a scan pack to analyze it again.",
+            code: "FREE_SCAN_DUPLICATE",
+          }, { status: 409 });
+        }
+      }
+
+      if (gate.isPaidScan) {
+        const used = await deductScanCredit(authUser.userId);
+        if (!used) return Response.json({ error: "No scan credits remaining.", code: "NO_CREDITS" }, { status: 402 });
+        scanCreditCharged = true;
+        scanReserved = true;
+      } else if (gate.isFreeScan) {
+        const reserved = await reserveFreeScan(authUser.userId);
+        if (!reserved) {
+          return Response.json(
+            { error: "No scan credits remaining. Purchase a scan pack to continue.", code: "NO_CREDITS" },
+            { status: 402 },
+          );
+        }
+        isFreeScan = true;
+        scanReserved = true;
+      }
+    } catch (err) {
+      console.error("Credit check error:", err);
+      await cleanupStartupFailure("Unable to start analysis. Your credit has been restored — please try again.");
+      return Response.json({ error: "Unable to verify credits." }, { status: 503 });
+    }
+
     // ── Create scan record in DynamoDB ──
     const scanId = randomUUID();
     const timestamp = new Date().toISOString();
-    const scanSK = `SCAN#${timestamp}#${scanId}`;
+    scanSK = `SCAN#${timestamp}#${scanId}`;
 
     await db.send(new PutCommand({
       TableName: TABLE,
@@ -203,17 +254,20 @@ export async function POST(request: NextRequest) {
         status: "pending",
         ttl: Math.floor(Date.now() / 1000) + 24 * 60 * 60,
         ...(ipaMetadata?.bundleId || parsed.bundleId ? { bundleId: ipaMetadata?.bundleId || parsed.bundleId } : {}),
+        creditCharged: scanCreditCharged,
+        creditRefunded: false,
+        scanReserved,
+        reservationReleased: false,
+        freeScanReserved: isFreeScan,
+        ...(ipaHash && isFreeScan ? { freeScanIpaHash: ipaHash } : {}),
+        ...(ipaHash && isFreeScan && (ipaMetadata?.bundleId || parsed.bundleId)
+          ? { freeScanBundleId: ipaMetadata?.bundleId || parsed.bundleId }
+          : {}),
         createdAt: timestamp,
         updatedAt: timestamp,
       },
     }));
-
-    // ── Mark free-scanned app (only for free scans) ──
-    if (ipaHash && isFreeScan) {
-      try {
-        await markFreeScannedApp(ipaHash, ipaMetadata?.bundleId || parsed.bundleId, authUser.userId);
-      } catch { /* best effort */ }
-    }
+    scanRecordCreated = true;
 
     // ── Invoke Lambda async (fire-and-forget) ──
     await lambda.send(new InvokeCommand({
@@ -235,12 +289,18 @@ export async function POST(request: NextRequest) {
         } : null,
         s3Key: parsed.s3Key,
         bundleId: ipaMetadata?.bundleId || parsed.bundleId,
+        creditCharged: scanCreditCharged,
+        scanReserved,
+        freeScanReserved: isFreeScan,
+        freeScanIpaHash: ipaHash,
+        freeScanBundleId: ipaMetadata?.bundleId || parsed.bundleId,
       })),
     }));
 
     return Response.json({ scanId, status: "pending" });
   } catch (err) {
     console.error("[analyze-stream] Unhandled error:", err);
+    await cleanupStartupFailure("Unable to start analysis. Your credit has been restored — please try again.");
     return Response.json({ error: "Analysis service error. Please try again." }, { status: 500 });
   }
 }
