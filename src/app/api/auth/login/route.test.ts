@@ -70,7 +70,7 @@ describe("POST /api/auth/login", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns success with valid credentials", async () => {
+  it("keys the user profile by Cognito sub, not Username", async () => {
     vi.mocked(signIn).mockResolvedValue({
       AuthenticationResult: {
         AccessToken: "access-123",
@@ -78,7 +78,13 @@ describe("POST /api/auth/login", () => {
       },
       $metadata: {},
     });
-    vi.mocked(getCognitoUser).mockResolvedValue({ Username: "user-123" } as never);
+    vi.mocked(getCognitoUser).mockResolvedValue({
+      Username: "test@test.com",
+      UserAttributes: [
+        { Name: "sub", Value: "user-sub-123" },
+        { Name: "email", Value: "test@test.com" },
+      ],
+    } as never);
     vi.mocked(putUser).mockResolvedValue(undefined);
     vi.mocked(getUser).mockResolvedValue({ scanCredits: 3 });
 
@@ -88,7 +94,8 @@ describe("POST /api/auth/login", () => {
     expect(data.success).toBe(true);
     expect(data.credits).toBe(3);
     expect(setAuthCookies).toHaveBeenCalled();
-    expect(putUser).toHaveBeenCalledWith("user-123", "test@test.com");
+    expect(putUser).toHaveBeenCalledWith("user-sub-123", "test@test.com");
+    expect(getUser).toHaveBeenCalledWith("user-sub-123");
   });
 
   it("succeeds even if putUser throws (user already exists)", async () => {
@@ -99,7 +106,10 @@ describe("POST /api/auth/login", () => {
       },
       $metadata: {},
     });
-    vi.mocked(getCognitoUser).mockResolvedValue({ Username: "user-123" } as never);
+    vi.mocked(getCognitoUser).mockResolvedValue({
+      Username: "test@test.com",
+      UserAttributes: [{ Name: "sub", Value: "user-sub-123" }],
+    } as never);
     vi.mocked(putUser).mockRejectedValue(new Error("ConditionalCheckFailedException"));
 
     const res = await POST(makeRequest({ email: "test@test.com", password: "password12345" }));
