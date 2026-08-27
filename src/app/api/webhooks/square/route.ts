@@ -45,12 +45,25 @@ async function getWebhookSignatureKey(): Promise<string> {
   }
 }
 
-/** Check if we already processed this event (idempotency). */
-async function isEventProcessed(eventId: string): Promise<boolean> {
+function paymentMarkerKey(paymentId: string) {
+  return `WEBHOOK#PAYMENT#${paymentId}`;
+}
+
+function getPaymentId(
+  payment: Record<string, unknown> | undefined,
+  eventData: Record<string, unknown> | undefined
+): string | undefined {
+  if (typeof payment?.id === "string" && payment.id) return payment.id;
+  if (typeof eventData?.id === "string" && eventData.id) return eventData.id;
+  return undefined;
+}
+
+/** Check if we already granted credits for this Square payment (idempotency). */
+async function isPaymentProcessed(paymentId: string): Promise<boolean> {
   const res = await db.send(
     new GetCommand({
       TableName: TABLE,
-      Key: { PK: `WEBHOOK#${eventId}`, SK: "EVENT" },
+      Key: { PK: paymentMarkerKey(paymentId), SK: "EVENT" },
       ProjectionExpression: "PK",
     })
   );
@@ -58,12 +71,13 @@ async function isEventProcessed(eventId: string): Promise<boolean> {
 }
 
 async function grantCreditsAtomically(params: {
+  paymentId: string;
   eventId: string;
   userId: string;
   scans: number;
   packId: string;
 }) {
-  const { eventId, userId, scans, packId } = params;
+  const { paymentId, eventId, userId, scans, packId } = params;
   const now = new Date().toISOString();
 
   await db.send(
@@ -89,8 +103,10 @@ async function grantCreditsAtomically(params: {
           Put: {
             TableName: TABLE,
             Item: {
-              PK: `WEBHOOK#${eventId}`,
+              PK: paymentMarkerKey(paymentId),
               SK: "EVENT",
+              paymentId,
+              eventId,
               userId,
               scans,
               processedAt: now,
@@ -205,14 +221,9 @@ export async function POST(request: NextRequest) {
     const eventId = event.event_id as string | undefined;
     const eventType = event.type as string;
 
-    // Require event_id for idempotency
+    // Require event_id so retries of the exact same notification can be logged
     if (!eventId) {
       return NextResponse.json({ error: "Missing event_id." }, { status: 400 });
-    }
-
-    // Idempotency: skip if already processed
-    if (await isEventProcessed(eventId)) {
-      return NextResponse.json({ received: true, duplicate: true });
     }
 
     // Handle payment events
@@ -223,6 +234,24 @@ export async function POST(request: NextRequest) {
       // Only process completed payments
       if (status !== "COMPLETED") {
         return NextResponse.json({ received: true });
+      }
+
+      const paymentId = getPaymentId(
+        payment,
+        event.data as Record<string, unknown> | undefined
+      );
+      if (!paymentId) {
+        console.error("[square-webhook] COMPLETED payment missing payment id; refusing to grant credits", {
+          eventId,
+          eventType,
+        });
+        return NextResponse.json({ error: "Missing payment id." }, { status: 400 });
+      }
+
+      // Idempotency is per Square payment, not per webhook event_id.
+      // payment.created and payment.updated both arrive as COMPLETED for card checkouts.
+      if (await isPaymentProcessed(paymentId)) {
+        return NextResponse.json({ received: true, duplicate: true });
       }
 
       const orderMetadata = await resolveOrderMetadata(
@@ -262,6 +291,7 @@ export async function POST(request: NextRequest) {
 
         try {
           await grantCreditsAtomically({
+            paymentId,
             eventId,
             userId,
             scans: scansToAdd,
@@ -271,13 +301,14 @@ export async function POST(request: NextRequest) {
           if (isTransactionCanceled(error)) {
             const reasons = error.CancellationReasons?.map((reason) => reason.Code).filter(Boolean) || [];
             if (reasons.includes("ConditionalCheckFailed")) {
-              if (await isEventProcessed(eventId)) {
-                console.warn("[square-webhook] Duplicate event raced during processing:", eventId);
+              if (await isPaymentProcessed(paymentId)) {
+                console.warn("[square-webhook] Duplicate payment raced during processing:", paymentId);
                 return NextResponse.json({ received: true, duplicate: true });
               }
 
               console.error("[square-webhook] User profile missing or invalid during credit grant:", {
                 eventId,
+                paymentId,
                 userId,
                 packId,
                 scansToAdd,
