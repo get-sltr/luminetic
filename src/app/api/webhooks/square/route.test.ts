@@ -64,6 +64,7 @@ function completedPaymentEvent(metadataOverrides: Record<string, unknown> = {}) 
     data: {
       object: {
         payment: {
+          id: "pay-abc-123",
           status: "COMPLETED",
           order: {
             metadata: {
@@ -77,6 +78,13 @@ function completedPaymentEvent(metadataOverrides: Record<string, unknown> = {}) 
       },
     },
   };
+}
+
+function transactCalls() {
+  return dbSend.mock.calls.filter(([cmd]) => {
+    const input = (cmd as { input?: { TransactItems?: unknown } }).input;
+    return Array.isArray(input?.TransactItems);
+  });
 }
 
 describe("POST /api/webhooks/square", () => {
@@ -122,11 +130,12 @@ describe("POST /api/webhooks/square", () => {
     expect((await res.json()).error).toBe("Missing event_id.");
   });
 
-  it("skips already-processed events and returns duplicate flag", async () => {
-    dbSend.mockResolvedValueOnce({ Item: { PK: "WEBHOOK#evt-abc-123-def-456" } });
+  it("skips already-processed payments and returns duplicate flag", async () => {
+    dbSend.mockResolvedValueOnce({ Item: { PK: "WEBHOOK#PAYMENT#pay-abc-123" } });
     const res = await POST(makeWebhookRequest(completedPaymentEvent()));
     expect(res.status).toBe(200);
     expect((await res.json()).duplicate).toBe(true);
+    expect(transactCalls()).toHaveLength(0);
   });
 
   // ── Payment status filtering ──────────────────────────────
@@ -135,13 +144,12 @@ describe("POST /api/webhooks/square", () => {
     const event = {
       event_id: "evt-pending-001",
       type: "payment.created",
-      data: { object: { payment: { status: "PENDING" } } },
+      data: { object: { payment: { id: "pay-pending-001", status: "PENDING" } } },
     };
     const res = await POST(makeWebhookRequest(event));
     expect(res.status).toBe(200);
     expect((await res.json()).received).toBe(true);
-    // Should only call DB once (idempotency check), NOT update user
-    expect(dbSend).toHaveBeenCalledTimes(1);
+    expect(dbSend).not.toHaveBeenCalled();
   });
 
   it("ignores non-payment event types", async () => {
@@ -193,6 +201,7 @@ describe("POST /api/webhooks/square", () => {
       data: {
         object: {
           payment: {
+            id: "pay-order-fetch-001",
             status: "COMPLETED",
             orderId: "order_test_abc",
           },
@@ -211,6 +220,64 @@ describe("POST /api/webhooks/square", () => {
     const res = await POST(makeWebhookRequest(event));
     expect(res.status).toBe(200);
     expect(dbSend).toHaveBeenCalledTimes(2);
+    expect(transactCalls()).toHaveLength(1);
+  });
+
+  it("grants credits only once when payment.created and payment.updated are both COMPLETED", async () => {
+    const created = completedPaymentEvent();
+    created.event_id = "evt-created-1";
+    created.type = "payment.created";
+
+    dbSend.mockResolvedValueOnce({ Item: undefined });
+    dbSend.mockResolvedValueOnce({});
+    const first = await POST(makeWebhookRequest(created));
+    expect(first.status).toBe(200);
+    expect(transactCalls()).toHaveLength(1);
+
+    const updated = completedPaymentEvent();
+    updated.event_id = "evt-updated-2";
+    updated.type = "payment.updated";
+    dbSend.mockResolvedValueOnce({ Item: { PK: "WEBHOOK#PAYMENT#pay-abc-123" } });
+
+    const second = await POST(makeWebhookRequest(updated));
+    expect(second.status).toBe(200);
+    expect((await second.json()).duplicate).toBe(true);
+    expect(transactCalls()).toHaveLength(1);
+  });
+
+  it("keys the credit-grant marker on payment id, not event_id", async () => {
+    await POST(makeWebhookRequest(completedPaymentEvent()));
+    const grant = transactCalls()[0]?.[0] as {
+      input: { TransactItems: Array<{ Put?: { Item?: { PK?: string; paymentId?: string; eventId?: string } } }> };
+    };
+    const marker = grant.input.TransactItems.find((item) => item.Put)?.Put?.Item;
+    expect(marker?.PK).toBe("WEBHOOK#PAYMENT#pay-abc-123");
+    expect(marker?.paymentId).toBe("pay-abc-123");
+    expect(marker?.eventId).toBe("evt-abc-123-def-456");
+  });
+
+  it("refuses to grant credits when a COMPLETED payment has no payment id", async () => {
+    const event = completedPaymentEvent();
+    delete (event.data.object.payment as { id?: string }).id;
+    const res = await POST(makeWebhookRequest(event));
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Missing payment id.");
+    expect(dbSend).not.toHaveBeenCalled();
+  });
+
+  it("treats a raced duplicate payment grant as success", async () => {
+    const conflict = Object.assign(new Error("Transaction cancelled"), {
+      name: "TransactionCanceledException",
+      CancellationReasons: [{ Code: "None" }, { Code: "ConditionalCheckFailed" }],
+    });
+    dbSend
+      .mockResolvedValueOnce({ Item: undefined })
+      .mockRejectedValueOnce(conflict)
+      .mockResolvedValueOnce({ Item: { PK: "WEBHOOK#PAYMENT#pay-abc-123" } });
+
+    const res = await POST(makeWebhookRequest(completedPaymentEvent()));
+    expect(res.status).toBe(200);
+    expect((await res.json()).duplicate).toBe(true);
   });
 
   // ── Metadata validation (guards against tampered webhooks) ─
