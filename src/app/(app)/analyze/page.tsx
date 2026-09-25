@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AnalysisResults from '@/components/AnalysisResults';
 import TestDownloader from '@/components/TestDownloader';
 import { IconCheck, IconZap, IconBrain, IconWarning, IconX } from '@/components/icons';
+import { scanPdfFilename, scanPdfRequest, type ScanPdfKind } from '@/lib/scan-downloads';
 
 type Step = 'idle' | 'uploading' | 'extracting' | 'primary' | 'secondary' | 'deep' | 'generating-tests' | 'done' | 'error';
 
@@ -62,6 +63,8 @@ export default function AnalyzePage() {
   const [result, setResult] = useState<MergedResult | null>(null);
   const [scanId, setScanId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [downloadError, setDownloadError] = useState('');
+  const [downloading, setDownloading] = useState<ScanPdfKind | null>(null);
 
   const [scanAllowed, setScanAllowed] = useState(true);
   const [credits, setCredits] = useState<number | null>(null);
@@ -267,8 +270,42 @@ export default function AnalyzePage() {
     }
   }
 
+  async function handleDownloadPdf(kind: ScanPdfKind) {
+    if (!scanId || downloading) return;
+    setDownloadError('');
+    setDownloading(kind);
+    try {
+      const { url, init } = scanPdfRequest(kind, scanId);
+      const res = await fetch(url, init);
+      if (!res.ok) {
+        let message = 'Download failed. Please try again.';
+        try {
+          const data = await res.json();
+          if (typeof data?.error === 'string') message = data.error;
+        } catch {
+          // Non-JSON error body.
+        }
+        setDownloadError(message);
+        return;
+      }
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = scanPdfFilename(kind, scanId);
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      setDownloadError('Download failed. Please try again.');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
   function handleReset() {
-    setStep('idle'); setResult(null); setScanId(null); setError('');
+    setStep('idle'); setResult(null); setScanId(null); setError(''); setDownloadError('');
     // Refresh credit state for next scan
     fetch('/api/scan-gate', { credentials: 'include' })
       .then(r => r.json())
@@ -664,31 +701,38 @@ export default function AnalyzePage() {
 
             <div style={{ marginTop: 52, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <a
-                  href={scanId ? `/api/pdf/pre-flight?scanId=${scanId}` : '#'}
-                  className="no-underline"
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPdf('preflight')}
+                  disabled={!scanId || downloading !== null}
                   style={{
-                    display: 'block', textAlign: 'center',
+                    display: 'block', textAlign: 'center', cursor: 'pointer',
                     fontFamily: 'var(--mono)', fontSize: '0.62rem', letterSpacing: 2, textTransform: 'uppercase',
-                    color: 'var(--text)', padding: '18px',
+                    color: 'var(--text)', padding: '18px', background: 'transparent',
                     border: '1px solid var(--border)', transition: 'all 0.2s',
                   }}
                 >
-                  Download Pre-Flight PDF
-                </a>
-                <a
-                  href={scanId ? `/api/pdf/review-packet?scanId=${scanId}` : '#'}
-                  className="no-underline"
+                  {downloading === 'preflight' ? 'Preparing PDF…' : 'Download Pre-Flight PDF'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadPdf('review-packet')}
+                  disabled={!scanId || downloading !== null}
                   style={{
-                    display: 'block', textAlign: 'center',
+                    display: 'block', textAlign: 'center', cursor: 'pointer',
                     fontFamily: 'var(--mono)', fontSize: '0.62rem', letterSpacing: 2, textTransform: 'uppercase',
-                    color: 'var(--text)', padding: '18px',
+                    color: 'var(--text)', padding: '18px', background: 'transparent',
                     border: '1px solid var(--border)', transition: 'all 0.2s',
                   }}
                 >
-                  Download Review Packet PDF
-                </a>
+                  {downloading === 'review-packet' ? 'Preparing PDF…' : 'Download Review Packet PDF'}
+                </button>
               </div>
+              {downloadError && (
+                <p style={{ fontFamily: 'var(--mono)', fontSize: '0.62rem', color: 'var(--red)', margin: 0 }}>
+                  {downloadError}
+                </p>
+              )}
 
               <button
                 onClick={handleReset}

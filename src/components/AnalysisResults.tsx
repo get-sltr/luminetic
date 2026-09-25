@@ -90,7 +90,12 @@ interface MergedResult {
 }
 
 export default function AnalysisResults({ result }: { result: MergedResult }) {
+  if (!result?.assessment || !Array.isArray(result.issues) || !Array.isArray(result.guidelines) || !Array.isArray(result.action_plan)) {
+    return null;
+  }
+
   const { guidelines, issues, action_plan, assessment, meta } = result;
+  const agreementLevel = typeof assessment.agreement_level === 'string' ? assessment.agreement_level : 'partial';
 
   const scorePct = Math.max(1, assessment.score);
 
@@ -164,7 +169,7 @@ export default function AnalysisResults({ result }: { result: MergedResult }) {
               color: 'var(--text-dim)',
               border: '1px solid var(--border)',
             }}>
-              {assessment.agreement_level.replace('_', ' ')} agreement
+              {agreementLevel.replace('_', ' ')} agreement
             </span>
             <span style={{
               fontFamily: 'var(--mono)', fontSize: '0.6rem', letterSpacing: 1.5, textTransform: 'uppercase',
@@ -172,7 +177,7 @@ export default function AnalysisResults({ result }: { result: MergedResult }) {
               color: 'var(--text-dim)',
               border: '1px solid var(--border)',
             }}>
-              {formatDurationMs(meta.total_latency_ms)} · {formatModelsUsed(meta.models_used)}
+              {formatDurationMs(meta?.total_latency_ms ?? 0)} · {formatModelsUsed(meta?.models_used)}
             </span>
           </div>
         </div>
