@@ -27,6 +27,8 @@ const PUBLIC_PATHS = [
   "/verify",
   "/forgot-password",
   "/pricing",
+  "/terms",
+  "/blog",
   "/robots.txt",
   "/sitemap.xml",
   "/api/auth/login",
@@ -38,14 +40,16 @@ const PUBLIC_PATHS = [
   "/api/webhooks",
 ];
 
+/** Routes that must render without a session. Next.js 16 loads this file, not root middleware.ts. */
+export function isPublicPath(pathname: string): boolean {
+  if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) return true;
+  return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"));
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (
-    PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon")
-  ) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next();
   }
 

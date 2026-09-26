@@ -1,3 +1,5 @@
+// Dead under Next.js 16: src/app resolves the request gate from src/proxy.ts.
+// Keep public paths there (see isPublicPath). This file is not executed.
 import { NextRequest, NextResponse } from "next/server";
 import { jwtVerify, createRemoteJWKSet } from "jose";
 
