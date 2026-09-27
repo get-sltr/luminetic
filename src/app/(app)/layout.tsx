@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getAuthUser } from '@/lib/auth';
 import { getUser } from '@/lib/db';
-import { isFounderOrAdmin } from '@/lib/admin';
+import { appShellPricingRedirect } from '@/lib/app-shell-access';
 import AppNav from '@/components/AppNav';
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -9,19 +9,21 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!user) redirect('/login');
 
   let role = 'user';
+  let pricingRedirect: ReturnType<typeof appShellPricingRedirect> = null;
 
-  // Gate: no credits → force pricing page (founders/admins bypass)
+  // Credits gate new scans (canUserScan), not the shell. A zero balance must
+  // still reach history and an in-progress report before the 24h TTL.
   try {
     const dbUser = await getUser(user.userId);
-    role = dbUser?.role ?? 'user';
-    const credits = dbUser?.scanCredits ?? 0;
-    if (!isFounderOrAdmin(role) && credits <= 0) {
-      redirect('/pricing');
-    }
+    role = typeof dbUser?.role === 'string' ? dbUser.role : 'user';
+    const credits = typeof dbUser?.scanCredits === 'number' ? dbUser.scanCredits : 0;
+    const scanCount = typeof dbUser?.scanCount === 'number' ? dbUser.scanCount : 0;
+    pricingRedirect = appShellPricingRedirect({ role, credits, scanCount });
   } catch {
-    // DB unavailable — deny access rather than silently bypassing credit check
-    redirect('/pricing');
+    // Profile lookup failed — still render the shell. Scan APIs fail closed.
   }
+
+  if (pricingRedirect) redirect(pricingRedirect);
 
   return (
     <div className="min-h-screen" style={{ background: 'transparent' }}>
