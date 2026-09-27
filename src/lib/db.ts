@@ -221,9 +221,15 @@ export async function canUserScan(userId: string): Promise<ScanGateResult> {
     return { allowed: true, reason: "Paid credit available.", isPaidScan: true, isFreeScan: false, credits, scanCount };
   }
 
-  // No credits: check if free scan is available (never scanned before)
+  // No credits: a free scan exists only when this account has never created
+  // a scan. scanCount stays 0 until the Lambda finishes, but the scan row is
+  // written before that — so a refresh after the last credit is deducted must
+  // not start a second free scan.
   if (scanCount === 0) {
-    return { allowed: true, reason: "Free scan available.", isPaidScan: false, isFreeScan: true, credits, scanCount };
+    const priorScans = await getScans(userId, 1);
+    if (priorScans.length === 0) {
+      return { allowed: true, reason: "Free scan available.", isPaidScan: false, isFreeScan: true, credits, scanCount };
+    }
   }
 
   return { allowed: false, reason: "No scan credits remaining.", isPaidScan: false, isFreeScan: false, credits, scanCount };
