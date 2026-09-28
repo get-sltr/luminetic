@@ -6,6 +6,7 @@ import {
   QueryCommand,
   UpdateCommand,
   ScanCommand,
+  type QueryCommandOutput,
 } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 
@@ -126,19 +127,34 @@ export async function putScan(userId: string, data: {
   return { scanId, timestamp };
 }
 
+/** DynamoDB stops a Query at 1MB and sets LastEvaluatedKey. Callers must follow it. */
+const MAX_QUERY_PAGES = 50;
+type ScanItem = NonNullable<QueryCommandOutput["Items"]>[number];
+type QueryStartKey = QueryCommandOutput["LastEvaluatedKey"];
+
 export async function getScans(userId: string, limit = 20) {
-  const res = await db.send(new QueryCommand({
-    TableName: TABLE,
-    KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
-    ExpressionAttributeValues: {
-      ":pk": `USER#${userId}`,
-      ":prefix": "SCAN#",
-    },
-    ScanIndexForward: false,
-    Limit: limit,
-    ProjectionExpression: "scanId, score, createdAt, SK",
-  }));
-  return res.Items || [];
+  const items: ScanItem[] = [];
+  let startKey: QueryStartKey;
+
+  for (let page = 0; page < MAX_QUERY_PAGES && items.length < limit; page++) {
+    const res = await db.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
+      ExpressionAttributeValues: {
+        ":pk": `USER#${userId}`,
+        ":prefix": "SCAN#",
+      },
+      ScanIndexForward: false,
+      Limit: limit - items.length,
+      ProjectionExpression: "scanId, score, createdAt, SK",
+      ...(startKey ? { ExclusiveStartKey: startKey } : {}),
+    }));
+    items.push(...(res.Items || []));
+    if (!res.LastEvaluatedKey) break;
+    startKey = res.LastEvaluatedKey;
+  }
+
+  return items.slice(0, limit);
 }
 
 export async function getMonthlyScansCount(userId: string): Promise<number> {
@@ -158,36 +174,59 @@ export async function getMonthlyScansCount(userId: string): Promise<number> {
 }
 
 export async function getAllScansWithIssues(userId: string) {
-  const res = await db.send(new QueryCommand({
-    TableName: TABLE,
-    KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
-    ExpressionAttributeValues: {
-      ":pk": `USER#${userId}`,
-      ":prefix": "SCAN#",
-    },
-    ScanIndexForward: false,
-    ExpressionAttributeNames: { "#s": "status" },
-    ProjectionExpression: "scanId, score, createdAt, mergedResult, #s, ttl",
-  }));
-  return res.Items || [];
+  const items: ScanItem[] = [];
+  let startKey: QueryStartKey;
+
+  // Full reports are large. A single Query page is 1MB, so history must
+  // follow LastEvaluatedKey or older scans in the 24h window disappear.
+  for (let page = 0; page < MAX_QUERY_PAGES; page++) {
+    const res = await db.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
+      ExpressionAttributeValues: {
+        ":pk": `USER#${userId}`,
+        ":prefix": "SCAN#",
+      },
+      ScanIndexForward: false,
+      ExpressionAttributeNames: { "#s": "status" },
+      ProjectionExpression: "scanId, score, createdAt, mergedResult, #s, ttl",
+      ...(startKey ? { ExclusiveStartKey: startKey } : {}),
+    }));
+    items.push(...(res.Items || []));
+    if (!res.LastEvaluatedKey) break;
+    startKey = res.LastEvaluatedKey;
+  }
+
+  return items;
 }
 
 export async function getScan(userId: string, scanId: string) {
-  // Fetch by direct key lookup using GetCommand for efficiency
-  // SK format: SCAN#<timestamp>#<scanId> — since we don't know the timestamp,
-  // query all scans and filter. Do NOT use Limit with FilterExpression
-  // (Limit applies before filter, causing missed results).
-  const res = await db.send(new QueryCommand({
-    TableName: TABLE,
-    KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
-    FilterExpression: "scanId = :sid",
-    ExpressionAttributeValues: {
-      ":pk": `USER#${userId}`,
-      ":prefix": "SCAN#",
-      ":sid": scanId,
-    },
-  }));
-  return res.Items?.[0] || null;
+  // SK format: SCAN#<timestamp>#<scanId>. The timestamp is not known here,
+  // so look the row up with a query. Do NOT set Limit: it is applied before
+  // FilterExpression and drops the matching row. A Query also stops at 1MB
+  // before the filter runs — keep reading while LastEvaluatedKey is set.
+  // Newest-first so the scan the client is polling is usually on page 1.
+  let startKey: QueryStartKey;
+
+  for (let page = 0; page < MAX_QUERY_PAGES; page++) {
+    const res = await db.send(new QueryCommand({
+      TableName: TABLE,
+      KeyConditionExpression: "PK = :pk AND begins_with(SK, :prefix)",
+      FilterExpression: "scanId = :sid",
+      ExpressionAttributeValues: {
+        ":pk": `USER#${userId}`,
+        ":prefix": "SCAN#",
+        ":sid": scanId,
+      },
+      ScanIndexForward: false,
+      ...(startKey ? { ExclusiveStartKey: startKey } : {}),
+    }));
+    if (res.Items && res.Items.length > 0) return res.Items[0];
+    if (!res.LastEvaluatedKey) return null;
+    startKey = res.LastEvaluatedKey;
+  }
+
+  return null;
 }
 
 // ── Scan gating ──────────────────────────────────────────
